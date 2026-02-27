@@ -1,0 +1,29 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "park-hero",
+      "description": "Lush green park landscape in Hackney",
+      "imageUrl": "https://picsum.photos/seed/park1/1200/400",
+      "imageHint": "park green"
+    },
+    {
+      "id": "playground",
+      "description": "Children's playground equipment",
+      "imageUrl": "https://picsum.photos/seed/play/600/400",
+      "imageHint": "playground equipment"
+    },
+    {
+      "id": "tree-care",
+      "description": "Arboriculture and tree maintenance",
+      "imageUrl": "https://picsum.photos/seed/tree/600/400",
+      "imageHint": "tree maintenance"
+    },
+    {
+      "id": "bench",
+      "description": "Park bench in a sunny spot",
+      "imageUrl": "https://picsum.photos/seed/bench/600/400",
+      "imageHint": "park bench"
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+
+"use client";
+
+import { 
+  LayoutDashboard, 
+  MapPin, 
+  AlertTriangle, 
+  CheckSquare, 
+  Users, 
+  Leaf,
+  Settings,
+  LogOut
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarSeparator
+} from "@/components/ui/sidebar";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MOCK_USERS } from "@/lib/mock-data";
+
+const navItems = [
+  { title: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { title: "Asset Register", icon: MapPin, href: "/assets" },
+  { title: "Issues", icon: AlertTriangle, href: "/issues" },
+  { title: "Tasks", icon: CheckSquare, href: "/tasks" },
+  { title: "Users", icon: Users, href: "/users" },
+];
+
+export function AppSidebar() {
+  const pathname = usePathname();
+  const currentUser = MOCK_USERS[1]; // Mocking supervisor for now
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Leaf className="h-6 w-6" />
+          </div>
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+            <span className="font-headline text-lg font-bold leading-tight text-primary">GreenTrack</span>
+            <span className="text-xs font-medium text-muted-foreground">Hackney Operative</span>
+          </div>
+        </div>
+      </SidebarHeader>
+      
+      <SidebarSeparator />
+      
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Management</SidebarGroupLabel>
+          <SidebarMenu>
+            {navItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton 
+                  asChild 
+                  isActive={pathname === item.href}
+                  tooltip={item.title}
+                >
+                  <Link href={item.href}>
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="p-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+              <Avatar className="h-9 w-9 border-2 border-primary/20">
+                <AvatarImage src={currentUser.avatar} />
+                <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
+                <span className="text-sm font-semibold truncate">{currentUser.name}</span>
+                <span className="text-xs text-muted-foreground capitalize">{currentUser.role}</span>
+              </div>
+            </div>
+          </SidebarMenuItem>
+          <SidebarMenuItem className="mt-4">
+            <SidebarMenuButton tooltip="Logout">
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
