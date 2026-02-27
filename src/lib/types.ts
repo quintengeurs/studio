@@ -46,6 +46,9 @@ export interface Task {
   dueDate: string;
   assignedTo: string;
   park: string;
+  linkedIssueId?: string;
+  completionNote?: string;
+  completionImageUrl?: string;
 }
 
 export type Frequency = 'Twice Daily' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly';

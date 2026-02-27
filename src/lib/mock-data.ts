@@ -1,7 +1,10 @@
 
 import { User, Asset, Issue, Task, RecurringSchedule, InspectionTemplate, Inspection } from './types';
 
-export const MOCK_USERS: User[] = [
+// In a real app, this would be a database. 
+// For this prototype, we'll export these as let so they can be "mutated" in memory during the session
+// Note: Next.js navigation might reset these unless we use a context or service.
+export let MOCK_USERS: User[] = [
   { 
     id: 'u1', 
     name: 'John Doe', 
@@ -48,7 +51,7 @@ export const MOCK_USERS: User[] = [
   },
 ];
 
-export const MOCK_ASSETS: Asset[] = [
+export let MOCK_ASSETS: Asset[] = [
   { id: 'a1', name: 'Clissold Park Swing Set', type: 'Playground Equipment', park: 'Clissold Park', location: 'Near North Entrance', condition: 'Good', lastInspected: '2024-02-15' },
   { id: 'a2', name: 'London Fields Cafe Bench', type: 'Park Furniture', park: 'London Fields', location: 'Adjacent to Cafe', condition: 'Fair', lastInspected: '2024-01-20' },
   { id: 'a3', name: 'Hackney Marshes Floodlight B4', type: 'Lighting', park: 'Hackney Marshes', location: 'Pitch 4 South', condition: 'Excellent', lastInspected: '2024-03-01' },
@@ -56,18 +59,18 @@ export const MOCK_ASSETS: Asset[] = [
   { id: 'a5', name: 'Shoreditch Park Trash Bin 12', type: 'Waste Management', park: 'Shoreditch Park', location: 'Skate Park Edge', condition: 'Good', lastInspected: '2024-02-28' },
 ];
 
-export const MOCK_ISSUES: Issue[] = [
+export let MOCK_ISSUES: Issue[] = [
   { id: 'i1', title: 'Graffiti on Bench', description: 'Significant tagging on the new oak bench near the pond.', status: 'Open', priority: 'Low', category: 'Park Furniture', park: 'London Fields', reportedBy: 'John Doe', createdAt: '2024-03-05', assetId: 'a2', imageUrl: 'https://picsum.photos/seed/graffiti/600/400' },
   { id: 'i2', title: 'Broken Swing Chain', description: 'The left swing has a rusted link that snapped.', status: 'In Progress', priority: 'High', category: 'Playground Equipment', park: 'Clissold Park', reportedBy: 'Mike Green', assignedTo: 'John Doe', createdAt: '2024-03-06', assetId: 'a1', imageUrl: 'https://picsum.photos/seed/swing/600/400' },
 ];
 
-export const MOCK_TASKS: Task[] = [
+export let MOCK_TASKS: Task[] = [
   { id: 't1', title: 'Mow North Lawn', objective: 'Standard maintenance cut for the spring season.', status: 'Todo', dueDate: '2024-03-15', assignedTo: 'John Doe', park: 'Clissold Park' },
   { id: 't2', title: 'Inspect All Bins', objective: 'Check structural integrity and empty status.', status: 'Doing', dueDate: '2024-03-10', assignedTo: 'Mike Green', park: 'Shoreditch Park' },
   { id: 't3', title: 'Prune Rose Garden', objective: 'Annual pruning for the Queen Victoria rose bed.', status: 'Done', dueDate: '2024-03-01', assignedTo: 'John Doe', park: 'Victoria Park' },
 ];
 
-export const MOCK_RECURRING_SCHEDULES: RecurringSchedule[] = [
+export let MOCK_RECURRING_SCHEDULES: RecurringSchedule[] = [
   { id: 'rs1', title: 'Empty All Bins', frequency: 'Twice Daily', park: 'London Fields', assignedTo: 'John Doe', nextRun: '2024-03-08 14:00' },
   { id: 'rs2', title: 'Safety Check Play Area', frequency: 'Daily', park: 'Clissold Park', assignedTo: 'Mike Green', nextRun: '2024-03-09 08:00' },
   { id: 'rs3', title: 'Hedge Trimming Perimeter', frequency: 'Monthly', park: 'Victoria Park', assignedTo: 'Sarah Smith', nextRun: '2024-04-01 09:00' },
@@ -91,8 +94,21 @@ export const MOCK_INSPECTION_TEMPLATES: InspectionTemplate[] = [
   }
 ];
 
-export const MOCK_INSPECTIONS: Inspection[] = [
+export let MOCK_INSPECTIONS: Inspection[] = [
   { id: 'ins1', assetId: 'a1', assetName: 'Clissold Park Swing Set', park: 'Clissold Park', status: 'Pending', dueDate: '2024-03-10' },
   { id: 'ins2', assetId: 'a2', assetName: 'London Fields Cafe Bench', park: 'London Fields', status: 'Overdue', dueDate: '2024-03-01' },
   { id: 'ins3', assetId: 'a5', assetName: 'Shoreditch Park Trash Bin 12', park: 'Shoreditch Park', status: 'Completed', dueDate: '2024-03-05', completedAt: '2024-03-05', inspectedBy: 'John Doe' },
 ];
+
+// Helper functions to simulate persistence in this session
+export const updateMockIssue = (updatedIssue: Issue) => {
+  MOCK_ISSUES = MOCK_ISSUES.map(i => i.id === updatedIssue.id ? updatedIssue : i);
+};
+
+export const addMockTask = (task: Task) => {
+  MOCK_TASKS = [task, ...MOCK_TASKS];
+};
+
+export const updateMockTask = (updatedTask: Task) => {
+  MOCK_TASKS = MOCK_TASKS.map(t => t.id === updatedTask.id ? updatedTask : t);
+};

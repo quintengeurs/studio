@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +18,10 @@ import {
   X,
   Clock,
   MapPin,
-  Search
+  Search,
+  ClipboardList
 } from "lucide-react";
-import { MOCK_ISSUES, MOCK_ASSETS, MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_ISSUES, MOCK_ASSETS, MOCK_USERS, updateMockIssue, addMockTask, MOCK_TASKS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -57,6 +58,11 @@ export default function IssuesPage() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   
+  const [assignment, setAssignment] = useState({
+    operativeId: "",
+    instructions: ""
+  });
+
   const [newIssue, setNewIssue] = useState({
     title: "",
     description: "",
@@ -65,6 +71,11 @@ export default function IssuesPage() {
     park: "",
     imageUrl: ""
   });
+
+  // Sync local state with mock data updates
+  useEffect(() => {
+    setIssues(MOCK_ISSUES);
+  }, [MOCK_ISSUES]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,7 +102,10 @@ export default function IssuesPage() {
       createdAt: new Date().toISOString().split('T')[0]
     };
     // @ts-ignore
-    setIssues([issue, ...issues]);
+    const updated = [issue, ...issues];
+    setIssues(updated);
+    // Persist to session
+    // Note: We'd normally use a real service here
     setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
     setIsDialogOpen(false);
     toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
@@ -99,23 +113,54 @@ export default function IssuesPage() {
 
   const handleOpenAssignDialog = (id: string) => {
     setSelectedIssueId(id);
+    setAssignment({ operativeId: "", instructions: "" });
     setIsAssignDialogOpen(true);
   };
 
-  const handleAssign = (operativeName: string) => {
-    if (!selectedIssueId) return;
-    setIssues(prev => prev.map(issue => 
-      issue.id === selectedIssueId ? { ...issue, assignedTo: operativeName, status: 'In Progress' as const } : issue
-    ));
+  const handleAssign = () => {
+    if (!selectedIssueId || !assignment.operativeId) return;
+    
+    const issue = issues.find(i => i.id === selectedIssueId);
+    const operative = OPERATIVES.find(o => o.id === assignment.operativeId);
+    
+    if (!issue || !operative) return;
+
+    // 1. Update Issue
+    const updatedIssue = { 
+      ...issue, 
+      assignedTo: operative.name, 
+      status: 'In Progress' as const 
+    };
+    updateMockIssue(updatedIssue);
+    setIssues(prev => prev.map(i => i.id === selectedIssueId ? updatedIssue : i));
+
+    // 2. Create Linked Task
+    const newTask = {
+      id: `t${Date.now()}`,
+      title: `Resolve Issue: ${issue.title}`,
+      objective: assignment.instructions || `Please resolve this reported issue in ${issue.park}.`,
+      status: 'Todo' as const,
+      dueDate: new Date().toISOString().split('T')[0], // Default today
+      assignedTo: operative.name,
+      park: issue.park,
+      linkedIssueId: issue.id
+    };
+    addMockTask(newTask);
+
     setIsAssignDialogOpen(false);
     setSelectedIssueId(null);
-    toast({ title: "Issue Assigned", description: `Issue has been assigned to ${operativeName}.` });
+    toast({ 
+      title: "Issue Assigned & Task Created", 
+      description: `Issue assigned to ${operative.name} and a new work task has been added to their queue.` 
+    });
   };
 
   const handleResolve = (id: string) => {
-    setIssues(prev => prev.map(issue => 
-      issue.id === id ? { ...issue, status: 'Resolved' as const } : issue
-    ));
+    const issue = issues.find(i => i.id === id);
+    if (!issue) return;
+    const updated = { ...issue, status: 'Resolved' as const };
+    updateMockIssue(updated);
+    setIssues(prev => prev.map(i => i.id === id ? updated : i));
     toast({ title: "Issue Resolved", description: "Issue marked as resolved." });
   };
 
@@ -373,36 +418,58 @@ export default function IssuesPage() {
       </div>
 
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>Assign Issue</DialogTitle>
+            <DialogTitle className="font-headline">Assign Issue & Create Task</DialogTitle>
             <DialogDescription>
-              Select an operative to handle this issue.
+              Assign this issue to an operative. This will automatically create a new work task in their queue.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
             <div className="space-y-2">
-              {OPERATIVES.map(user => (
-                <div 
-                  key={user.id} 
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleAssign(user.name)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 border">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">{user.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{user.team}</span>
+              <Label>Select Operative</Label>
+              <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2">
+                {OPERATIVES.map(user => (
+                  <div 
+                    key={user.id} 
+                    className={`flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors ${assignment.operativeId === user.id ? 'border-primary bg-primary/5' : ''}`}
+                    onClick={() => setAssignment({...assignment, operativeId: user.id})}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8 border">
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold">{user.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{user.team}</span>
+                      </div>
                     </div>
+                    {assignment.operativeId === user.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
                   </div>
-                  <UserPlus className="h-4 w-4 text-muted-foreground" />
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instructions">Task Instructions (Objective)</Label>
+              <Textarea 
+                id="instructions" 
+                placeholder="e.g. Empty the bin and clear any scattered litter in the immediate area."
+                value={assignment.instructions}
+                onChange={e => setAssignment({...assignment, instructions: e.target.value})}
+                className="min-h-[100px]"
+              />
             </div>
           </div>
+          <DialogFooter>
+            <Button 
+              className="w-full font-bold" 
+              onClick={handleAssign} 
+              disabled={!assignment.operativeId}
+            >
+              <ClipboardList className="mr-2 h-4 w-4" /> Confirm Assignment & Create Task
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardShell>
