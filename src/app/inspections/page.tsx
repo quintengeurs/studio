@@ -15,11 +15,31 @@ import {
   Plus,
   Filter
 } from "lucide-react";
-import { MOCK_INSPECTIONS } from "@/lib/mock-data";
+import { MOCK_INSPECTIONS, MOCK_ASSETS, MOCK_USERS } from "@/lib/mock-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function InspectionsPage() {
-  const [inspections] = useState(MOCK_INSPECTIONS);
+  const { toast } = useToast();
+  const [inspections, setInspections] = useState(MOCK_INSPECTIONS);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newInspection, setNewInspection] = useState({
+    assetId: "",
+    park: "",
+    dueDate: new Date().toISOString().split('T')[0]
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -30,14 +50,65 @@ export default function InspectionsPage() {
     }
   };
 
+  const handleScheduleInspection = () => {
+    const asset = MOCK_ASSETS.find(a => a.id === newInspection.assetId);
+    if (!asset) return;
+
+    const inspection = {
+      id: `ins${Date.now()}`,
+      assetId: asset.id,
+      assetName: asset.name,
+      park: asset.park,
+      status: 'Pending' as const,
+      dueDate: newInspection.dueDate
+    };
+
+    setInspections([inspection, ...inspections]);
+    setIsDialogOpen(false);
+    setNewInspection({ assetId: "", park: "", dueDate: new Date().toISOString().split('T')[0] });
+    toast({ title: "Inspection Scheduled", description: `Safety check scheduled for ${asset.name}.` });
+  };
+
   return (
     <DashboardShell 
       title="Asset Inspections" 
       description="Systematic condition and safety checks for all park infrastructure"
       actions={
-        <Button className="font-headline font-bold">
-          <Plus className="mr-2 h-4 w-4" /> Schedule Inspection
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="font-headline font-bold">
+              <Plus className="mr-2 h-4 w-4" /> Schedule Inspection
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle className="font-headline">Schedule New Inspection</DialogTitle>
+              <DialogDescription>Assign a condition check for a specific asset.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Select Asset</Label>
+                <Select value={newInspection.assetId} onValueChange={v => setNewInspection({...newInspection, assetId: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Search Assets" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MOCK_ASSETS.map(asset => (
+                      <SelectItem key={asset.id} value={asset.id}>{asset.name} ({asset.park})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="i-date">Due Date</Label>
+                <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full" onClick={handleScheduleInspection} disabled={!newInspection.assetId}>Complete Schedule</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       }
     >
       <Tabs defaultValue="all" className="w-full">

@@ -17,13 +17,39 @@ import {
   RotateCcw,
   ListTodo
 } from "lucide-react";
-import { MOCK_TASKS, MOCK_RECURRING_SCHEDULES } from "@/lib/mock-data";
+import { MOCK_TASKS, MOCK_RECURRING_SCHEDULES, MOCK_ASSETS, MOCK_USERS } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+
+const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
+const OPERATIVES = MOCK_USERS.map(u => u.name);
 
 export default function TasksPage() {
-  const [tasks] = useState(MOCK_TASKS);
-  const [schedules] = useState(MOCK_RECURRING_SCHEDULES);
+  const { toast } = useToast();
+  const [tasks, setTasks] = useState(MOCK_TASKS);
+  const [schedules, setSchedules] = useState(MOCK_RECURRING_SCHEDULES);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: "",
+    objective: "",
+    park: "",
+    assignedTo: "",
+    dueDate: new Date().toISOString().split('T')[0]
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -34,14 +60,77 @@ export default function TasksPage() {
     }
   };
 
+  const handleCreateTask = () => {
+    const task = {
+      ...newTask,
+      id: `t${Date.now()}`,
+      status: 'Todo' as const
+    };
+    setTasks([task, ...tasks]);
+    setIsTaskDialogOpen(false);
+    setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: new Date().toISOString().split('T')[0] });
+    toast({ title: "Task Created", description: "The new task has been added to the queue." });
+  };
+
   return (
     <DashboardShell 
-      title="Work Management" 
+      title="Tasks Management" 
       description="Operational tasking and recurring maintenance schedules"
       actions={
-        <Button className="font-headline font-bold w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" /> Create Work Item
-        </Button>
+        <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="font-headline font-bold w-full md:w-auto">
+              <Plus className="mr-2 h-4 w-4" /> Create Task
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="font-headline">Create New Task</DialogTitle>
+              <DialogDescription>Assign a new operational task to the team.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="t-title">Task Title</Label>
+                <Input id="t-title" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="e.g. Mow North Lawn" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="t-obj">Objective</Label>
+                <Textarea id="t-obj" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} placeholder="What needs to be achieved?" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Park</Label>
+                  <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Park" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARKS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Assignee</Label>
+                  <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select User" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OPERATIVES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="t-date">Due Date</Label>
+                <Input id="t-date" type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || !newTask.park || !newTask.assignedTo}>Create Task</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       }
     >
       <Tabs defaultValue="active" className="w-full">

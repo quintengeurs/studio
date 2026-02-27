@@ -33,7 +33,7 @@ const navItems = [
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
-  { title: "Work Items", icon: CheckSquare, href: "/tasks" },
+  { title: "Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
 ];
 
