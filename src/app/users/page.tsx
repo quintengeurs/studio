@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useMemo } from "react";
@@ -30,7 +31,6 @@ import {
   Users as UsersIcon,
   Filter
 } from "lucide-react";
-import { MOCK_USERS, MOCK_TASKS } from "@/lib/mock-data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -53,7 +53,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { User, Role } from "@/lib/types";
+import { User, Role, Task } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -62,6 +62,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 const TRAINING_OPTIONS = [
   "Health & Safety",
@@ -73,10 +77,23 @@ const TRAINING_OPTIONS = [
 
 export default function UserManagement() {
   const { toast } = useToast();
+  const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  // Firebase Data
+  const usersQuery = useMemo(() => {
+    if (!db) return null;
+    return collection(db, "users");
+  }, [db]);
+  const { data: users = [], loading: usersLoading } = useCollection<User>(usersQuery);
+
+  const tasksQuery = useMemo(() => {
+    if (!db) return null;
+    return collection(db, "tasks");
+  }, [db]);
+  const { data: allTasks = [] } = useCollection<Task>(tasksQuery);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -161,29 +178,54 @@ export default function UserManagement() {
   };
 
   const handleAddUser = () => {
-    const user: User = {
-      ...newUser as User,
-      id: `u${Date.now()}`,
-      training: getFinalTrainingString() || "None"
+    if (!db) return;
+    
+    const trainingString = getFinalTrainingString() || "None";
+    const userToSave = {
+      ...newUser,
+      training: trainingString,
+      createdAt: new Date().toISOString()
     };
-    setUsers([...users, user]);
-    setIsAddDialogOpen(false);
-    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '' });
-    setSelectedTrainings([]);
-    setOtherTraining("");
-    setIsOtherChecked(false);
-    toast({ title: "User Added", description: `${user.name} has been added to the system.` });
+
+    addDoc(collection(db, "users"), userToSave)
+      .then(() => {
+        setIsAddDialogOpen(false);
+        setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '' });
+        setSelectedTrainings([]);
+        setOtherTraining("");
+        setIsOtherChecked(false);
+        toast({ title: "User Added", description: `${newUser.name} has been added to the system.` });
+      })
+      .catch(async (e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'users',
+          operation: 'create',
+          requestResourceData: userToSave
+        }));
+      });
   };
 
   const handleUpdateUser = () => {
-    if (!selectedUser) return;
-    const updatedUser = {
+    if (!db || !selectedUser) return;
+    
+    const trainingString = getFinalTrainingString() || "None";
+    const updatedData = {
       ...selectedUser,
-      training: getFinalTrainingString() || "None"
+      training: trainingString
     };
-    setUsers(users.map(u => u.id === selectedUser.id ? updatedUser : u));
-    setIsEditing(false);
-    toast({ title: "Profile Updated", description: `Changes to ${selectedUser.name}'s profile saved.` });
+
+    updateDoc(doc(db, "users", selectedUser.id), updatedData)
+      .then(() => {
+        setIsEditing(false);
+        toast({ title: "Profile Updated", description: `Changes to ${selectedUser.name}'s profile saved.` });
+      })
+      .catch(async (e) => {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `users/${selectedUser.id}`,
+          operation: 'update',
+          requestResourceData: updatedData
+        }));
+      });
   };
 
   const openUserProfile = (user: User) => {
@@ -202,7 +244,7 @@ export default function UserManagement() {
   };
 
   const userTasks = selectedUser 
-    ? MOCK_TASKS.filter(t => t.assignedTo === selectedUser.name)
+    ? allTasks.filter(t => t.assignedTo === selectedUser.name)
     : [];
 
   return (
@@ -418,7 +460,14 @@ export default function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.length === 0 ? (
+              {usersLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                    <Clock className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    Loading staff register...
+                  </TableCell>
+                </TableRow>
+              ) : filteredUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">
                     No users match the selected filter.
