@@ -192,25 +192,24 @@ export default function UserManagement() {
       createdAt: new Date().toISOString()
     };
 
+    // Perform non-blocking mutation
     addDoc(collection(db, "users"), userToSave)
-      .then(() => {
-        toast({ title: "User Added", description: `${newUser.name} has been added to the system.` });
-        setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
-        setSelectedTrainings([]);
-        setOtherTraining("");
-        setIsOtherChecked(false);
-        setIsAddDialogOpen(false);
-      })
       .catch(async (e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'users',
           operation: 'create',
           requestResourceData: userToSave
         }));
-      })
-      .finally(() => {
-        setIsSubmitting(false);
       });
+
+    // Proceed with UI updates immediately
+    toast({ title: "User Added", description: `${newUser.name} has been added to the system.` });
+    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
+    setSelectedTrainings([]);
+    setOtherTraining("");
+    setIsOtherChecked(false);
+    setIsAddDialogOpen(false);
+    setIsSubmitting(false);
   };
 
   const handleUpdateUser = () => {
@@ -223,43 +222,43 @@ export default function UserManagement() {
       training: trainingString
     };
 
+    // Perform non-blocking mutation
     updateDoc(doc(db, "users", selectedUser.id), updatedData)
-      .then(() => {
-        setIsEditing(false);
-        toast({ title: "Profile Updated", description: `Changes to ${selectedUser.name}'s profile saved.` });
-      })
       .catch(async (e) => {
          errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `users/${selectedUser.id}`,
           operation: 'update',
           requestResourceData: updatedData
         }));
-      })
-      .finally(() => {
-        setIsSubmitting(false);
       });
+
+    // Proceed with UI updates immediately
+    setIsEditing(false);
+    toast({ title: "Profile Updated", description: `Changes to ${selectedUser.name}'s profile saved.` });
+    setIsSubmitting(false);
   };
 
   const handleArchiveUser = () => {
     if (!db || !selectedUser || isSubmitting) return;
     
     setIsSubmitting(true);
-    updateDoc(doc(db, "users", selectedUser.id), { isArchived: true })
-      .then(() => {
-        setIsProfileDialogOpen(false);
-        setSelectedUser(null);
-        toast({ title: "User Archived", description: "Staff member moved to archives." });
-      })
+    const archiveData = { isArchived: true };
+    
+    // Perform non-blocking mutation
+    updateDoc(doc(db, "users", selectedUser.id), archiveData)
       .catch(async (e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `users/${selectedUser.id}`,
           operation: 'update',
-          requestResourceData: { isArchived: true }
+          requestResourceData: archiveData
         }));
-      })
-      .finally(() => {
-        setIsSubmitting(false);
       });
+
+    // Proceed with UI updates immediately
+    setIsProfileDialogOpen(false);
+    setSelectedUser(null);
+    toast({ title: "User Archived", description: "Staff member moved to archives." });
+    setIsSubmitting(false);
   };
 
   const openUserProfile = (user: User) => {
@@ -389,7 +388,7 @@ export default function UserManagement() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border-2 border-primary/10">
-                          <AvatarImage src={user.avatar || undefined} />
+                          <AvatarImage src={user.avatar} />
                           <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col min-w-0">
@@ -476,7 +475,7 @@ export default function UserManagement() {
             <div className="flex justify-center">
               <div className="relative group">
                 <Avatar className="h-24 w-24 border-4 border-muted cursor-pointer transition-opacity group-hover:opacity-70" onClick={() => fileInputRef.current?.click()}>
-                  <AvatarImage src={newUser.avatar || undefined} />
+                  <AvatarImage src={newUser.avatar} />
                   <AvatarFallback className="text-2xl font-bold bg-muted text-muted-foreground">
                     {newUser.name ? newUser.name.charAt(0) : <Camera className="h-8 w-8" />}
                   </AvatarFallback>
@@ -599,11 +598,11 @@ export default function UserManagement() {
 
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="p-6 pb-0">
+          <div className="p-6 pb-0">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
                  <Avatar className="h-16 w-16 border-2 border-primary/20">
-                  <AvatarImage src={selectedUser?.avatar || undefined} />
+                  <AvatarImage src={selectedUser?.avatar} />
                   <AvatarFallback className="text-xl font-bold">{selectedUser?.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -639,7 +638,7 @@ export default function UserManagement() {
                 </Button>
               </div>
             </div>
-          </DialogHeader>
+          </div>
 
           <Tabs defaultValue="overview" className="flex-1 overflow-hidden flex flex-col mt-4">
             <TabsList className="mx-6 justify-start h-10 bg-transparent border-b rounded-none p-0 gap-6">
@@ -654,7 +653,7 @@ export default function UserManagement() {
                     <div className="flex justify-center mb-2">
                        <div className="relative group">
                         <Avatar className="h-20 w-20 border-2 border-muted cursor-pointer hover:opacity-80" onClick={() => editFileInputRef.current?.click()}>
-                          <AvatarImage src={selectedUser?.avatar || undefined} />
+                          <AvatarImage src={selectedUser?.avatar} />
                           <AvatarFallback><Camera className="h-6 w-6" /></AvatarFallback>
                         </Avatar>
                         <input type="file" ref={editFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, true)} />
@@ -851,4 +850,3 @@ export default function UserManagement() {
     </DashboardShell>
   );
 }
-
