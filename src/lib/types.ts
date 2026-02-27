@@ -8,7 +8,7 @@ export interface User {
   role: Role;
   avatar?: string;
   team?: string;
-  training?: 'Health & Safety' | 'Equipment Handling' | 'First Aid' | 'Pesticide Application' | 'Chain Saw Operation' | 'None';
+  training?: string;
   isDriver?: boolean;
   isRoSPATrained?: boolean;
 }

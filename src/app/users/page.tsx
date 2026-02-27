@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
   Table, 
@@ -50,6 +50,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { User, Role } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -59,6 +60,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+const TRAINING_OPTIONS = [
+  "Health & Safety",
+  "Equipment Handling",
+  "First Aid",
+  "Pesticide Application",
+  "Chain Saw Operation"
+];
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -71,16 +80,51 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
+  // States for checkbox management
+  const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
+  const [otherTraining, setOtherTraining] = useState("");
+  const [isOtherChecked, setIsOtherChecked] = useState(false);
+
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: '',
     email: '',
     role: 'operative',
     team: '',
-    training: 'None',
+    training: '',
     isDriver: false,
     isRoSPATrained: false,
     avatar: ''
   });
+
+  // Sync checkbox state when opening add/edit dialogs
+  const syncTrainingState = (trainingString: string) => {
+    const parts = trainingString ? trainingString.split(',').map(s => s.trim()) : [];
+    const standard = parts.filter(p => TRAINING_OPTIONS.includes(p));
+    const others = parts.filter(p => !TRAINING_OPTIONS.includes(p));
+    
+    setSelectedTrainings(standard);
+    if (others.length > 0) {
+      setIsOtherChecked(true);
+      setOtherTraining(others.join(', '));
+    } else {
+      setIsOtherChecked(false);
+      setOtherTraining("");
+    }
+  };
+
+  const getFinalTrainingString = () => {
+    let combined = [...selectedTrainings];
+    if (isOtherChecked && otherTraining) {
+      combined.push(otherTraining);
+    }
+    return combined.join(', ');
+  };
+
+  const toggleTraining = (training: string) => {
+    setSelectedTrainings(prev => 
+      prev.includes(training) ? prev.filter(t => t !== training) : [...prev, training]
+    );
+  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -110,24 +154,41 @@ export default function UserManagement() {
     const user: User = {
       ...newUser as User,
       id: `u${Date.now()}`,
+      training: getFinalTrainingString() || "None"
     };
     setUsers([...users, user]);
     setIsAddDialogOpen(false);
-    setNewUser({ name: '', email: '', role: 'operative', team: '', training: 'None', isDriver: false, isRoSPATrained: false, avatar: '' });
+    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '' });
+    setSelectedTrainings([]);
+    setOtherTraining("");
+    setIsOtherChecked(false);
     toast({ title: "User Added", description: `${user.name} has been added to the system.` });
   };
 
   const handleUpdateUser = () => {
     if (!selectedUser) return;
-    setUsers(users.map(u => u.id === selectedUser.id ? selectedUser : u));
+    const updatedUser = {
+      ...selectedUser,
+      training: getFinalTrainingString() || "None"
+    };
+    setUsers(users.map(u => u.id === selectedUser.id ? updatedUser : u));
     setIsEditing(false);
     toast({ title: "Profile Updated", description: `Changes to ${selectedUser.name}'s profile saved.` });
   };
 
   const openUserProfile = (user: User) => {
     setSelectedUser(user);
+    syncTrainingState(user.training || "");
     setIsEditing(false);
     setIsProfileDialogOpen(true);
+  };
+
+  const openAddDialog = () => {
+    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '' });
+    setSelectedTrainings([]);
+    setOtherTraining("");
+    setIsOtherChecked(false);
+    setIsAddDialogOpen(true);
   };
 
   const userTasks = selectedUser 
@@ -140,11 +201,9 @@ export default function UserManagement() {
       description="Control system access and assign operative roles"
       actions={
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="font-headline font-bold">
-              <Plus className="mr-2 h-4 w-4" /> Add User
-            </Button>
-          </DialogTrigger>
+          <Button className="font-headline font-bold" onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" /> Add User
+          </Button>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-headline">Add New System User</DialogTitle>
@@ -204,21 +263,42 @@ export default function UserManagement() {
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label>Required Training Status</Label>
-                <Select value={newUser.training} onValueChange={(v: any) => setNewUser({...newUser, training: v})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Training" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="None">No training recorded</SelectItem>
-                    <SelectItem value="Health & Safety">Health & Safety Certification</SelectItem>
-                    <SelectItem value="Equipment Handling">Heavy Equipment Handling</SelectItem>
-                    <SelectItem value="First Aid">Emergency First Aid</SelectItem>
-                    <SelectItem value="Pesticide Application">Pesticide Application (PA1/PA6)</SelectItem>
-                    <SelectItem value="Chain Saw Operation">NPTC Chainsaw Operation</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid gap-3">
+                <Label className="text-sm font-bold">Training and Certifications</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
+                  {TRAINING_OPTIONS.map((option) => (
+                    <div key={option} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`training-${option}`} 
+                        checked={selectedTrainings.includes(option)}
+                        onCheckedChange={() => toggleTraining(option)}
+                      />
+                      <label htmlFor={`training-${option}`} className="text-sm font-medium leading-none cursor-pointer">
+                        {option}
+                      </label>
+                    </div>
+                  ))}
+                  <div className="flex items-center space-x-2 col-span-full mt-2">
+                    <Checkbox 
+                      id="training-other" 
+                      checked={isOtherChecked}
+                      onCheckedChange={(v) => setIsOtherChecked(!!v)}
+                    />
+                    <label htmlFor="training-other" className="text-sm font-medium leading-none cursor-pointer">
+                      Other
+                    </label>
+                  </div>
+                  {isOtherChecked && (
+                    <div className="col-span-full mt-1">
+                      <Input 
+                        placeholder="Enter other certification..." 
+                        value={otherTraining}
+                        onChange={(e) => setOtherTraining(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-8 border rounded-lg p-4 bg-muted/20">
@@ -292,7 +372,7 @@ export default function UserManagement() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10 border-2 border-primary/10">
-                        <AvatarImage src={user.avatar} />
+                        <AvatarImage src={user.avatar || undefined} />
                         <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col min-w-0">
@@ -312,8 +392,8 @@ export default function UserManagement() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-foreground">{user.training || 'None'}</span>
+                    <div className="flex flex-col gap-1 max-w-[200px]">
+                      <span className="text-[10px] font-bold text-foreground line-clamp-2">{user.training || 'None'}</span>
                       <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground uppercase">
                         <Shield className="h-3 w-3" />
                         {user.role === 'master' ? 'Full Control' : user.role === 'supervisor' ? 'Team Access' : 'Personal Tasks'}
@@ -375,7 +455,7 @@ export default function UserManagement() {
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
                  <Avatar className="h-16 w-16 border-2 border-primary/20">
-                  <AvatarImage src={selectedUser?.avatar} />
+                  <AvatarImage src={selectedUser?.avatar || undefined} />
                   <AvatarFallback className="text-xl font-bold">{selectedUser?.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -413,7 +493,7 @@ export default function UserManagement() {
                     <div className="flex justify-center mb-2">
                        <div className="relative group">
                         <Avatar className="h-20 w-20 border-2 border-muted cursor-pointer hover:opacity-80" onClick={() => editFileInputRef.current?.click()}>
-                          <AvatarImage src={selectedUser?.avatar} />
+                          <AvatarImage src={selectedUser?.avatar || undefined} />
                           <AvatarFallback><Camera className="h-6 w-6" /></AvatarFallback>
                         </Avatar>
                         <input type="file" ref={editFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, true)} />
@@ -458,23 +538,45 @@ export default function UserManagement() {
                         />
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label>Training Status</Label>
-                      <Select 
-                        value={selectedUser?.training} 
-                        onValueChange={(v: any) => selectedUser && setSelectedUser({...selectedUser, training: v})}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="None">None</SelectItem>
-                          <SelectItem value="Health & Safety">Health & Safety</SelectItem>
-                          <SelectItem value="Equipment Handling">Equipment Handling</SelectItem>
-                          <SelectItem value="First Aid">First Aid</SelectItem>
-                          <SelectItem value="Pesticide Application">Pesticide Application</SelectItem>
-                          <SelectItem value="Chain Saw Operation">Chainsaw Operation</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    
+                    <div className="grid gap-3">
+                      <Label className="text-sm font-bold">Training and Certifications</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
+                        {TRAINING_OPTIONS.map((option) => (
+                          <div key={option} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`edit-training-${option}`} 
+                              checked={selectedTrainings.includes(option)}
+                              onCheckedChange={() => toggleTraining(option)}
+                            />
+                            <label htmlFor={`edit-training-${option}`} className="text-sm font-medium leading-none cursor-pointer">
+                              {option}
+                            </label>
+                          </div>
+                        ))}
+                        <div className="flex items-center space-x-2 col-span-full mt-2">
+                          <Checkbox 
+                            id="edit-training-other" 
+                            checked={isOtherChecked}
+                            onCheckedChange={(v) => setIsOtherChecked(!!v)}
+                          />
+                          <label htmlFor="edit-training-other" className="text-sm font-medium leading-none cursor-pointer">
+                            Other
+                          </label>
+                        </div>
+                        {isOtherChecked && (
+                          <div className="col-span-full mt-1">
+                            <Input 
+                              placeholder="Enter other certification..." 
+                              value={otherTraining}
+                              onChange={(e) => setOtherTraining(e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/20">
                       <div className="flex items-center justify-between">
                         <Label>Fleet Driver</Label>
@@ -512,7 +614,7 @@ export default function UserManagement() {
                           <h4 className="text-xs font-bold uppercase tracking-wider">Certification</h4>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-semibold">{selectedUser?.training}</p>
+                          <p className="text-sm font-semibold whitespace-pre-line">{selectedUser?.training}</p>
                           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Main Training</p>
                         </div>
                       </div>
@@ -559,7 +661,7 @@ export default function UserManagement() {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.objective}</p>
                         <div className="mt-3 flex items-center justify-between">
                            <Badge className={`${
-                            task.status === 'Done' ? 'bg-primary' : 
+                            task.status === 'Completed' ? 'bg-primary' : 
                             task.status === 'Doing' ? 'bg-accent text-accent-foreground' : 
                             'bg-muted text-muted-foreground'
                           } font-bold text-[9px] uppercase`}>
