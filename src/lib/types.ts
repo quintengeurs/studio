@@ -26,6 +26,7 @@ export interface Issue {
   status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
   priority: 'Low' | 'Medium' | 'High' | 'Emergency';
   category: string;
+  park: string;
   reportedBy: string;
   assignedTo?: string;
   assetId?: string;

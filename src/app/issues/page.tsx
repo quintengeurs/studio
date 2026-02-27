@@ -16,9 +16,10 @@ import {
   Trash2,
   Image as ImageIcon,
   X,
-  Clock
+  Clock,
+  MapPin
 } from "lucide-react";
-import { MOCK_ISSUES, MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_ISSUES, MOCK_ASSETS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -38,6 +39,8 @@ import {
 } from "@/components/ui/select";
 import Image from "next/image";
 
+const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
+
 export default function IssuesPage() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +50,7 @@ export default function IssuesPage() {
     description: "",
     priority: "Medium" as const,
     category: "General",
+    park: "",
     imageUrl: ""
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -75,8 +79,9 @@ export default function IssuesPage() {
       reportedBy: 'Sarah Smith',
       createdAt: new Date().toISOString().split('T')[0]
     };
+    // @ts-ignore - Adding dynamically to local state for demo
     setIssues([issue, ...issues]);
-    setNewIssue({ title: "", description: "", priority: "Medium", category: "General", imageUrl: "" });
+    setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
     setIsDialogOpen(false);
     toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
   };
@@ -140,6 +145,32 @@ export default function IssuesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
+                  <Label>Park Location</Label>
+                  <Select 
+                    value={newIssue.park} 
+                    onValueChange={(val) => setNewIssue({...newIssue, park: val})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Park" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARKS.map(park => (
+                        <SelectItem key={park} value={park}>{park}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Category</Label>
+                  <Input 
+                    placeholder="e.g. Pathways" 
+                    value={newIssue.category}
+                    onChange={e => setNewIssue({...newIssue, category: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
                   <Label>Priority</Label>
                   <Select 
                     value={newIssue.priority} 
@@ -155,14 +186,6 @@ export default function IssuesPage() {
                       <SelectItem value="Emergency">Emergency</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Category</Label>
-                  <Input 
-                    placeholder="e.g. Pathways" 
-                    value={newIssue.category}
-                    onChange={e => setNewIssue({...newIssue, category: e.target.value})}
-                  />
                 </div>
               </div>
               <div className="grid gap-2">
@@ -206,7 +229,7 @@ export default function IssuesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleCreateIssue} disabled={!newIssue.title || !newIssue.description}>
+              <Button type="submit" onClick={handleCreateIssue} disabled={!newIssue.title || !newIssue.description || !newIssue.park}>
                 Submit Issue
               </Button>
             </DialogFooter>
@@ -236,9 +259,15 @@ export default function IssuesPage() {
 
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between mb-2">
-                <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">
-                  {issue.category}
-                </Badge>
+                <div className="flex items-center gap-2">
+                   <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">
+                    {issue.category}
+                  </Badge>
+                  <div className="flex items-center gap-1 text-[10px] text-primary font-bold">
+                    <MapPin className="h-3 w-3" />
+                    {issue.park}
+                  </div>
+                </div>
                 <Badge className={`${
                   issue.status === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' :
                   issue.status === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' :
