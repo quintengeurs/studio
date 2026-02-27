@@ -2,10 +2,50 @@
 import { User, Asset, Issue, Task, RecurringSchedule, InspectionTemplate, Inspection } from './types';
 
 export const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'John Doe', email: 'john@hackney.gov.uk', role: 'operative', avatar: 'https://picsum.photos/seed/u1/40/40' },
-  { id: 'u2', name: 'Sarah Smith', email: 'sarah@hackney.gov.uk', role: 'supervisor', avatar: 'https://picsum.photos/seed/u2/40/40' },
-  { id: 'u3', name: 'Master Admin', email: 'admin@hackney.gov.uk', role: 'master', avatar: 'https://picsum.photos/seed/u3/40/40' },
-  { id: 'u4', name: 'Mike Green', email: 'mike@hackney.gov.uk', role: 'operative', avatar: 'https://picsum.photos/seed/u4/40/40' },
+  { 
+    id: 'u1', 
+    name: 'John Doe', 
+    email: 'john@hackney.gov.uk', 
+    role: 'operative', 
+    avatar: 'https://picsum.photos/seed/u1/40/40',
+    team: 'North Parks',
+    training: 'Equipment Handling',
+    isDriver: true,
+    isRoSPATrained: true
+  },
+  { 
+    id: 'u2', 
+    name: 'Sarah Smith', 
+    email: 'sarah@hackney.gov.uk', 
+    role: 'supervisor', 
+    avatar: 'https://picsum.photos/seed/u2/40/40',
+    team: 'Central Management',
+    training: 'First Aid',
+    isDriver: true,
+    isRoSPATrained: true
+  },
+  { 
+    id: 'u3', 
+    name: 'Master Admin', 
+    email: 'admin@hackney.gov.uk', 
+    role: 'master', 
+    avatar: 'https://picsum.photos/seed/u3/40/40',
+    team: 'Executive',
+    training: 'Health & Safety',
+    isDriver: false,
+    isRoSPATrained: false
+  },
+  { 
+    id: 'u4', 
+    name: 'Mike Green', 
+    email: 'mike@hackney.gov.uk', 
+    role: 'operative', 
+    avatar: 'https://picsum.photos/seed/u4/40/40',
+    team: 'South Parks',
+    training: 'Pesticide Application',
+    isDriver: true,
+    isRoSPATrained: false
+  },
 ];
 
 export const MOCK_ASSETS: Asset[] = [

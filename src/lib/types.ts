@@ -7,6 +7,10 @@ export interface User {
   email: string;
   role: Role;
   avatar?: string;
+  team?: string;
+  training?: 'Health & Safety' | 'Equipment Handling' | 'First Aid' | 'Pesticide Application' | 'Chain Saw Operation' | 'None';
+  isDriver?: boolean;
+  isRoSPATrained?: boolean;
 }
 
 export interface Asset {
