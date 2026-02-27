@@ -19,9 +19,9 @@ export function DashboardShell({ children, title, description, actions }: Dashbo
   const isMobile = useIsMobile();
 
   return (
-    <div className="flex min-h-screen bg-background w-full">
+    <div className="flex min-h-screen bg-background w-full overflow-x-hidden">
       {!isMobile && <AppSidebar />}
-      <SidebarInset className="flex flex-col pb-20 md:pb-0">
+      <SidebarInset className="flex flex-col pb-20 md:pb-0 w-full min-w-0">
         {isMobile ? (
           <MobileTopHeader />
         ) : (
@@ -40,16 +40,18 @@ export function DashboardShell({ children, title, description, actions }: Dashbo
           </header>
         )}
         
-        <main className="p-4 md:p-6">
-          <div className="mx-auto max-w-7xl">
+        <main className="p-4 md:p-6 w-full overflow-x-hidden">
+          <div className="mx-auto max-w-7xl w-full">
             {isMobile && (
                <div className="mb-6">
-                <h1 className="text-2xl font-headline font-bold text-foreground">{title}</h1>
-                {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+                <h1 className="text-2xl font-headline font-bold text-foreground break-words">{title}</h1>
+                {description && <p className="text-sm text-muted-foreground mt-1 break-words">{description}</p>}
                 {actions && <div className="mt-4">{actions}</div>}
               </div>
             )}
-            {children}
+            <div className="w-full">
+              {children}
+            </div>
           </div>
         </main>
         

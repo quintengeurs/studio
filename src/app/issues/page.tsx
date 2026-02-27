@@ -112,11 +112,11 @@ export default function IssuesPage() {
       actions={
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="font-headline font-bold">
+            <Button className="font-headline font-bold w-full md:w-auto">
               <Plus className="mr-2 h-4 w-4" /> Raise Issue
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
+          <DialogContent className="sm:max-w-[525px] w-[95vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-headline">Report New Issue</DialogTitle>
               <DialogDescription>
@@ -143,7 +143,7 @@ export default function IssuesPage() {
                   onChange={e => setNewIssue({...newIssue, description: e.target.value})}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Park Location</Label>
                   <Select 
@@ -169,7 +169,7 @@ export default function IssuesPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Priority</Label>
                   <Select 
@@ -202,7 +202,7 @@ export default function IssuesPage() {
                       <Button 
                         size="icon" 
                         variant="destructive" 
-                        className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                        className="absolute top-2 right-2 h-8 w-8 rounded-full z-10"
                         onClick={removeImage}
                       >
                         <X className="h-4 w-4" />
@@ -229,7 +229,7 @@ export default function IssuesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={handleCreateIssue} disabled={!newIssue.title || !newIssue.description || !newIssue.park}>
+              <Button type="submit" onClick={handleCreateIssue} disabled={!newIssue.title || !newIssue.description || !newIssue.park} className="w-full">
                 Submit Issue
               </Button>
             </DialogFooter>
@@ -237,17 +237,17 @@ export default function IssuesPage() {
         </Dialog>
       }
     >
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {issues.map((issue) => (
-          <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2">
-            <div className={`h-1.5 w-full ${
+          <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2 w-full">
+            <div className={`h-1.5 w-full shrink-0 ${
               issue.priority === 'Emergency' ? 'bg-destructive' : 
               issue.priority === 'High' ? 'bg-orange-500' : 
               issue.priority === 'Medium' ? 'bg-accent' : 'bg-primary'
             }`} />
             
             {issue.imageUrl && (
-              <div className="relative w-full h-40 bg-muted">
+              <div className="relative w-full h-48 bg-muted shrink-0">
                 <Image 
                   src={issue.imageUrl} 
                   alt={issue.title}
@@ -257,13 +257,13 @@ export default function IssuesPage() {
               </div>
             )}
 
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                   <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">
+            <CardHeader className="pb-2 px-4 sm:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                   <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground shrink-0">
                     {issue.category}
                   </Badge>
-                  <div className="flex items-center gap-1 text-[10px] text-primary font-bold">
+                  <div className="flex items-center gap-1 text-[9px] text-primary font-bold shrink-0">
                     <MapPin className="h-3 w-3" />
                     {issue.park}
                   </div>
@@ -272,46 +272,46 @@ export default function IssuesPage() {
                   issue.status === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' :
                   issue.status === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' :
                   'bg-green-500/10 text-green-600 border-green-200'
-                } font-bold text-[10px]`}>
+                } font-bold text-[9px] shrink-0`}>
                   {issue.status}
                 </Badge>
               </div>
-              <CardTitle className="font-headline text-lg">{issue.title}</CardTitle>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <CardTitle className="font-headline text-lg sm:text-xl break-words">{issue.title}</CardTitle>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
                 <Clock className="h-3 w-3" />
                 <span>Reported {issue.createdAt}</span>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 pb-4">
-              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+            <CardContent className="flex-1 pb-4 px-4 sm:px-6">
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">
                 {issue.description}
               </p>
             </CardContent>
-            <CardFooter className="border-t bg-muted/20 p-4 flex justify-between items-center mt-auto">
-              <div className="flex items-center gap-2">
+            <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
+              <div className="flex items-center gap-2 min-w-0">
                 {issue.assignedTo ? (
-                   <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                        <UserPlus className="h-3 w-3 text-primary" />
+                   <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                        <UserPlus className="h-3.5 w-3.5 text-primary" />
                       </div>
-                      <span className="text-[10px] font-bold text-foreground">{issue.assignedTo}</span>
+                      <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
                    </div>
                 ) : (
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary"
+                    className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2"
                     onClick={() => handleAssign(issue.id)}
                   >
-                    <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign to Me
+                    <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign
                   </Button>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                   onClick={() => handleDelete(issue.id)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -319,7 +319,7 @@ export default function IssuesPage() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className={`h-8 w-8 ${issue.status === 'Resolved' ? 'text-green-600 bg-green-50' : 'text-primary hover:bg-primary/10'}`}
+                  className={`h-8 w-8 shrink-0 ${issue.status === 'Resolved' ? 'text-green-600 bg-green-50' : 'text-primary hover:bg-primary/10'}`}
                   onClick={() => handleResolve(issue.id)}
                   disabled={issue.status === 'Resolved'}
                 >
