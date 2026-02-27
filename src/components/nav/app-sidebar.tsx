@@ -10,7 +10,8 @@ import {
   Leaf,
   ClipboardCheck,
   LogOut,
-  ListTodo
+  ListTodo,
+  Archive
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,6 +36,7 @@ const navItems = [
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
+  { title: "Resolved Issues", icon: Archive, href: "/resolved-issues" },
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
 ];

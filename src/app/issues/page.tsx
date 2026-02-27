@@ -18,7 +18,9 @@ import {
   X,
   Clock,
   MapPin,
-  ClipboardList
+  ClipboardList,
+  AlertCircle,
+  ThumbsUp
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -40,12 +42,13 @@ import {
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
@@ -54,10 +57,15 @@ export default function IssuesPage() {
   const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Firebase Data
+  // Firebase Data - only show non-resolved issues on this page
   const issuesQuery = useMemo(() => {
     if (!db) return null;
-    return query(collection(db, "issues"), orderBy("createdAt", "desc"));
+    return query(
+      collection(db, "issues"), 
+      where("status", "!=", "Resolved"),
+      orderBy("status"),
+      orderBy("createdAt", "desc")
+    );
   }, [db]);
   const { data: issues = [], loading: issuesLoading } = useCollection(issuesQuery);
 
@@ -68,7 +76,6 @@ export default function IssuesPage() {
   const { data: users = [] } = useCollection(usersQuery);
 
   const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
-  const parks = Array.from(new Set(issues.map(i => i.park))).sort();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -169,10 +176,10 @@ export default function IssuesPage() {
     });
   };
 
-  const handleResolve = (id: string) => {
+  const handleApproveResolution = (id: string) => {
     if (!db) return;
     updateDoc(doc(db, "issues", id), { status: 'Resolved' });
-    toast({ title: "Issue Resolved", description: "Issue marked as resolved." });
+    toast({ title: "Resolution Approved", description: "The issue has been archived to Resolved Issues." });
   };
 
   const handleDelete = (id: string) => {
@@ -183,7 +190,7 @@ export default function IssuesPage() {
 
   return (
     <DashboardShell 
-      title="Issue Reporting" 
+      title="Active Issues" 
       description="Track and resolve park infrastructure problems"
       actions={
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -305,6 +312,12 @@ export default function IssuesPage() {
         <div className="flex justify-center items-center py-20">
           <Clock className="animate-spin h-8 w-8 text-primary" />
         </div>
+      ) : issues.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
+          <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
+          <p className="font-bold">No active issues found</p>
+          <p className="text-xs">All reported problems are currently resolved or closed.</p>
+        </div>
       ) : (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {issues.map((issue) => (
@@ -340,8 +353,9 @@ export default function IssuesPage() {
                   <Badge className={`${
                     issue.status === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' :
                     issue.status === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' :
+                    issue.status === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse shadow-[0_0_10px_rgba(var(--accent),0.5)]' :
                     'bg-green-500/10 text-green-600 border-green-200'
-                  } font-bold text-[9px] shrink-0`}>
+                  } font-bold text-[9px] shrink-0 uppercase tracking-tighter`}>
                     {issue.status}
                   </Badge>
                 </div>
@@ -355,10 +369,28 @@ export default function IssuesPage() {
                 <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">
                   {issue.description}
                 </p>
+                {issue.status === 'Pending Approval' && (
+                  <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-accent-foreground">Work Completed</p>
+                      <p className="text-[10px] text-muted-foreground">Operative has submitted completion proof. Please review and approve.</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  {issue.assignedTo ? (
+                  {issue.status === 'Pending Approval' ? (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3"
+                      onClick={() => handleApproveResolution(issue.id)}
+                    >
+                      <ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution
+                    </Button>
+                  ) : issue.assignedTo ? (
                     <div className="flex items-center gap-2 min-w-0">
                         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
                           <UserPlus className="h-3.5 w-3.5 text-primary" />
@@ -377,33 +409,21 @@ export default function IssuesPage() {
                   )}
                 </div>
                 <div className="flex gap-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                        onClick={() => handleDelete(issue.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Delete Issue</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className={`h-8 w-8 shrink-0 ${issue.status === 'Resolved' ? 'text-green-600 bg-green-50' : 'text-primary hover:bg-primary/10'}`}
-                        onClick={() => handleResolve(issue.id)}
-                        disabled={issue.status === 'Resolved'}
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Resolve Issue</p></TooltipContent>
-                  </Tooltip>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                          onClick={() => handleDelete(issue.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Delete Issue</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </CardFooter>
             </Card>

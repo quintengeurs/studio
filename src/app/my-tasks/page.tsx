@@ -15,7 +15,8 @@ import {
   AlertCircle,
   PlayCircle,
   X,
-  Camera
+  Camera,
+  Send
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -92,14 +93,17 @@ export default function MyTasksPage() {
       completionImageUrl: completionData.imageUrl
     });
 
-    // 2. Resolve Linked Issue
+    // 2. Resolve Linked Issue (moves to Pending Approval for supervisor)
     if (task.linkedIssueId) {
-      await updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Resolved' });
+      await updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Pending Approval' });
     }
 
     setIsCompletionDialogOpen(false);
     setSelectedTaskId(null);
-    toast({ title: "Task Completed", description: "Work submitted and issue resolved." });
+    toast({ 
+      title: "Task Submitted", 
+      description: "Work proof sent to supervisor for approval." 
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -222,7 +226,8 @@ export default function MyTasksPage() {
       <Dialog open={isCompletionDialogOpen} onOpenChange={setIsCompletionDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="font-headline">Submit Completion</DialogTitle>
+            <DialogTitle className="font-headline">Submit Completion Proof</DialogTitle>
+            <DialogDescription>Submit your work for supervisor approval.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="space-y-2">
@@ -234,7 +239,7 @@ export default function MyTasksPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Photo Proof</Label>
+              <Label>Photo Evidence</Label>
               <div className="flex flex-col gap-2">
                 {completionData.imageUrl ? (
                   <div className="relative w-full aspect-video rounded-md overflow-hidden border">
@@ -262,7 +267,7 @@ export default function MyTasksPage() {
           </div>
           <DialogFooter>
             <Button className="w-full font-bold" onClick={handleCompleteTask}>
-              Submit for Review
+              <Send className="mr-2 h-4 w-4" /> Submit for Approval
             </Button>
           </DialogFooter>
         </DialogContent>

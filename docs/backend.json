@@ -38,7 +38,7 @@
       "properties": {
         "title": { "type": "string" },
         "description": { "type": "string" },
-        "status": { "type": "string", "enum": ["Open", "In Progress", "Resolved", "Closed"] },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Pending Approval", "Resolved", "Closed"] },
         "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Emergency"] },
         "category": { "type": "string" },
         "park": { "type": "string" },
