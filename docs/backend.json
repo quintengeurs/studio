@@ -1,0 +1,92 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A staff member or management user",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["operative", "supervisor", "master"] },
+        "avatar": { "type": "string" },
+        "team": { "type": "string" },
+        "training": { "type": "string" },
+        "isDriver": { "type": "boolean" },
+        "isRoSPATrained": { "type": "boolean" }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Infrastructure item in a park",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "park": { "type": "string" },
+        "location": { "type": "string" },
+        "condition": { "type": "string", "enum": ["Excellent", "Good", "Fair", "Poor", "Critical"] },
+        "lastInspected": { "type": "string" }
+      },
+      "required": ["name", "park", "type"]
+    },
+    "Issue": {
+      "title": "Issue",
+      "description": "A reported problem with an asset or area",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Resolved", "Closed"] },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Emergency"] },
+        "category": { "type": "string" },
+        "park": { "type": "string" },
+        "reportedBy": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "assetId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title", "description", "status", "priority", "park"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A unit of work assigned to an operative",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "objective": { "type": "string" },
+        "status": { "type": "string", "enum": ["Todo", "Doing", "Done"] },
+        "dueDate": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "park": { "type": "string" },
+        "linkedIssueId": { "type": "string" },
+        "completionNote": { "type": "string" },
+        "completionImageUrl": { "type": "string" }
+      },
+      "required": ["title", "objective", "status", "dueDate", "assignedTo", "park"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/backend/entities/User" },
+      "description": "User profiles"
+    },
+    "/assets/{assetId}": {
+      "schema": { "$ref": "#/backend/entities/Asset" },
+      "description": "Park assets"
+    },
+    "/issues/{issueId}": {
+      "schema": { "$ref": "#/backend/entities/Issue" },
+      "description": "Reported issues"
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/backend/entities/Task" },
+      "description": "Work tasks"
+    }
+  }
+}

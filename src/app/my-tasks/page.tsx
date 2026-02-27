@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +14,9 @@ import {
   ChevronRight, 
   AlertCircle,
   PlayCircle,
-  Image as ImageIcon,
   X,
-  Camera,
-  MessageSquare
+  Camera
 } from "lucide-react";
-import { MOCK_TASKS, MOCK_USERS, updateMockTask, updateMockIssue, MOCK_ISSUES } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -34,12 +31,23 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, updateDoc, doc, query, where } from "firebase/firestore";
 
 export default function MyTasksPage() {
   const { toast } = useToast();
+  const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const currentUser = MOCK_USERS[1]; // Sarah Smith
-  const [tasks, setTasks] = useState(MOCK_TASKS.filter(t => t.assignedTo === currentUser.name));
+  
+  // Static current user for prototype session
+  const currentUserName = "Sarah Smith";
+
+  const tasksQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "tasks"), where("assignedTo", "==", currentUserName));
+  }, [db]);
+  const { data: tasks = [], loading } = useCollection(tasksQuery);
+
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [completionData, setCompletionData] = useState({
@@ -47,12 +55,8 @@ export default function MyTasksPage() {
     imageUrl: ""
   });
 
-  // Sync local state
-  useEffect(() => {
-    setTasks(MOCK_TASKS.filter(t => t.assignedTo === currentUser.name));
-  }, [MOCK_TASKS]);
-
-  const handleStatusUpdate = (taskId: string, newStatus: 'Todo' | 'Doing' | 'Done') => {
+  const handleStatusUpdate = (taskId: string, newStatus: string) => {
+    if (!db) return;
     if (newStatus === 'Done') {
       setSelectedTaskId(taskId);
       setCompletionData({ note: "", imageUrl: "" });
@@ -60,17 +64,8 @@ export default function MyTasksPage() {
       return;
     }
 
-    const task = MOCK_TASKS.find(t => t.id === taskId);
-    if (!task) return;
-
-    const updated = { ...task, status: newStatus };
-    updateMockTask(updated);
-    setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
-    
-    toast({
-      title: "Task Updated",
-      description: `Status changed to ${newStatus}.`,
-    });
+    updateDoc(doc(db, "tasks", taskId), { status: newStatus });
+    toast({ title: "Task Updated", description: `Status set to ${newStatus}.` });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,36 +79,27 @@ export default function MyTasksPage() {
     }
   };
 
-  const handleCompleteTask = () => {
-    if (!selectedTaskId) return;
+  const handleCompleteTask = async () => {
+    if (!db || !selectedTaskId) return;
 
-    const task = MOCK_TASKS.find(t => t.id === selectedTaskId);
+    const task = tasks.find(t => t.id === selectedTaskId);
     if (!task) return;
 
     // 1. Update Task
-    const updatedTask = { 
-      ...task, 
-      status: 'Done' as const,
+    await updateDoc(doc(db, "tasks", selectedTaskId), { 
+      status: 'Done',
       completionNote: completionData.note,
       completionImageUrl: completionData.imageUrl
-    };
-    updateMockTask(updatedTask);
-    setTasks(prev => prev.map(t => t.id === selectedTaskId ? updatedTask : t));
+    });
 
-    // 2. If linked to an issue, resolve the issue
+    // 2. Resolve Linked Issue
     if (task.linkedIssueId) {
-      const issue = MOCK_ISSUES.find(i => i.id === task.linkedIssueId);
-      if (issue) {
-        updateMockIssue({ ...issue, status: 'Resolved' as const });
-      }
+      await updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Resolved' });
     }
 
     setIsCompletionDialogOpen(false);
     setSelectedTaskId(null);
-    toast({
-      title: "Task Completed",
-      description: "Well done! Your work has been submitted and the linked issue (if any) is resolved.",
-    });
+    toast({ title: "Task Completed", description: "Work submitted and issue resolved." });
   };
 
   const getStatusBadge = (status: string) => {
@@ -131,7 +117,7 @@ export default function MyTasksPage() {
   return (
     <DashboardShell 
       title="My Daily Tasks" 
-      description={`Personal work queue for ${currentUser.name}`}
+      description={`Personal work queue for ${currentUserName}`}
     >
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6">
@@ -140,7 +126,9 @@ export default function MyTasksPage() {
         </TabsList>
 
         <TabsContent value="active">
-          {activeTasks.length > 0 ? (
+          {loading ? (
+             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+          ) : activeTasks.length > 0 ? (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {activeTasks.map((task) => (
                 <Card key={task.id} className="border-2 hover:border-primary/40 transition-all group flex flex-col">
@@ -201,7 +189,6 @@ export default function MyTasksPage() {
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
               <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
               <p className="font-bold">All caught up!</p>
-              <p className="text-sm">No active tasks assigned to you right now.</p>
             </div>
           )}
         </TabsContent>
@@ -218,27 +205,16 @@ export default function MyTasksPage() {
                     <div>
                       <h4 className="font-bold text-sm">{task.title}</h4>
                       <p className="text-xs text-muted-foreground">{task.park} • Completed {task.dueDate}</p>
-                      {task.completionNote && (
-                        <p className="text-[10px] text-muted-foreground italic mt-1 bg-muted/50 p-1 rounded">
-                          "{task.completionNote}"
-                        </p>
-                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {task.completionImageUrl && (
-                      <div className="relative h-12 w-12 rounded border overflow-hidden">
-                        <Image src={task.completionImageUrl} alt="Evidence" fill className="object-cover" />
-                      </div>
-                    )}
-                    <Badge variant="outline" className="text-[10px] opacity-60">FINISHED</Badge>
-                  </div>
+                  {task.completionImageUrl && (
+                    <div className="relative h-12 w-12 rounded border overflow-hidden">
+                      <Image src={task.completionImageUrl} alt="Evidence" fill className="object-cover" />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
-            {completedTasks.length === 0 && (
-              <p className="text-center py-12 text-sm text-muted-foreground">No completed tasks recorded for this period.</p>
-            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -246,30 +222,25 @@ export default function MyTasksPage() {
       <Dialog open={isCompletionDialogOpen} onOpenChange={setIsCompletionDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="font-headline">Mark Task as Completed</DialogTitle>
-            <DialogDescription>
-              Submit your work for review. Providing an image and a brief note helps verify the resolution.
-            </DialogDescription>
+            <DialogTitle className="font-headline">Submit Completion</DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="space-y-2">
-              <Label htmlFor="completion-note">Work Completed Note (Optional)</Label>
+              <Label>Work Note</Label>
               <Textarea 
-                id="completion-note" 
                 placeholder="Briefly describe what was done..." 
                 value={completionData.note}
                 onChange={e => setCompletionData({...completionData, note: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <Label>Attach Evidence Photo (Optional)</Label>
+              <Label>Photo Proof</Label>
               <div className="flex flex-col gap-2">
                 {completionData.imageUrl ? (
                   <div className="relative w-full aspect-video rounded-md overflow-hidden border">
                     <Image src={completionData.imageUrl} alt="Evidence" fill className="object-cover" />
                     <Button 
-                      size="icon" 
-                      variant="destructive" 
+                      size="icon" variant="destructive" 
                       className="absolute top-2 right-2 h-7 w-7 rounded-full"
                       onClick={() => setCompletionData({...completionData, imageUrl: ""})}
                     >
@@ -279,27 +250,19 @@ export default function MyTasksPage() {
                 ) : (
                   <Button 
                     variant="outline" 
-                    className="w-full h-24 border-dashed border-2 flex flex-col items-center justify-center gap-2"
+                    className="w-full h-24 border-dashed border-2"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Camera className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-xs font-bold text-muted-foreground">Capture or Upload Proof</span>
+                    <Camera className="h-6 w-6 mr-2" /> Capture Proof
                   </Button>
                 )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
-                  accept="image/*" 
-                  capture="environment" // Hint for mobile camera
-                  onChange={handleImageUpload} 
-                />
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleImageUpload} />
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button className="w-full font-bold" onClick={handleCompleteTask}>
-              <CheckCircle2 className="mr-2 h-4 w-4" /> Submit Completion
+              Submit for Review
             </Button>
           </DialogFooter>
         </DialogContent>
