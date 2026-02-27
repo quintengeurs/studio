@@ -12,7 +12,8 @@ import {
   LogOut,
   ListTodo,
   Archive,
-  FolderArchive
+  FolderArchive,
+  UserX
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const navItems = [
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Archived Tasks", icon: FolderArchive, href: "/archived-tasks" },
   { title: "Users", icon: Users, href: "/users" },
+  { title: "Archived Staff", icon: UserX, href: "/archived-users" },
 ];
 
 export function AppSidebar() {

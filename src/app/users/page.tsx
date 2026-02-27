@@ -29,7 +29,8 @@ import {
   Clock,
   UserPlus,
   Users as UsersIcon,
-  Filter
+  Filter,
+  UserMinus
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -62,7 +63,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -81,14 +82,17 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  // Firebase Data
-  const usersQuery = useMemo(() => {
+  // Current user for permission checking (Sarah is Supervisor in mock, let's treat as having master for the demo)
+  const viewerRole: Role = 'master'; 
+
+  // Firebase Data - Filter out archived users
+  const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return collection(db, "users");
+    return query(collection(db, "users"), where("isArchived", "==", false));
   }, [db]);
   const { data: users = [], loading: usersLoading } = useCollection<User>(usersQuery);
 
-  const tasksQuery = useMemo(() => {
+  const tasksQuery = useMemoFirebase(() => {
     if (!db) return null;
     return collection(db, "tasks");
   }, [db]);
@@ -99,6 +103,7 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management'>('all');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
   const [otherTraining, setOtherTraining] = useState("");
@@ -112,7 +117,8 @@ export default function UserManagement() {
     training: '',
     isDriver: false,
     isRoSPATrained: false,
-    avatar: ''
+    avatar: '',
+    isArchived: false
   });
 
   const filteredUsers = useMemo(() => {
@@ -178,19 +184,21 @@ export default function UserManagement() {
   };
 
   const handleAddUser = () => {
-    if (!db) return;
+    if (!db || isSubmitting) return;
     
+    setIsSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
     const userToSave = {
       ...newUser,
       training: trainingString,
+      isArchived: false,
       createdAt: new Date().toISOString()
     };
 
     addDoc(collection(db, "users"), userToSave)
       .then(() => {
         setIsAddDialogOpen(false);
-        setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '' });
+        setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
         setSelectedTrainings([]);
         setOtherTraining("");
         setIsOtherChecked(false);
@@ -202,12 +210,16 @@ export default function UserManagement() {
           operation: 'create',
           requestResourceData: userToSave
         }));
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
   };
 
   const handleUpdateUser = () => {
-    if (!db || !selectedUser) return;
+    if (!db || !selectedUser || isSubmitting) return;
     
+    setIsSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
     const updatedData = {
       ...selectedUser,
@@ -225,6 +237,31 @@ export default function UserManagement() {
           operation: 'update',
           requestResourceData: updatedData
         }));
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  };
+
+  const handleArchiveUser = () => {
+    if (!db || !selectedUser || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    updateDoc(doc(db, "users", selectedUser.id), { isArchived: true })
+      .then(() => {
+        setIsProfileDialogOpen(false);
+        setSelectedUser(null);
+        toast({ title: "User Archived", description: "Staff member moved to archives." });
+      })
+      .catch(async (e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `users/${selectedUser.id}`,
+          operation: 'update',
+          requestResourceData: { isArchived: true }
+        }));
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
   };
 
@@ -236,7 +273,7 @@ export default function UserManagement() {
   };
 
   const openAddDialog = () => {
-    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '' });
+    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
     setSelectedTrainings([]);
     setOtherTraining("");
     setIsOtherChecked(false);
@@ -375,7 +412,13 @@ export default function UserManagement() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full font-bold" onClick={handleAddUser} disabled={!newUser.name || !newUser.email}>Create User Profile</Button>
+              <Button 
+                className="w-full font-bold" 
+                onClick={handleAddUser} 
+                disabled={!newUser.name || !newUser.email || isSubmitting}
+              >
+                {isSubmitting ? "Creating..." : "Create User Profile"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -575,15 +618,28 @@ export default function UserManagement() {
                   </div>
                 </div>
               </div>
-              <Button 
-                variant={isEditing ? "outline" : "default"} 
-                size="sm" 
-                className="font-bold"
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                {isEditing ? <X className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
-                {isEditing ? "Cancel Edit" : "Edit Profile"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {viewerRole === 'master' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="font-bold text-destructive hover:bg-destructive/10"
+                    onClick={handleArchiveUser}
+                    disabled={isSubmitting}
+                  >
+                    <UserMinus className="mr-2 h-4 w-4" /> Archive Staff
+                  </Button>
+                )}
+                <Button 
+                  variant={isEditing ? "outline" : "default"} 
+                  size="sm" 
+                  className="font-bold"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? <X className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
+                  {isEditing ? "Cancel Edit" : "Edit Profile"}
+                </Button>
+              </div>
             </div>
           </DialogHeader>
 
@@ -700,7 +756,9 @@ export default function UserManagement() {
                         />
                       </div>
                     </div>
-                    <Button onClick={handleUpdateUser} className="w-full font-bold">Save Profile Changes</Button>
+                    <Button onClick={handleUpdateUser} className="w-full font-bold" disabled={isSubmitting}>
+                      {isSubmitting ? "Saving..." : "Save Profile Changes"}
+                    </Button>
                   </div>
                 ) : (
                   <div className="grid gap-6">

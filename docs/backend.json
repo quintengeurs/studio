@@ -13,7 +13,8 @@
         "team": { "type": "string" },
         "training": { "type": "string" },
         "isDriver": { "type": "boolean" },
-        "isRoSPATrained": { "type": "boolean" }
+        "isRoSPATrained": { "type": "boolean" },
+        "isArchived": { "type": "boolean" }
       },
       "required": ["name", "email", "role"]
     },
