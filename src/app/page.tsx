@@ -1,4 +1,3 @@
-
 "use client";
 
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -24,6 +23,7 @@ import {
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { MOCK_ASSETS, MOCK_ISSUES, MOCK_TASKS } from "@/lib/mock-data";
+import Link from "next/link";
 
 const taskData = [
   { name: 'Completed', value: MOCK_TASKS.filter(t => t.status === 'Done').length, color: 'hsl(var(--primary))' },
@@ -52,49 +52,57 @@ export default function Dashboard() {
       description="Real-time monitoring of Hackney Green Spaces operations"
     >
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Assets</CardTitle>
-            <MapPin className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-headline">{MOCK_ASSETS.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Managed across 12 parks</p>
-          </CardContent>
-        </Card>
+        <Link href="/assets" className="block">
+          <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Assets</CardTitle>
+              <MapPin className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-headline">{MOCK_ASSETS.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Managed across 12 parks</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Open Issues</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-headline">{openIssues}</div>
-            <p className="text-xs text-destructive mt-1 font-medium">3 Emergency priority</p>
-          </CardContent>
-        </Card>
+        <Link href="/issues" className="block">
+          <Card className="border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Open Issues</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-headline">{openIssues}</div>
+              <p className="text-xs text-destructive mt-1 font-medium">3 Emergency priority</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Tasks</CardTitle>
-            <Clock className="h-4 w-4 text-accent-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-headline">{activeTasks}</div>
-            <p className="text-xs text-muted-foreground mt-1">Next due in 4 hours</p>
-          </CardContent>
-        </Card>
+        <Link href="/tasks" className="block">
+          <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Active Tasks</CardTitle>
+              <Clock className="h-4 w-4 text-accent-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-headline">{activeTasks}</div>
+              <p className="text-xs text-muted-foreground mt-1">Next due in 4 hours</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Condition Alert</CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-headline">{criticalAssets}</div>
-            <p className="text-xs text-muted-foreground mt-1">Assets requiring urgent repair</p>
-          </CardContent>
-        </Card>
+        <Link href="/assets" className="block">
+          <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Condition Alert</CardTitle>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-headline">{criticalAssets}</div>
+              <p className="text-xs text-muted-foreground mt-1">Assets requiring urgent repair</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mt-6">
