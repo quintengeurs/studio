@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -21,7 +22,13 @@ import {
   PieChart,
   Pie
 } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MOCK_ASSETS, MOCK_ISSUES, MOCK_TASKS } from "@/lib/mock-data";
 import Link from "next/link";
 
@@ -31,20 +38,46 @@ const taskData = [
   { name: 'Pending', value: MOCK_TASKS.filter(t => t.status === 'Todo').length, color: 'hsl(var(--muted))' },
 ];
 
-const issueData = [
-  { day: 'Mon', count: 12 },
-  { day: 'Tue', count: 18 },
-  { day: 'Wed', count: 15 },
-  { day: 'Thu', count: 22 },
-  { day: 'Fri', count: 14 },
-  { day: 'Sat', count: 8 },
-  { day: 'Sun', count: 5 },
-];
+const trendData = {
+  daily: [
+    { label: 'Mon', count: 12 },
+    { label: 'Tue', count: 18 },
+    { label: 'Wed', count: 15 },
+    { label: 'Thu', count: 22 },
+    { label: 'Fri', count: 14 },
+    { label: 'Sat', count: 8 },
+    { label: 'Sun', count: 5 },
+  ],
+  weekly: [
+    { label: 'Week 1', count: 85 },
+    { label: 'Week 2', count: 92 },
+    { label: 'Week 3', count: 78 },
+    { label: 'Week 4', count: 110 },
+  ],
+  monthly: [
+    { label: 'Jan', count: 320 },
+    { label: 'Feb', count: 280 },
+    { label: 'Mar', count: 450 },
+    { label: 'Apr', count: 390 },
+    { label: 'May', count: 410 },
+    { label: 'Jun', count: 520 },
+  ],
+  yearly: [
+    { label: '2021', count: 3200 },
+    { label: '2022', count: 3800 },
+    { label: '2023', count: 4500 },
+    { label: '2024', count: 2100 },
+  ]
+};
 
 export default function Dashboard() {
+  const [trendView, setTrendView] = useState<keyof typeof trendData>('daily');
+  
   const openIssues = MOCK_ISSUES.filter(i => i.status !== 'Closed').length;
   const criticalAssets = MOCK_ASSETS.filter(a => a.condition === 'Poor' || a.condition === 'Critical').length;
   const activeTasks = MOCK_TASKS.filter(t => t.status !== 'Done').length;
+
+  const currentTrendData = trendData[trendView];
 
   return (
     <DashboardShell 
@@ -107,15 +140,33 @@ export default function Dashboard() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mt-6">
         <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle className="font-headline">Issue Reporting Trends</CardTitle>
-            <CardDescription>Daily volume of reported issues this week</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="font-headline">Issue Reporting Trends</CardTitle>
+              <CardDescription>Volume of reported issues over time</CardDescription>
+            </div>
+            <Select value={trendView} onValueChange={(v: any) => setTrendView(v)}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue placeholder="Timeframe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={issueData}>
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: 'hsl(var(--muted-foreground))'}} />
+                <BarChart data={currentTrendData}>
+                  <XAxis 
+                    dataKey="label" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} 
+                  />
                   <YAxis hide />
                   <Tooltip 
                     cursor={{fill: 'transparent'}}
@@ -123,8 +174,8 @@ export default function Dashboard() {
                       if (active && payload && payload.length) {
                         return (
                           <div className="rounded-lg border bg-background p-2 shadow-sm">
-                            <p className="text-xs font-bold uppercase">{payload[0].payload.day}</p>
-                            <p className="text-sm font-bold text-primary">{payload[0].value} Issues</p>
+                            <p className="text-[10px] font-bold uppercase">{payload[0].payload.label}</p>
+                            <p className="text-xs font-bold text-primary">{payload[0].value} Issues</p>
                           </div>
                         );
                       }
@@ -132,8 +183,11 @@ export default function Dashboard() {
                     }}
                   />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {issueData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 3 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.2)'} />
+                    {currentTrendData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={index === currentTrendData.length - 1 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.2)'} 
+                      />
                     ))}
                   </Bar>
                 </BarChart>
