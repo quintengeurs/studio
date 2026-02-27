@@ -2,8 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import { Leaf, User, Clock, ChevronRight } from "lucide-react";
-import { MOCK_USERS, MOCK_TASKS } from "@/lib/mock-data";
+import { Leaf, User, Clock, ChevronRight, LogOut } from "lucide-react";
+import { MOCK_TASKS } from "@/lib/mock-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
@@ -15,10 +15,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 export function MobileTopHeader() {
-  const currentUser = MOCK_USERS[1]; // Sarah Smith (Supervisor)
-  const myTasks = MOCK_TASKS.filter(t => t.assignedTo === currentUser.name).slice(0, 5);
+  const { user } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+  
+  // Logic for recent tasks (using mock for now or could be updated to query firestore)
+  const myTasks = MOCK_TASKS.filter(t => t.assignedTo === user?.displayName).slice(0, 5);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
 
   return (
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 shadow-sm">
@@ -56,19 +68,24 @@ export function MobileTopHeader() {
               <Button asChild className="w-full mt-4" variant="outline">
                 <Link href="/tasks">View All Tasks <ChevronRight className="ml-2 h-4 w-4" /></Link>
               </Button>
+              <Button variant="destructive" className="w-full" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" /> Logout
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
         
         <div className="flex flex-col">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Welcome back</span>
-          <span className="text-sm font-bold text-foreground leading-none">{currentUser.name}</span>
+          <span className="text-sm font-bold text-foreground leading-none truncate max-w-[150px]">
+            {user?.displayName || user?.email?.split('@')[0] || 'User'}
+          </span>
         </div>
       </div>
 
       <Avatar className="h-9 w-9 border-2 border-primary/20">
-        <AvatarImage src={currentUser.avatar} />
-        <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+        <AvatarImage src={user?.photoURL || undefined} />
+        <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
       </Avatar>
     </header>
   );

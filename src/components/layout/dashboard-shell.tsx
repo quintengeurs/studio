@@ -1,12 +1,16 @@
 
 "use client";
 
+import { useEffect } from "react";
 import { AppSidebar } from "@/components/nav/app-sidebar";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { MobileBottomNav } from "@/components/nav/mobile-bottom-nav";
 import { MobileTopHeader } from "@/components/nav/mobile-top-header";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUser } from "@/firebase";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -17,6 +21,26 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children, title, description, actions }: DashboardShellProps) {
   const isMobile = useIsMobile();
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen bg-background w-full overflow-x-hidden">

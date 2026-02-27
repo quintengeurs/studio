@@ -28,9 +28,10 @@ import {
   SidebarSeparator
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MOCK_USERS } from "@/lib/mock-data";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -47,7 +48,14 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const currentUser = MOCK_USERS[1]; // Sarah Smith (Supervisor)
+  const router = useRouter();
+  const auth = useAuth();
+  const { user } = useUser();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -92,17 +100,17 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
               <Avatar className="h-9 w-9 border-2 border-primary/20">
-                <AvatarImage src={currentUser.avatar} />
-                <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={user?.photoURL || undefined} />
+                <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
-                <span className="text-sm font-semibold truncate">{currentUser.name}</span>
-                <span className="text-xs text-muted-foreground capitalize">{currentUser.role}</span>
+                <span className="text-sm font-semibold truncate">{user?.displayName || 'User'}</span>
+                <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
               </div>
             </div>
           </SidebarMenuItem>
           <SidebarMenuItem className="mt-4">
-            <SidebarMenuButton tooltip="Logout">
+            <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
               <span>Logout</span>
             </SidebarMenuButton>
