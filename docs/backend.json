@@ -57,7 +57,7 @@
       "properties": {
         "title": { "type": "string" },
         "objective": { "type": "string" },
-        "status": { "type": "string", "enum": ["Todo", "Doing", "Done"] },
+        "status": { "type": "string", "enum": ["Todo", "Doing", "Pending Approval", "Completed"] },
         "dueDate": { "type": "string" },
         "assignedTo": { "type": "string" },
         "park": { "type": "string" },

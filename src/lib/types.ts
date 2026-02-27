@@ -42,7 +42,7 @@ export interface Task {
   id: string;
   title: string;
   objective: string;
-  status: 'Todo' | 'Doing' | 'Done';
+  status: 'Todo' | 'Doing' | 'Pending Approval' | 'Completed';
   dueDate: string;
   assignedTo: string;
   park: string;

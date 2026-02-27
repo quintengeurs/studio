@@ -58,7 +58,7 @@ export default function MyTasksPage() {
 
   const handleStatusUpdate = (taskId: string, newStatus: string) => {
     if (!db) return;
-    if (newStatus === 'Done') {
+    if (newStatus === 'Pending Approval') {
       setSelectedTaskId(taskId);
       setCompletionData({ note: "", imageUrl: "" });
       setIsCompletionDialogOpen(true);
@@ -86,14 +86,14 @@ export default function MyTasksPage() {
     const task = tasks.find(t => t.id === selectedTaskId);
     if (!task) return;
 
-    // 1. Update Task
+    // 1. Update Task to Pending Approval
     await updateDoc(doc(db, "tasks", selectedTaskId), { 
-      status: 'Done',
+      status: 'Pending Approval',
       completionNote: completionData.note,
       completionImageUrl: completionData.imageUrl
     });
 
-    // 2. Resolve Linked Issue (moves to Pending Approval for supervisor)
+    // 2. Set Issue to Pending Approval if linked
     if (task.linkedIssueId) {
       await updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Pending Approval' });
     }
@@ -110,13 +110,14 @@ export default function MyTasksPage() {
     switch (status) {
       case 'Todo': return <Badge variant="outline" className="bg-muted text-muted-foreground font-bold text-[10px] uppercase">To Do</Badge>;
       case 'Doing': return <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">In Progress</Badge>;
-      case 'Done': return <Badge className="bg-primary text-primary-foreground font-bold text-[10px] uppercase">Completed</Badge>;
+      case 'Pending Approval': return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-200 font-bold text-[10px] uppercase animate-pulse">Reviewing</Badge>;
+      case 'Completed': return <Badge className="bg-primary text-primary-foreground font-bold text-[10px] uppercase">Archived</Badge>;
       default: return null;
     }
   };
 
-  const activeTasks = tasks.filter(t => t.status !== 'Done');
-  const completedTasks = tasks.filter(t => t.status === 'Done');
+  const activeTasks = tasks.filter(t => t.status !== 'Completed');
+  const archivedTasks = tasks.filter(t => t.status === 'Completed');
 
   return (
     <DashboardShell 
@@ -126,7 +127,7 @@ export default function MyTasksPage() {
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
+          <TabsTrigger value="archived">Archived ({archivedTasks.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active">
@@ -159,9 +160,9 @@ export default function MyTasksPage() {
                       )}
                       <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
-                        <span>{task.status === 'Doing' ? '45%' : '0%'}</span>
+                        <span>{task.status === 'Doing' ? '45%' : task.status === 'Pending Approval' ? '100%' : '0%'}</span>
                       </div>
-                      <Progress value={task.status === 'Doing' ? 45 : 0} className="h-2" />
+                      <Progress value={task.status === 'Doing' ? 45 : task.status === 'Pending Approval' ? 100 : 0} className="h-2" />
                     </div>
                   </CardContent>
                   <CardFooter className="p-0 border-t flex divide-x mt-auto">
@@ -173,14 +174,18 @@ export default function MyTasksPage() {
                       >
                         <PlayCircle className="mr-2 h-4 w-4" /> Start Task
                       </Button>
-                    ) : (
+                    ) : task.status === 'Doing' ? (
                       <Button 
                         variant="ghost" 
                         className="flex-1 rounded-none h-12 text-xs font-bold text-primary hover:bg-primary/5"
-                        onClick={() => handleStatusUpdate(task.id, 'Done')}
+                        onClick={() => handleStatusUpdate(task.id, 'Pending Approval')}
                       >
-                        <CheckCircle2 className="mr-2 h-4 w-4" /> Mark Complete
+                        <CheckCircle2 className="mr-2 h-4 w-4" /> Submit Proof
                       </Button>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center h-12 text-[10px] font-bold text-muted-foreground uppercase bg-muted/20">
+                        Awaiting Review
+                      </div>
                     )}
                     <Button variant="ghost" className="px-4 rounded-none h-12 border-l">
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -197,9 +202,9 @@ export default function MyTasksPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="completed">
+        <TabsContent value="archived">
           <div className="grid gap-4">
-            {completedTasks.map((task) => (
+            {archivedTasks.map((task) => (
               <Card key={task.id} className="bg-muted/30 border-dashed">
                 <CardContent className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
@@ -208,7 +213,7 @@ export default function MyTasksPage() {
                     </div>
                     <div>
                       <h4 className="font-bold text-sm">{task.title}</h4>
-                      <p className="text-xs text-muted-foreground">{task.park} • Completed {task.dueDate}</p>
+                      <p className="text-xs text-muted-foreground">{task.park} • Archived {task.dueDate}</p>
                     </div>
                   </div>
                   {task.completionImageUrl && (

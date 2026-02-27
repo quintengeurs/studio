@@ -11,7 +11,8 @@ import {
   ClipboardCheck,
   LogOut,
   ListTodo,
-  Archive
+  Archive,
+  FolderArchive
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const navItems = [
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
   { title: "Resolved Issues", icon: Archive, href: "/resolved-issues" },
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
+  { title: "Archived Tasks", icon: FolderArchive, href: "/archived-tasks" },
   { title: "Users", icon: Users, href: "/users" },
 ];
 
