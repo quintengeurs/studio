@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useMemo } from "react";
@@ -84,7 +83,6 @@ export default function UserManagement() {
   const [isEditing, setIsEditing] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management'>('all');
   
-  // States for checkbox management
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
   const [otherTraining, setOtherTraining] = useState("");
   const [isOtherChecked, setIsOtherChecked] = useState(false);
@@ -109,7 +107,6 @@ export default function UserManagement() {
     });
   }, [users, roleFilter]);
 
-  // Sync checkbox state when opening add/edit dialogs
   const syncTrainingState = (trainingString: string) => {
     const parts = trainingString ? trainingString.split(',').map(s => s.trim()) : [];
     const standard = parts.filter(p => TRAINING_OPTIONS.includes(p));
@@ -510,7 +507,6 @@ export default function UserManagement() {
         </div>
       </Card>
 
-      {/* User Profile & Edit Dialog */}
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="p-6 pb-0">
@@ -522,12 +518,12 @@ export default function UserManagement() {
                 </Avatar>
                 <div>
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
-                  <DialogDescription className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1">
                     <Badge className={`${getRoleColor(selectedUser?.role || '')} font-bold text-[10px] uppercase`}>
                       {selectedUser?.role}
                     </Badge>
-                    <span className="text-xs font-medium">• {selectedUser?.team}</span>
-                  </DialogDescription>
+                    <span className="text-xs font-medium text-muted-foreground">• {selectedUser?.team}</span>
+                  </div>
                 </div>
               </div>
               <Button 
