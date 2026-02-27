@@ -8,7 +8,7 @@ import {
   CheckSquare, 
   Users, 
   Leaf,
-  Settings,
+  ClipboardCheck,
   LogOut
 } from "lucide-react";
 import {
@@ -31,8 +31,9 @@ import { MOCK_USERS } from "@/lib/mock-data";
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
+  { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
-  { title: "Tasks", icon: CheckSquare, href: "/tasks" },
+  { title: "Work Items", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
 ];
 

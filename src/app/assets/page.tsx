@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
   Table, 
@@ -13,11 +14,50 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, MoreHorizontal } from "lucide-react";
-import { MOCK_ASSETS } from "@/lib/mock-data";
+import { Label } from "@/components/ui/label";
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreHorizontal, 
+  CalendarCheck,
+  ClipboardList
+} from "lucide-react";
+import { MOCK_ASSETS, MOCK_INSPECTION_TEMPLATES } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
 
 export default function AssetRegister() {
+  const [assets, setAssets] = useState(MOCK_ASSETS);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newAsset, setNewAsset] = useState({
+    name: '',
+    type: '',
+    park: '',
+    location: '',
+    condition: 'Excellent' as const,
+    setupInspection: false,
+    setupTask: false
+  });
+
   const getConditionColor = (condition: string) => {
     switch (condition) {
       case 'Excellent': return 'bg-primary text-primary-foreground';
@@ -29,14 +69,92 @@ export default function AssetRegister() {
     }
   };
 
+  const handleAddAsset = () => {
+    const asset = {
+      ...newAsset,
+      id: `a${Date.now()}`,
+      lastInspected: 'New'
+    };
+    // @ts-ignore
+    setAssets([...assets, asset]);
+    setIsDialogOpen(false);
+    setNewAsset({ name: '', type: '', park: '', location: '', condition: 'Excellent', setupInspection: false, setupTask: false });
+  };
+
   return (
     <DashboardShell 
       title="Asset Register" 
       description="Comprehensive inventory of Hackney parks infrastructure"
       actions={
-        <Button className="font-headline font-bold w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" /> Add Asset
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="font-headline font-bold w-full md:w-auto">
+              <Plus className="mr-2 h-4 w-4" /> Add Asset
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="font-headline">Add New Asset</DialogTitle>
+              <DialogDescription>Register a new piece of infrastructure.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Asset Name</Label>
+                <Input value={newAsset.name} onChange={e => setNewAsset({...newAsset, name: e.target.value})} placeholder="e.g. South End Play Frame" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Category</Label>
+                  <Select value={newAsset.type} onValueChange={v => setNewAsset({...newAsset, type: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MOCK_INSPECTION_TEMPLATES.map(t => (
+                        <SelectItem key={t.id} value={t.assetType}>{t.assetType}</SelectItem>
+                      ))}
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Park</Label>
+                   <Select value={newAsset.park} onValueChange={v => setNewAsset({...newAsset, park: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARKS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="p-4 border-2 border-muted rounded-lg bg-muted/20 space-y-4">
+                <h4 className="text-xs font-bold uppercase text-primary tracking-widest flex items-center gap-2">
+                  <CalendarCheck className="h-4 w-4" /> Schedule Setup
+                </h4>
+                <div className="flex items-start space-x-3">
+                  <Checkbox id="insp" checked={newAsset.setupInspection} onCheckedChange={(v) => setNewAsset({...newAsset, setupInspection: !!v})} />
+                  <div className="grid gap-1.5 leading-none">
+                    <label htmlFor="insp" className="text-sm font-semibold leading-none cursor-pointer">Generate regular inspection</label>
+                    <p className="text-xs text-muted-foreground">Automatically create inspection tasks based on asset type.</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                   <Checkbox id="task" checked={newAsset.setupTask} onCheckedChange={(v) => setNewAsset({...newAsset, setupTask: !!v})} />
+                  <div className="grid gap-1.5 leading-none">
+                    <label htmlFor="task" className="text-sm font-semibold leading-none cursor-pointer">Create recurring maintenance</label>
+                    <p className="text-xs text-muted-foreground">Add to the daily/weekly maintenance schedule.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full" onClick={handleAddAsset} disabled={!newAsset.name || !newAsset.park}>Complete Registration</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       }
     >
       <div className="flex items-center gap-2 mb-6">
@@ -63,7 +181,7 @@ export default function AssetRegister() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {MOCK_ASSETS.map((asset) => (
+              {assets.map((asset) => (
                 <TableRow key={asset.id} className="hover:bg-accent/5 transition-colors">
                   <TableCell className="font-medium">
                     <div className="min-w-[120px]">

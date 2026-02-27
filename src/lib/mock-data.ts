@@ -1,5 +1,5 @@
 
-import { User, Asset, Issue, Task } from './types';
+import { User, Asset, Issue, Task, RecurringSchedule, InspectionTemplate, Inspection } from './types';
 
 export const MOCK_USERS: User[] = [
   { id: 'u1', name: 'John Doe', email: 'john@hackney.gov.uk', role: 'operative', avatar: 'https://picsum.photos/seed/u1/40/40' },
@@ -25,4 +25,34 @@ export const MOCK_TASKS: Task[] = [
   { id: 't1', title: 'Mow North Lawn', objective: 'Standard maintenance cut for the spring season.', status: 'Todo', dueDate: '2024-03-15', assignedTo: 'John Doe', park: 'Clissold Park' },
   { id: 't2', title: 'Inspect All Bins', objective: 'Check structural integrity and empty status.', status: 'Doing', dueDate: '2024-03-10', assignedTo: 'Mike Green', park: 'Shoreditch Park' },
   { id: 't3', title: 'Prune Rose Garden', objective: 'Annual pruning for the Queen Victoria rose bed.', status: 'Done', dueDate: '2024-03-01', assignedTo: 'John Doe', park: 'Victoria Park' },
+];
+
+export const MOCK_RECURRING_SCHEDULES: RecurringSchedule[] = [
+  { id: 'rs1', title: 'Empty All Bins', frequency: 'Twice Daily', park: 'London Fields', assignedTo: 'John Doe', nextRun: '2024-03-08 14:00' },
+  { id: 'rs2', title: 'Safety Check Play Area', frequency: 'Daily', park: 'Clissold Park', assignedTo: 'Mike Green', nextRun: '2024-03-09 08:00' },
+  { id: 'rs3', title: 'Hedge Trimming Perimeter', frequency: 'Monthly', park: 'Victoria Park', assignedTo: 'Sarah Smith', nextRun: '2024-04-01 09:00' },
+];
+
+export const MOCK_INSPECTION_TEMPLATES: InspectionTemplate[] = [
+  { 
+    id: 'it1', 
+    assetType: 'Park Furniture', 
+    checklist: ['Timber condition (rot/splinters)', 'Bolt tightness', 'Footing stability', 'Graffiti check'] 
+  },
+  { 
+    id: 'it2', 
+    assetType: 'Staff Room', 
+    checklist: ['Fire exit clear', 'Hot water working', 'Emergency lights functional', 'Call point accessible'] 
+  },
+  { 
+    id: 'it3', 
+    assetType: 'Playground Equipment', 
+    checklist: ['Chain integrity', 'Surface impact padding', 'Entrapment hazards', 'Rust/Corrosion'] 
+  }
+];
+
+export const MOCK_INSPECTIONS: Inspection[] = [
+  { id: 'ins1', assetId: 'a1', assetName: 'Clissold Park Swing Set', park: 'Clissold Park', status: 'Pending', dueDate: '2024-03-10' },
+  { id: 'ins2', assetId: 'a2', assetName: 'London Fields Cafe Bench', park: 'London Fields', status: 'Overdue', dueDate: '2024-03-01' },
+  { id: 'ins3', assetId: 'a5', assetName: 'Shoreditch Park Trash Bin 12', park: 'Shoreditch Park', status: 'Completed', dueDate: '2024-03-05', completedAt: '2024-03-05', inspectedBy: 'John Doe' },
 ];

@@ -43,3 +43,34 @@ export interface Task {
   assignedTo: string;
   park: string;
 }
+
+export type Frequency = 'Twice Daily' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly';
+
+export interface RecurringSchedule {
+  id: string;
+  title: string;
+  frequency: Frequency;
+  park: string;
+  assetType?: string;
+  assignedTo: string;
+  lastRun?: string;
+  nextRun: string;
+}
+
+export interface InspectionTemplate {
+  id: string;
+  assetType: string;
+  checklist: string[];
+}
+
+export interface Inspection {
+  id: string;
+  assetId: string;
+  assetName: string;
+  park: string;
+  status: 'Pending' | 'Completed' | 'Overdue';
+  dueDate: string;
+  completedAt?: string;
+  inspectedBy?: string;
+  results?: { item: string; passed: boolean; notes?: string }[];
+}
