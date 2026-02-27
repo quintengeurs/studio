@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -45,12 +44,12 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
             <Leaf className="h-6 w-6" />
           </div>
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="font-headline text-lg font-bold leading-tight text-primary">GreenTrack</span>
-            <span className="text-xs font-medium text-muted-foreground">Hackney Operative</span>
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
+            <span className="font-headline text-sm font-bold leading-tight text-primary truncate">Parks and Green Spaces</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hackney</span>
           </div>
         </div>
       </SidebarHeader>

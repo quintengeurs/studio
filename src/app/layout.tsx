@@ -1,11 +1,10 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import {SidebarProvider} from '@/components/ui/sidebar';
 import {Toaster} from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'GreenTrack Operative | Hackney Parks Management',
+  title: 'Parks and Green Spaces | Hackney Parks Management',
   description: 'Asset tracking, issue reporting, and task management for park operatives.',
 };
 
