@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,16 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { 
-  AlertTriangle, 
-  Sparkles, 
   CheckCircle2, 
   UserPlus, 
   Plus, 
-  Loader2,
-  Trash2
+  Trash2,
+  Image as ImageIcon,
+  X,
+  Clock
 } from "lucide-react";
 import { MOCK_ISSUES, MOCK_USERS } from "@/lib/mock-data";
-import { aiIssueClarificationAndCategorization } from "@/ai/flows/ai-issue-clarification-and-categorization";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -37,64 +36,68 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import Image from "next/image";
 
 export default function IssuesPage() {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [issues, setIssues] = useState(MOCK_ISSUES);
-  const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [newIssue, setNewIssue] = useState({
     title: "",
     description: "",
     priority: "Medium" as const,
-    category: "General"
+    category: "General",
+    imageUrl: ""
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleAiEnrich = async () => {
-    if (!newIssue.description) {
-      toast({
-        title: "Missing Description",
-        description: "Please provide a brief description for AI to clarify.",
-        variant: "destructive"
-      });
-      return;
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewIssue(prev => ({ ...prev, imageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
+  };
 
-    setIsAiProcessing(true);
-    try {
-      const result = await aiIssueClarificationAndCategorization({ description: newIssue.description });
-      setNewIssue(prev => ({
-        ...prev,
-        description: result.clarifiedDescription,
-        category: result.suggestedCategories[0] || prev.category
-      }));
-      toast({
-        title: "AI Enhancement Applied",
-        description: "We've clarified your description and suggested categories."
-      });
-    } catch (error) {
-      toast({
-        title: "AI Enhancement Failed",
-        description: "There was an issue contacting the AI service.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsAiProcessing(false);
-    }
+  const removeImage = () => {
+    setNewIssue(prev => ({ ...prev, imageUrl: "" }));
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleCreateIssue = () => {
     const issue = {
       ...newIssue,
-      id: `i${issues.length + 1}`,
+      id: `i${Date.now()}`,
       status: 'Open' as const,
       reportedBy: 'Sarah Smith',
       createdAt: new Date().toISOString().split('T')[0]
     };
     setIssues([issue, ...issues]);
-    setNewIssue({ title: "", description: "", priority: "Medium", category: "General" });
+    setNewIssue({ title: "", description: "", priority: "Medium", category: "General", imageUrl: "" });
     setIsDialogOpen(false);
     toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
+  };
+
+  const handleAssign = (id: string) => {
+    setIssues(prev => prev.map(issue => 
+      issue.id === id ? { ...issue, assignedTo: 'Sarah Smith', status: 'In Progress' as const } : issue
+    ));
+    toast({ title: "Issue Assigned", description: "Issue has been assigned to Sarah Smith." });
+  };
+
+  const handleResolve = (id: string) => {
+    setIssues(prev => prev.map(issue => 
+      issue.id === id ? { ...issue, status: 'Resolved' as const } : issue
+    ));
+    toast({ title: "Issue Resolved", description: "Issue marked as resolved." });
+  };
+
+  const handleDelete = (id: string) => {
+    setIssues(prev => prev.filter(issue => issue.id !== id));
+    toast({ title: "Issue Deleted", description: "Issue report removed from the system.", variant: "destructive" });
   };
 
   return (
@@ -112,7 +115,7 @@ export default function IssuesPage() {
             <DialogHeader>
               <DialogTitle className="font-headline">Report New Issue</DialogTitle>
               <DialogDescription>
-                Describe the problem. Use AI to enrich your details for better allocation.
+                Provide details about the infrastructure problem.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -126,24 +129,11 @@ export default function IssuesPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="description">Description</Label>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-8 text-xs text-primary border-primary/20 bg-primary/5 hover:bg-primary/10"
-                    onClick={handleAiEnrich}
-                    disabled={isAiProcessing || !newIssue.description}
-                  >
-                    {isAiProcessing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Sparkles className="mr-2 h-3 w-3" />}
-                    Enrich with AI
-                  </Button>
-                </div>
+                <Label htmlFor="description">Description</Label>
                 <Textarea 
                   id="description" 
-                  placeholder="Provide brief details about the issue..." 
-                  className="min-h-[100px]"
+                  placeholder="Provide details about the issue..." 
+                  className="min-h-[80px]"
                   value={newIssue.description}
                   onChange={e => setNewIssue({...newIssue, description: e.target.value})}
                 />
@@ -175,6 +165,45 @@ export default function IssuesPage() {
                   />
                 </div>
               </div>
+              <div className="grid gap-2">
+                <Label>Attach Image</Label>
+                <div className="flex flex-col gap-2">
+                  {newIssue.imageUrl ? (
+                    <div className="relative w-full aspect-video rounded-md overflow-hidden border">
+                      <Image 
+                        src={newIssue.imageUrl} 
+                        alt="Preview" 
+                        fill 
+                        className="object-cover"
+                      />
+                      <Button 
+                        size="icon" 
+                        variant="destructive" 
+                        className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                        onClick={removeImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Click to upload photo</span>
+                    </Button>
+                  )}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleImageUpload}
+                  />
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button type="submit" onClick={handleCreateIssue} disabled={!newIssue.title || !newIssue.description}>
@@ -187,13 +216,25 @@ export default function IssuesPage() {
     >
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {issues.map((issue) => (
-          <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
+          <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2">
             <div className={`h-1.5 w-full ${
               issue.priority === 'Emergency' ? 'bg-destructive' : 
               issue.priority === 'High' ? 'bg-orange-500' : 
               issue.priority === 'Medium' ? 'bg-accent' : 'bg-primary'
             }`} />
-            <CardHeader>
+            
+            {issue.imageUrl && (
+              <div className="relative w-full h-40 bg-muted">
+                <Image 
+                  src={issue.imageUrl} 
+                  alt={issue.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            )}
+
+            <CardHeader className="pb-2">
               <div className="flex items-center justify-between mb-2">
                 <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">
                   {issue.category}
@@ -206,36 +247,53 @@ export default function IssuesPage() {
                   {issue.status}
                 </Badge>
               </div>
-              <CardTitle className="font-headline text-lg group-hover:text-primary transition-colors">{issue.title}</CardTitle>
-              <CardDescription className="line-clamp-2 text-xs italic">
-                Reported by {issue.reportedBy} on {issue.createdAt}
-              </CardDescription>
+              <CardTitle className="font-headline text-lg">{issue.title}</CardTitle>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span>Reported {issue.createdAt}</span>
+              </div>
             </CardHeader>
-            <CardContent className="flex-1">
+            <CardContent className="flex-1 pb-4">
               <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
                 {issue.description}
               </p>
             </CardContent>
-            <CardFooter className="border-t bg-muted/20 p-4 flex justify-between items-center">
+            <CardFooter className="border-t bg-muted/20 p-4 flex justify-between items-center mt-auto">
               <div className="flex items-center gap-2">
                 {issue.assignedTo ? (
                    <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                         <UserPlus className="h-3 w-3 text-primary" />
                       </div>
-                      <span className="text-[10px] font-medium">{issue.assignedTo}</span>
+                      <span className="text-[10px] font-bold text-foreground">{issue.assignedTo}</span>
                    </div>
                 ) : (
-                  <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold">
-                    <UserPlus className="mr-1 h-3 w-3" /> Assign
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary"
+                    onClick={() => handleAssign(issue.id)}
+                  >
+                    <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign to Me
                   </Button>
                 )}
               </div>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => handleDelete(issue.id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`h-8 w-8 ${issue.status === 'Resolved' ? 'text-green-600 bg-green-50' : 'text-primary hover:bg-primary/10'}`}
+                  onClick={() => handleResolve(issue.id)}
+                  disabled={issue.status === 'Resolved'}
+                >
                   <CheckCircle2 className="h-4 w-4" />
                 </Button>
               </div>

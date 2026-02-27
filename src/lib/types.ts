@@ -29,6 +29,7 @@ export interface Issue {
   reportedBy: string;
   assignedTo?: string;
   assetId?: string;
+  imageUrl?: string;
   createdAt: string;
 }
 

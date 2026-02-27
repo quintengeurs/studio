@@ -17,8 +17,8 @@ export const MOCK_ASSETS: Asset[] = [
 ];
 
 export const MOCK_ISSUES: Issue[] = [
-  { id: 'i1', title: 'Graffiti on Bench', description: 'Significant tagging on the new oak bench near the pond.', status: 'Open', priority: 'Low', category: 'Park Furniture', reportedBy: 'John Doe', createdAt: '2024-03-05', assetId: 'a2' },
-  { id: 'i2', title: 'Broken Swing Chain', description: 'The left swing has a rusted link that snapped.', status: 'In Progress', priority: 'High', category: 'Playground Equipment', reportedBy: 'Mike Green', assignedTo: 'John Doe', createdAt: '2024-03-06', assetId: 'a1' },
+  { id: 'i1', title: 'Graffiti on Bench', description: 'Significant tagging on the new oak bench near the pond.', status: 'Open', priority: 'Low', category: 'Park Furniture', reportedBy: 'John Doe', createdAt: '2024-03-05', assetId: 'a2', imageUrl: 'https://picsum.photos/seed/graffiti/600/400' },
+  { id: 'i2', title: 'Broken Swing Chain', description: 'The left swing has a rusted link that snapped.', status: 'In Progress', priority: 'High', category: 'Playground Equipment', reportedBy: 'Mike Green', assignedTo: 'John Doe', createdAt: '2024-03-06', assetId: 'a1', imageUrl: 'https://picsum.photos/seed/swing/600/400' },
 ];
 
 export const MOCK_TASKS: Task[] = [
