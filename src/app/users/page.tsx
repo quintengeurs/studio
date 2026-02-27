@@ -27,7 +27,7 @@ import {
   Briefcase,
   CheckCircle2,
   Clock,
-  Search
+  UserPlus
 } from "lucide-react";
 import { MOCK_USERS, MOCK_TASKS } from "@/lib/mock-data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -271,7 +271,7 @@ export default function UserManagement() {
               {users.filter(u => u.role !== 'operative').length}
             </div>
           </CardHeader>
-        </div>
+        </Card>
       </div>
 
       <Card className="overflow-hidden border-2">
