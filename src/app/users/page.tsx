@@ -40,7 +40,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,10 +81,8 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  // Current user for permission checking (Sarah is Supervisor in mock, let's treat as having master for the demo)
   const viewerRole: Role = 'master'; 
 
-  // Firebase Data - Filter out archived users
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "users"), where("isArchived", "==", false));
@@ -197,12 +194,12 @@ export default function UserManagement() {
 
     addDoc(collection(db, "users"), userToSave)
       .then(() => {
-        setIsAddDialogOpen(false);
+        toast({ title: "User Added", description: `${newUser.name} has been added to the system.` });
         setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
         setSelectedTrainings([]);
         setOtherTraining("");
         setIsOtherChecked(false);
-        toast({ title: "User Added", description: `${newUser.name} has been added to the system.` });
+        setIsAddDialogOpen(false);
       })
       .catch(async (e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -289,139 +286,9 @@ export default function UserManagement() {
       title="User Management" 
       description="Control system access and assign operative roles"
       actions={
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <Button className="font-headline font-bold" onClick={openAddDialog}>
-            <Plus className="mr-2 h-4 w-4" /> Add User
-          </Button>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-headline">Add New System User</DialogTitle>
-              <DialogDescription>Create a new operative or management profile.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
-              <div className="flex justify-center">
-                <div className="relative group">
-                  <Avatar className="h-24 w-24 border-4 border-muted cursor-pointer transition-opacity group-hover:opacity-70" onClick={() => fileInputRef.current?.click()}>
-                    <AvatarImage src={newUser.avatar || undefined} />
-                    <AvatarFallback className="text-2xl font-bold bg-muted text-muted-foreground">
-                      {newUser.name ? newUser.name.charAt(0) : <Camera className="h-8 w-8" />}
-                    </AvatarFallback>
-                  </Avatar>
-                  {newUser.avatar && (
-                    <Button 
-                      size="icon" 
-                      variant="destructive" 
-                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                      onClick={() => setNewUser(prev => ({...prev, avatar: ''}))}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Full Name</Label>
-                  <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Email Address</Label>
-                  <Input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="david.jones@hackney.gov.uk" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Role</Label>
-                  <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="operative">Field Operative</SelectItem>
-                      <SelectItem value="supervisor">Supervisor</SelectItem>
-                      <SelectItem value="master">System Master</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Team / Department</Label>
-                  <Input value={newUser.team} onChange={e => setNewUser({...newUser, team: e.target.value})} placeholder="e.g. North Parks" />
-                </div>
-              </div>
-
-              <div className="grid gap-3">
-                <Label className="text-sm font-bold">Training and Certifications</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
-                  {TRAINING_OPTIONS.map((option) => (
-                    <div key={option} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`training-${option}`} 
-                        checked={selectedTrainings.includes(option)}
-                        onCheckedChange={() => toggleTraining(option)}
-                      />
-                      <label htmlFor={`training-${option}`} className="text-sm font-medium leading-none cursor-pointer">
-                        {option}
-                      </label>
-                    </div>
-                  ))}
-                  <div className="flex items-center space-x-2 col-span-full mt-2">
-                    <Checkbox 
-                      id="training-other" 
-                      checked={isOtherChecked}
-                      onCheckedChange={(v) => setIsOtherChecked(!!v)}
-                    />
-                    <label htmlFor="training-other" className="text-sm font-medium leading-none cursor-pointer">
-                      Other
-                    </label>
-                  </div>
-                  {isOtherChecked && (
-                    <div className="col-span-full mt-1">
-                      <Input 
-                        placeholder="Enter other certification..." 
-                        value={otherTraining}
-                        onChange={(e) => setOtherTraining(e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-8 border rounded-lg p-4 bg-muted/20">
-                <div className="flex items-center justify-between space-x-2">
-                  <div className="flex flex-col gap-0.5">
-                    <Label className="flex items-center gap-2">
-                      <Car className="h-4 w-4" /> Valid Driver
-                    </Label>
-                    <p className="text-[10px] text-muted-foreground">Certified for fleet vehicles</p>
-                  </div>
-                  <Switch checked={newUser.isDriver} onCheckedChange={v => setNewUser({...newUser, isDriver: v})} />
-                </div>
-                <div className="flex items-center justify-between space-x-2">
-                  <div className="flex flex-col gap-0.5">
-                    <Label className="flex items-center gap-2">
-                      <Award className="h-4 w-4" /> RoSPA Trained
-                    </Label>
-                    <p className="text-[10px] text-muted-foreground">Play area safety certification</p>
-                  </div>
-                  <Switch checked={newUser.isRoSPATrained} onCheckedChange={v => setNewUser({...newUser, isRoSPATrained: v})} />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                className="w-full font-bold" 
-                onClick={handleAddUser} 
-                disabled={!newUser.name || !newUser.email || isSubmitting}
-              >
-                {isSubmitting ? "Creating..." : "Create User Profile"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button className="font-headline font-bold" onClick={openAddDialog}>
+          <Plus className="mr-2 h-4 w-4" /> Add User
+        </Button>
       }
     >
       <div className="grid gap-6 md:grid-cols-3 mb-8">
@@ -598,6 +465,137 @@ export default function UserManagement() {
           </Table>
         </div>
       </Card>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-headline">Add New System User</DialogTitle>
+            <DialogDescription>Create a new operative or management profile.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="flex justify-center">
+              <div className="relative group">
+                <Avatar className="h-24 w-24 border-4 border-muted cursor-pointer transition-opacity group-hover:opacity-70" onClick={() => fileInputRef.current?.click()}>
+                  <AvatarImage src={newUser.avatar || undefined} />
+                  <AvatarFallback className="text-2xl font-bold bg-muted text-muted-foreground">
+                    {newUser.name ? newUser.name.charAt(0) : <Camera className="h-8 w-8" />}
+                  </AvatarFallback>
+                </Avatar>
+                {newUser.avatar && (
+                  <Button 
+                    size="icon" 
+                    variant="destructive" 
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={() => setNewUser(prev => ({...prev, avatar: ''}))}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Full Name</Label>
+                <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" />
+              </div>
+              <div className="grid gap-2">
+                <Label>Email Address</Label>
+                <Input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="david.jones@hackney.gov.uk" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Role</Label>
+                <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="operative">Field Operative</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                    <SelectItem value="master">System Master</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Team / Department</Label>
+                <Input value={newUser.team} onChange={e => setNewUser({...newUser, team: e.target.value})} placeholder="e.g. North Parks" />
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <Label className="text-sm font-bold">Training and Certifications</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
+                {TRAINING_OPTIONS.map((option) => (
+                  <div key={option} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`training-${option}`} 
+                      checked={selectedTrainings.includes(option)}
+                      onCheckedChange={() => toggleTraining(option)}
+                    />
+                    <label htmlFor={`training-${option}`} className="text-sm font-medium leading-none cursor-pointer">
+                      {option}
+                    </label>
+                  </div>
+                ))}
+                <div className="flex items-center space-x-2 col-span-full mt-2">
+                  <Checkbox 
+                    id="training-other" 
+                    checked={isOtherChecked}
+                    onCheckedChange={(v) => setIsOtherChecked(!!v)}
+                  />
+                  <label htmlFor="training-other" className="text-sm font-medium leading-none cursor-pointer">
+                    Other
+                  </label>
+                </div>
+                {isOtherChecked && (
+                  <div className="col-span-full mt-1">
+                    <Input 
+                      placeholder="Enter other certification..." 
+                      value={otherTraining}
+                      onChange={(e) => setOtherTraining(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 border rounded-lg p-4 bg-muted/20">
+              <div className="flex items-center justify-between space-x-2">
+                <div className="flex flex-col gap-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Car className="h-4 w-4" /> Valid Driver
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">Certified for fleet vehicles</p>
+                </div>
+                <Switch checked={newUser.isDriver} onCheckedChange={v => setNewUser({...newUser, isDriver: v})} />
+              </div>
+              <div className="flex items-center justify-between space-x-2">
+                <div className="flex flex-col gap-0.5">
+                  <Label className="flex items-center gap-2">
+                    <Award className="h-4 w-4" /> RoSPA Trained
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">Play area safety certification</p>
+                </div>
+                <Switch checked={newUser.isRoSPATrained} onCheckedChange={v => setNewUser({...newUser, isRoSPATrained: v})} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              className="w-full font-bold" 
+              onClick={handleAddUser} 
+              disabled={!newUser.name || !newUser.email || isSubmitting}
+            >
+              {isSubmitting ? "Creating..." : "Create User Profile"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col p-0">
@@ -853,3 +851,4 @@ export default function UserManagement() {
     </DashboardShell>
   );
 }
+
