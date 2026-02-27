@@ -17,9 +17,10 @@ import {
   Image as ImageIcon,
   X,
   Clock,
-  MapPin
+  MapPin,
+  Search
 } from "lucide-react";
-import { MOCK_ISSUES, MOCK_ASSETS } from "@/lib/mock-data";
+import { MOCK_ISSUES, MOCK_ASSETS, MOCK_USERS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -37,14 +38,25 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import Image from "next/image";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
+const OPERATIVES = MOCK_USERS.filter(u => u.role === 'operative' || u.role === 'supervisor');
 
 export default function IssuesPage() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [issues, setIssues] = useState(MOCK_ISSUES);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  
   const [newIssue, setNewIssue] = useState({
     title: "",
     description: "",
@@ -53,7 +65,6 @@ export default function IssuesPage() {
     park: "",
     imageUrl: ""
   });
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,18 +90,26 @@ export default function IssuesPage() {
       reportedBy: 'Sarah Smith',
       createdAt: new Date().toISOString().split('T')[0]
     };
-    // @ts-ignore - Adding dynamically to local state for demo
+    // @ts-ignore
     setIssues([issue, ...issues]);
     setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
     setIsDialogOpen(false);
     toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
   };
 
-  const handleAssign = (id: string) => {
+  const handleOpenAssignDialog = (id: string) => {
+    setSelectedIssueId(id);
+    setIsAssignDialogOpen(true);
+  };
+
+  const handleAssign = (operativeName: string) => {
+    if (!selectedIssueId) return;
     setIssues(prev => prev.map(issue => 
-      issue.id === id ? { ...issue, assignedTo: 'Sarah Smith', status: 'In Progress' as const } : issue
+      issue.id === selectedIssueId ? { ...issue, assignedTo: operativeName, status: 'In Progress' as const } : issue
     ));
-    toast({ title: "Issue Assigned", description: "Issue has been assigned to Sarah Smith." });
+    setIsAssignDialogOpen(false);
+    setSelectedIssueId(null);
+    toast({ title: "Issue Assigned", description: `Issue has been assigned to ${operativeName}.` });
   };
 
   const handleResolve = (id: string) => {
@@ -297,39 +316,95 @@ export default function IssuesPage() {
                       <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
                    </div>
                 ) : (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2"
-                    onClick={() => handleAssign(issue.id)}
-                  >
-                    <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2"
+                        onClick={() => handleOpenAssignDialog(issue.id)}
+                      >
+                        <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Assign this issue to an operative</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
               <div className="flex gap-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  onClick={() => handleDelete(issue.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 shrink-0 ${issue.status === 'Resolved' ? 'text-green-600 bg-green-50' : 'text-primary hover:bg-primary/10'}`}
-                  onClick={() => handleResolve(issue.id)}
-                  disabled={issue.status === 'Resolved'}
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() => handleDelete(issue.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete this issue report</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className={`h-8 w-8 shrink-0 ${issue.status === 'Resolved' ? 'text-green-600 bg-green-50' : 'text-primary hover:bg-primary/10'}`}
+                      onClick={() => handleResolve(issue.id)}
+                      disabled={issue.status === 'Resolved'}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{issue.status === 'Resolved' ? 'Issue is already resolved' : 'Mark as resolved'}</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </CardFooter>
           </Card>
         ))}
       </div>
+
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Assign Issue</DialogTitle>
+            <DialogDescription>
+              Select an operative to handle this issue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              {OPERATIVES.map(user => (
+                <div 
+                  key={user.id} 
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => handleAssign(user.name)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8 border">
+                      <AvatarImage src={user.avatar} />
+                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold">{user.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{user.team}</span>
+                    </div>
+                  </div>
+                  <UserPlus className="h-4 w-4 text-muted-foreground" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardShell>
   );
 }

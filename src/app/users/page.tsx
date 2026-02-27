@@ -26,7 +26,8 @@ import {
   Edit2,
   Briefcase,
   CheckCircle2,
-  Clock
+  Clock,
+  Search
 } from "lucide-react";
 import { MOCK_USERS, MOCK_TASKS } from "@/lib/mock-data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -53,6 +54,11 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Role } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -265,7 +271,7 @@ export default function UserManagement() {
               {users.filter(u => u.role !== 'operative').length}
             </div>
           </CardHeader>
-        </Card>
+        </div>
       </div>
 
       <Card className="overflow-hidden border-2">
@@ -317,22 +323,43 @@ export default function UserManagement() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {user.isDriver && (
-                        <div className="p-1 rounded bg-blue-50 text-blue-600 border border-blue-100" title="Driver">
-                          <Car className="h-4 w-4" />
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-blue-50 text-blue-600 border border-blue-100 cursor-help">
+                              <Car className="h-4 w-4" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Authorized Fleet Driver</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {user.isRoSPATrained && (
-                        <div className="p-1 rounded bg-yellow-50 text-yellow-600 border border-yellow-100" title="RoSPA Trained">
-                          <Award className="h-4 w-4" />
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-yellow-50 text-yellow-600 border border-yellow-100 cursor-help">
+                              <Award className="h-4 w-4" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>RoSPA Safety Certified</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {!user.isDriver && !user.isRoSPATrained && <span className="text-[10px] text-muted-foreground italic">None</span>}
                     </div>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openUserProfile(user)}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => openUserProfile(user)}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Manage user profile and assignments</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}

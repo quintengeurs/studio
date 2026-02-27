@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Clock,
   RotateCcw,
-  ListTodo
+  ListTodo,
+  UserPlus
 } from "lucide-react";
 import { MOCK_TASKS, MOCK_RECURRING_SCHEDULES, MOCK_ASSETS, MOCK_USERS } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
@@ -34,15 +35,24 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
-const OPERATIVES = MOCK_USERS.map(u => u.name);
+const OPERATIVES = MOCK_USERS.filter(u => u.role === 'operative' || u.role === 'supervisor');
 
 export default function TasksPage() {
   const { toast } = useToast();
   const [tasks, setTasks] = useState(MOCK_TASKS);
   const [schedules, setSchedules] = useState(MOCK_RECURRING_SCHEDULES);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  
   const [newTask, setNewTask] = useState({
     title: "",
     objective: "",
@@ -66,10 +76,26 @@ export default function TasksPage() {
       id: `t${Date.now()}`,
       status: 'Todo' as const
     };
+    // @ts-ignore
     setTasks([task, ...tasks]);
     setIsTaskDialogOpen(false);
     setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: new Date().toISOString().split('T')[0] });
     toast({ title: "Task Created", description: "The new task has been added to the queue." });
+  };
+
+  const handleOpenAssignDialog = (id: string) => {
+    setSelectedTaskId(id);
+    setIsAssignDialogOpen(true);
+  };
+
+  const handleAssign = (operativeName: string) => {
+    if (!selectedTaskId) return;
+    setTasks(prev => prev.map(task => 
+      task.id === selectedTaskId ? { ...task, assignedTo: operativeName } : task
+    ));
+    setIsAssignDialogOpen(false);
+    setSelectedTaskId(null);
+    toast({ title: "Task Reassigned", description: `Task has been assigned to ${operativeName}.` });
   };
 
   return (
@@ -116,7 +142,7 @@ export default function TasksPage() {
                       <SelectValue placeholder="Select User" />
                     </SelectTrigger>
                     <SelectContent>
-                      {OPERATIVES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                      {OPERATIVES.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -161,7 +187,16 @@ export default function TasksPage() {
                     <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">
                       {task.title}
                     </CardTitle>
-                    <MoreVertical className="h-5 w-5 text-muted-foreground cursor-pointer opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                         <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreVertical className="h-5 w-5 text-muted-foreground cursor-pointer" />
+                         </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Task options</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   <CardDescription className="text-sm font-medium text-foreground/80 mt-1 line-clamp-2">
                     {task.objective}
@@ -178,15 +213,25 @@ export default function TasksPage() {
                     </div>
                     
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0">
-                          <User className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assigned To</span>
-                          <span className="text-xs font-semibold truncate">{task.assignedTo}</span>
-                        </div>
-                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors"
+                            onClick={() => handleOpenAssignDialog(task.id)}
+                          >
+                            <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0">
+                              <User className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assigned To</span>
+                              <span className="text-xs font-semibold truncate">{task.assignedTo}</span>
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click to reassign this task</p>
+                        </TooltipContent>
+                      </Tooltip>
                       <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm shrink-0`}>
                         {task.status.toUpperCase()}
                       </Badge>
@@ -233,6 +278,40 @@ export default function TasksPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Reassign Task</DialogTitle>
+            <DialogDescription>
+              Select a new operative for this task.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              {OPERATIVES.map(user => (
+                <div 
+                  key={user.id} 
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => handleAssign(user.name)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8 border">
+                      <AvatarImage src={user.avatar} />
+                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold">{user.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{user.team}</span>
+                    </div>
+                  </div>
+                  <UserPlus className="h-4 w-4 text-muted-foreground" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardShell>
   );
 }

@@ -53,6 +53,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Asset } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
 
@@ -194,9 +199,16 @@ export default function AssetRegister() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search assets..." className="pl-9 w-full" />
         </div>
-        <Button variant="outline" size="icon" className="shrink-0">
-          <Filter className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" className="shrink-0">
+              <Filter className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Filter the asset register</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <Card className="overflow-hidden border-2">
@@ -232,9 +244,16 @@ export default function AssetRegister() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-[10px] whitespace-nowrap">{asset.lastInspected}</TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openAssetDetails(asset)}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openAssetDetails(asset)}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>View asset details and history</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}
@@ -455,4 +474,3 @@ export default function AssetRegister() {
     </DashboardShell>
   );
 }
-
