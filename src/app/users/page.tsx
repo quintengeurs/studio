@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
   Table, 
@@ -27,7 +27,9 @@ import {
   Briefcase,
   CheckCircle2,
   Clock,
-  UserPlus
+  UserPlus,
+  Users as UsersIcon,
+  Filter
 } from "lucide-react";
 import { MOCK_USERS, MOCK_TASKS } from "@/lib/mock-data";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -60,6 +62,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const TRAINING_OPTIONS = [
   "Health & Safety",
@@ -79,6 +82,7 @@ export default function UserManagement() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management'>('all');
   
   // States for checkbox management
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
@@ -95,6 +99,15 @@ export default function UserManagement() {
     isRoSPATrained: false,
     avatar: ''
   });
+
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      if (roleFilter === 'all') return true;
+      if (roleFilter === 'operative') return user.role === 'operative';
+      if (roleFilter === 'management') return user.role !== 'operative';
+      return true;
+    });
+  }, [users, roleFilter]);
 
   // Sync checkbox state when opening add/edit dialogs
   const syncTrainingState = (trainingString: string) => {
@@ -213,7 +226,7 @@ export default function UserManagement() {
               <div className="flex justify-center">
                 <div className="relative group">
                   <Avatar className="h-24 w-24 border-4 border-muted cursor-pointer transition-opacity group-hover:opacity-70" onClick={() => fileInputRef.current?.click()}>
-                    <AvatarImage src={newUser.avatar} />
+                    <AvatarImage src={newUser.avatar || undefined} />
                     <AvatarFallback className="text-2xl font-bold bg-muted text-muted-foreground">
                       {newUser.name ? newUser.name.charAt(0) : <Camera className="h-8 w-8" />}
                     </AvatarFallback>
@@ -330,28 +343,69 @@ export default function UserManagement() {
       }
     >
       <div className="grid gap-6 md:grid-cols-3 mb-8">
-        <Card className="bg-primary/5 border-primary/20">
+        <Card 
+          className={cn(
+            "transition-all cursor-pointer border-2 hover:shadow-md",
+            roleFilter === 'all' ? "bg-primary/10 border-primary" : "bg-card border-border"
+          )}
+          onClick={() => setRoleFilter('all')}
+        >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold uppercase text-primary/60">Total Active Users</CardTitle>
+            <div className="flex items-center justify-between mb-1">
+              <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Total Active Users</CardTitle>
+              <UsersIcon className={cn("h-4 w-4", roleFilter === 'all' ? "text-primary" : "text-muted-foreground")} />
+            </div>
             <div className="text-3xl font-bold font-headline">{users.length}</div>
           </CardHeader>
         </Card>
-        <Card className="bg-accent border-accent-foreground/10">
+        
+        <Card 
+          className={cn(
+            "transition-all cursor-pointer border-2 hover:shadow-md",
+            roleFilter === 'operative' ? "bg-accent/20 border-accent" : "bg-card border-border"
+          )}
+          onClick={() => setRoleFilter('operative')}
+        >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold uppercase text-accent-foreground/60">Field Operatives</CardTitle>
+            <div className="flex items-center justify-between mb-1">
+              <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Field Operatives</CardTitle>
+              <Briefcase className={cn("h-4 w-4", roleFilter === 'operative' ? "text-accent-foreground" : "text-muted-foreground")} />
+            </div>
             <div className="text-3xl font-bold font-headline">
               {users.filter(u => u.role === 'operative').length}
             </div>
           </CardHeader>
         </Card>
-        <Card className="bg-muted border-muted-foreground/10">
+
+        <Card 
+          className={cn(
+            "transition-all cursor-pointer border-2 hover:shadow-md",
+            roleFilter === 'management' ? "bg-muted/50 border-muted-foreground/30" : "bg-card border-border"
+          )}
+          onClick={() => setRoleFilter('management')}
+        >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold uppercase text-muted-foreground/60">Management Staff</CardTitle>
+            <div className="flex items-center justify-between mb-1">
+              <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Management Staff</CardTitle>
+              <Shield className={cn("h-4 w-4", roleFilter === 'management' ? "text-foreground" : "text-muted-foreground")} />
+            </div>
             <div className="text-3xl font-bold font-headline">
               {users.filter(u => u.role !== 'operative').length}
             </div>
           </CardHeader>
         </Card>
+      </div>
+
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+          <Filter className="h-3.5 w-3.5" />
+          Current View: {roleFilter === 'all' ? 'All Users' : roleFilter === 'operative' ? 'Field Operatives' : 'Management'}
+        </div>
+        {roleFilter !== 'all' && (
+          <Button variant="ghost" size="sm" onClick={() => setRoleFilter('all')} className="h-7 text-[10px] uppercase font-bold">
+            Clear Filter
+          </Button>
+        )}
       </div>
 
       <Card className="overflow-hidden border-2">
@@ -367,82 +421,90 @@ export default function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => openUserProfile(user)}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 border-2 border-primary/10">
-                        <AvatarImage src={user.avatar || undefined} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <div className="font-bold text-sm truncate">{user.name}</div>
-                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Mail className="h-3 w-3" /> {user.email}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <Badge className={`${getRoleColor(user.role)} font-bold text-[9px] uppercase w-fit`} variant="outline">
-                        {user.role}
-                      </Badge>
-                      <span className="text-[10px] font-bold text-muted-foreground">{user.team}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1 max-w-[200px]">
-                      <span className="text-[10px] font-bold text-foreground line-clamp-2">{user.training || 'None'}</span>
-                      <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground uppercase">
-                        <Shield className="h-3 w-3" />
-                        {user.role === 'master' ? 'Full Control' : user.role === 'supervisor' ? 'Team Access' : 'Personal Tasks'}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {user.isDriver && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="p-1 rounded bg-blue-50 text-blue-600 border border-blue-100 cursor-help">
-                              <Car className="h-4 w-4" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Authorized Fleet Driver</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {user.isRoSPATrained && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="p-1 rounded bg-yellow-50 text-yellow-600 border border-yellow-100 cursor-help">
-                              <Award className="h-4 w-4" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>RoSPA Safety Certified</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {!user.isDriver && !user.isRoSPATrained && <span className="text-[10px] text-muted-foreground italic">None</span>}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => openUserProfile(user)}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Manage user profile and assignments</p>
-                      </TooltipContent>
-                    </Tooltip>
+              {filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">
+                    No users match the selected filter.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => openUserProfile(user)}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-primary/10">
+                          <AvatarImage src={user.avatar || undefined} />
+                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col min-w-0">
+                          <div className="font-bold text-sm truncate">{user.name}</div>
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Mail className="h-3 w-3" /> {user.email}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <Badge className={`${getRoleColor(user.role)} font-bold text-[9px] uppercase w-fit`} variant="outline">
+                          {user.role}
+                        </Badge>
+                        <span className="text-[10px] font-bold text-muted-foreground">{user.team}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 max-w-[200px]">
+                        <span className="text-[10px] font-bold text-foreground line-clamp-2">{user.training || 'None'}</span>
+                        <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground uppercase">
+                          <Shield className="h-3 w-3" />
+                          {user.role === 'master' ? 'Full Control' : user.role === 'supervisor' ? 'Team Access' : 'Personal Tasks'}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {user.isDriver && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="p-1 rounded bg-blue-50 text-blue-600 border border-blue-100 cursor-help">
+                                <Car className="h-4 w-4" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Authorized Fleet Driver</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {user.isRoSPATrained && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="p-1 rounded bg-yellow-50 text-yellow-600 border border-yellow-100 cursor-help">
+                                <Award className="h-4 w-4" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>RoSPA Safety Certified</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {!user.isDriver && !user.isRoSPATrained && <span className="text-[10px] text-muted-foreground italic">None</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => openUserProfile(user)}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Manage user profile and assignments</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
