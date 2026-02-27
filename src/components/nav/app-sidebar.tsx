@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -8,7 +9,8 @@ import {
   Users, 
   Leaf,
   ClipboardCheck,
-  LogOut
+  LogOut,
+  ListTodo
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,16 +31,17 @@ import { MOCK_USERS } from "@/lib/mock-data";
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
-  { title: "Tasks", icon: CheckSquare, href: "/tasks" },
+  { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const currentUser = MOCK_USERS[1]; // Mocking supervisor for now
+  const currentUser = MOCK_USERS[1]; // Sarah Smith (Supervisor)
 
   return (
     <Sidebar collapsible="icon">

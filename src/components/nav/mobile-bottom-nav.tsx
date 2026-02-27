@@ -3,13 +3,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, AlertTriangle, CheckSquare, MapPin, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
-  { title: "Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
   { title: "Assets", icon: MapPin, href: "/assets" },
 ];
