@@ -47,10 +47,11 @@ import {
 } from "@/components/ui/tooltip";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { User } from "@/lib/types";
 
 export default function IssuesPage() {
   const { toast } = useToast();
@@ -58,7 +59,7 @@ export default function IssuesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Firebase Data - only show non-resolved issues on this page
-  const issuesQuery = useMemo(() => {
+  const issuesQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(
       collection(db, "issues"), 
@@ -69,11 +70,12 @@ export default function IssuesPage() {
   }, [db]);
   const { data: issues = [], loading: issuesLoading } = useCollection(issuesQuery);
 
-  const usersQuery = useMemo(() => {
+  // Live Users for assignment
+  const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return collection(db, "users");
+    return query(collection(db, "users"), where("isArchived", "==", false));
   }, [db]);
-  const { data: users = [] } = useCollection(usersQuery);
+  const { data: users = [] } = useCollection<User>(usersQuery);
 
   const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
 
@@ -121,11 +123,6 @@ export default function IssuesPage() {
     };
 
     addDoc(collection(db, "issues"), issueData)
-      .then(() => {
-        setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
-        setIsDialogOpen(false);
-        toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
-      })
       .catch(async (e) => {
         errorEmitter.emit("permission-error", new FirestorePermissionError({
           path: "issues",
@@ -133,6 +130,10 @@ export default function IssuesPage() {
           requestResourceData: issueData
         }));
       });
+      
+    setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
+    setIsDialogOpen(false);
+    toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
   };
 
   const handleOpenAssignDialog = (id: string) => {
@@ -462,6 +463,9 @@ export default function IssuesPage() {
                     {assignment.operativeId === user.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
                   </div>
                 ))}
+                {operatives.length === 0 && (
+                  <p className="text-center text-xs text-muted-foreground py-4 italic">No active operatives found in database.</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">

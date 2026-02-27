@@ -17,9 +17,9 @@ import {
   ThumbsUp,
   AlertCircle,
   MapPin,
-  User
+  User as UserIcon
 } from "lucide-react";
-import { MOCK_RECURRING_SCHEDULES, MOCK_ASSETS, MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_RECURRING_SCHEDULES, MOCK_ASSETS } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -42,9 +42,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
+import { User } from "@/lib/types";
 
 const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
 
@@ -53,17 +54,18 @@ export default function TasksPage() {
   const db = useFirestore();
 
   // Firebase Queries
-  const tasksQuery = useMemo(() => {
+  const tasksQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status"));
   }, [db]);
   const { data: tasks = [], loading: tasksLoading } = useCollection(tasksQuery);
 
-  const usersQuery = useMemo(() => {
+  // Live Users for assignment
+  const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return collection(db, "users");
+    return query(collection(db, "users"), where("isArchived", "==", false));
   }, [db]);
-  const { data: users = [] } = useCollection(usersQuery);
+  const { data: users = [] } = useCollection<User>(usersQuery);
 
   const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
 
@@ -174,6 +176,7 @@ export default function TasksPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {operatives.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                      {operatives.length === 0 && <SelectItem value="none" disabled>No active operatives</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -261,7 +264,7 @@ export default function TasksPage() {
                           onClick={() => handleOpenAssignDialog(task.id)}
                         >
                           <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0">
-                            <User className="h-4 w-4 text-primary" />
+                            <UserIcon className="h-4 w-4 text-primary" />
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span>
@@ -353,6 +356,9 @@ export default function TasksPage() {
                   <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </div>
               ))}
+              {operatives.length === 0 && (
+                <p className="text-center text-xs text-muted-foreground py-4">No active operatives available.</p>
+              )}
             </div>
           </div>
         </DialogContent>
