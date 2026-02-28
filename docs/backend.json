@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -14,7 +13,8 @@
         "training": { "type": "string" },
         "isDriver": { "type": "boolean" },
         "isRoSPATrained": { "type": "boolean" },
-        "isArchived": { "type": "boolean" }
+        "isArchived": { "type": "boolean" },
+        "createdAt": { "type": "string" }
       },
       "required": ["name", "email", "role"]
     },

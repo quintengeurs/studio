@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
   Table, 
@@ -25,15 +24,13 @@ import {
   X, 
   Edit2,
   Briefcase,
-  CheckCircle2,
   Clock,
-  UserPlus,
   Users as UsersIcon,
   Filter,
   UserMinus,
   Lock
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -83,7 +80,6 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  // Fetch current user's profile to check role
   const currentUserRef = useMemo(() => currentUser ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
   const { data: userProfile } = useDoc<User>(currentUserRef);
   const isMaster = userProfile?.role === 'master';
@@ -197,22 +193,26 @@ export default function UserManagement() {
       createdAt: new Date().toISOString()
     };
 
+    // Optimistically close dialog and reset
+    setIsAddDialogOpen(false);
+    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
+    setSelectedTrainings([]);
+    setOtherTraining("");
+    setIsOtherChecked(false);
+
     addDoc(collection(db, "users"), userToSave)
+      .then(() => {
+        setIsSubmitting(false);
+        toast({ title: "User Added", description: `${userToSave.name} has been added. Ensure they have a login in Firebase Auth console.` });
+      })
       .catch(async (e) => {
+        setIsSubmitting(false);
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'users',
           operation: 'create',
           requestResourceData: userToSave
         }));
       });
-
-    toast({ title: "User Added", description: `${newUser.name} has been added to the system. Please ensure they are also created in the Firebase Auth console.` });
-    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
-    setSelectedTrainings([]);
-    setOtherTraining("");
-    setIsOtherChecked(false);
-    setIsAddDialogOpen(false);
-    setIsSubmitting(false);
   };
 
   const handleUpdateUser = () => {
@@ -226,17 +226,19 @@ export default function UserManagement() {
     };
 
     updateDoc(doc(db, "users", selectedUser.id), updatedData)
+      .then(() => {
+        setIsEditing(false);
+        setIsSubmitting(false);
+        toast({ title: "Profile Updated", description: "Changes saved successfully." });
+      })
       .catch(async (e) => {
+         setIsSubmitting(false);
          errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `users/${selectedUser.id}`,
           operation: 'update',
           requestResourceData: updatedData
         }));
       });
-
-    setIsEditing(false);
-    toast({ title: "Profile Updated", description: `Changes to ${selectedUser.name}'s profile saved.` });
-    setIsSubmitting(false);
   };
 
   const handleArchiveUser = () => {
@@ -246,18 +248,20 @@ export default function UserManagement() {
     const archiveData = { isArchived: true };
     
     updateDoc(doc(db, "users", selectedUser.id), archiveData)
+      .then(() => {
+        setIsProfileDialogOpen(false);
+        setSelectedUser(null);
+        setIsSubmitting(false);
+        toast({ title: "User Archived", description: "Staff member moved to archives." });
+      })
       .catch(async (e) => {
+        setIsSubmitting(false);
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `users/${selectedUser.id}`,
           operation: 'update',
           requestResourceData: archiveData
         }));
       });
-
-    setIsProfileDialogOpen(false);
-    setSelectedUser(null);
-    toast({ title: "User Archived", description: "Staff member moved to archives." });
-    setIsSubmitting(false);
   };
 
   const openUserProfile = (user: User) => {
@@ -269,13 +273,9 @@ export default function UserManagement() {
 
   const openAddDialog = () => {
     if (!isMaster) {
-      toast({ title: "Permission Denied", description: "Only Master accounts can create new users.", variant: "destructive" });
+      toast({ title: "Permission Denied", description: "Only Master accounts can create users.", variant: "destructive" });
       return;
     }
-    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
-    setSelectedTrainings([]);
-    setOtherTraining("");
-    setIsOtherChecked(false);
     setIsAddDialogOpen(true);
   };
 
@@ -303,13 +303,13 @@ export default function UserManagement() {
           )}
           onClick={() => setRoleFilter('all')}
         >
-          <CardHeader className="pb-2">
+          <div className="p-6">
             <div className="flex items-center justify-between mb-1">
-              <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Total Active Users</CardTitle>
+              <span className="text-xs font-bold uppercase text-muted-foreground">Total Active Users</span>
               <UsersIcon className={cn("h-4 w-4", roleFilter === 'all' ? "text-primary" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">{users.length}</div>
-          </CardHeader>
+          </div>
         </Card>
         
         <Card 
@@ -319,15 +319,15 @@ export default function UserManagement() {
           )}
           onClick={() => setRoleFilter('operative')}
         >
-          <CardHeader className="pb-2">
+          <div className="p-6">
             <div className="flex items-center justify-between mb-1">
-              <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Field Operatives</CardTitle>
+              <span className="text-xs font-bold uppercase text-muted-foreground">Field Operatives</span>
               <Briefcase className={cn("h-4 w-4", roleFilter === 'operative' ? "text-accent-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
               {users.filter(u => u.role === 'operative').length}
             </div>
-          </CardHeader>
+          </div>
         </Card>
 
         <Card 
@@ -337,15 +337,15 @@ export default function UserManagement() {
           )}
           onClick={() => setRoleFilter('management')}
         >
-          <CardHeader className="pb-2">
+          <div className="p-6">
             <div className="flex items-center justify-between mb-1">
-              <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Management Staff</CardTitle>
+              <span className="text-xs font-bold uppercase text-muted-foreground">Management Staff</span>
               <Shield className={cn("h-4 w-4", roleFilter === 'management' ? "text-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
               {users.filter(u => u.role !== 'operative').length}
             </div>
-          </CardHeader>
+          </div>
         </Card>
       </div>
 
@@ -393,7 +393,7 @@ export default function UserManagement() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border-2 border-primary/10">
-                          <AvatarImage src={user.avatar} />
+                          <AvatarImage src={user.avatar || undefined} />
                           <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col min-w-0">
@@ -429,9 +429,7 @@ export default function UserManagement() {
                                 <Car className="h-4 w-4" />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Authorized Fleet Driver</p>
-                            </TooltipContent>
+                            <TooltipContent><p>Authorized Fleet Driver</p></TooltipContent>
                           </Tooltip>
                         )}
                         {user.isRoSPATrained && (
@@ -441,9 +439,7 @@ export default function UserManagement() {
                                 <Award className="h-4 w-4" />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              <p>RoSPA Safety Certified</p>
-                            </TooltipContent>
+                            <TooltipContent><p>RoSPA Safety Certified</p></TooltipContent>
                           </Tooltip>
                         )}
                       </div>
@@ -471,7 +467,7 @@ export default function UserManagement() {
             <div className="flex justify-center">
               <div className="relative group">
                 <Avatar className="h-24 w-24 border-4 border-muted cursor-pointer transition-opacity group-hover:opacity-70" onClick={() => fileInputRef.current?.click()}>
-                  <AvatarImage src={newUser.avatar} />
+                  <AvatarImage src={newUser.avatar || undefined} />
                   <AvatarFallback className="text-2xl font-bold bg-muted text-muted-foreground">
                     {newUser.name ? newUser.name.charAt(0) : <Camera className="h-8 w-8" />}
                   </AvatarFallback>
@@ -495,9 +491,7 @@ export default function UserManagement() {
               <div className="grid gap-2">
                 <Label>Role</Label>
                 <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Role" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Role" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="operative">Field Operative</SelectItem>
                     <SelectItem value="supervisor">Supervisor</SelectItem>
@@ -516,7 +510,7 @@ export default function UserManagement() {
                 <Lock className="h-3.5 w-3.5" /> Authentication Note
               </h4>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                After creating this profile, you must manually create the corresponding user in the <b>Firebase Authentication</b> console with a temporary password to enable their login.
+                After creating this profile, you must manually create the corresponding user in the <b>Firebase Authentication</b> console.
               </p>
             </div>
 
@@ -541,9 +535,7 @@ export default function UserManagement() {
                     checked={isOtherChecked}
                     onCheckedChange={(v) => setIsOtherChecked(!!v)}
                   />
-                  <label htmlFor="training-other" className="text-sm font-medium leading-none cursor-pointer">
-                    Other
-                  </label>
+                  <label htmlFor="training-other" className="text-sm font-medium leading-none cursor-pointer">Other</label>
                 </div>
                 {isOtherChecked && (
                   <div className="col-span-full mt-1">
@@ -560,19 +552,11 @@ export default function UserManagement() {
 
             <div className="grid grid-cols-2 gap-8 border rounded-lg p-4 bg-muted/20">
               <div className="flex items-center justify-between space-x-2">
-                <div className="flex flex-col gap-0.5">
-                  <Label className="flex items-center gap-2">
-                    <Car className="h-4 w-4" /> Valid Driver
-                  </Label>
-                </div>
+                <Label className="flex items-center gap-2"><Car className="h-4 w-4" /> Valid Driver</Label>
                 <Switch checked={newUser.isDriver} onCheckedChange={v => setNewUser({...newUser, isDriver: v})} />
               </div>
               <div className="flex items-center justify-between space-x-2">
-                <div className="flex flex-col gap-0.5">
-                  <Label className="flex items-center gap-2">
-                    <Award className="h-4 w-4" /> RoSPA Trained
-                  </Label>
-                </div>
+                <Label className="flex items-center gap-2"><Award className="h-4 w-4" /> RoSPA Trained</Label>
                 <Switch checked={newUser.isRoSPATrained} onCheckedChange={v => setNewUser({...newUser, isRoSPATrained: v})} />
               </div>
             </div>
@@ -595,13 +579,13 @@ export default function UserManagement() {
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
                  <Avatar className="h-16 w-16 border-2 border-primary/20">
-                  <AvatarImage src={selectedUser?.avatar} />
+                  <AvatarImage src={selectedUser?.avatar || undefined} />
                   <AvatarFallback className="text-xl font-bold">{selectedUser?.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge className={`${getRoleColor(selectedUser?.role || '')} font-bold text-[10px] uppercase`}>
+                    <Badge className={`${getRoleColor(selectedUser?.role || '')} font-bold text-[10px] uppercase`} variant="outline">
                       <span className="flex items-center gap-1">
                         {selectedUser?.role === 'master' && <Shield className="h-2 w-2" />}
                         {selectedUser?.role}
@@ -630,7 +614,7 @@ export default function UserManagement() {
                   onClick={() => setIsEditing(!isEditing)}
                 >
                   {isEditing ? <X className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
-                  {isEditing ? "Cancel Edit" : "Edit Profile"}
+                  {isEditing ? "Cancel" : "Edit"}
                 </Button>
               </div>
             </div>
@@ -649,7 +633,7 @@ export default function UserManagement() {
                     <div className="flex justify-center mb-2">
                        <div className="relative group">
                         <Avatar className="h-20 w-20 border-2 border-muted cursor-pointer hover:opacity-80" onClick={() => editFileInputRef.current?.click()}>
-                          <AvatarImage src={selectedUser?.avatar} />
+                          <AvatarImage src={selectedUser?.avatar || undefined} />
                           <AvatarFallback><Camera className="h-6 w-6" /></AvatarFallback>
                         </Avatar>
                         <input type="file" ref={editFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, true)} />
@@ -658,26 +642,17 @@ export default function UserManagement() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
                         <Label>Full Name</Label>
-                        <Input 
-                          value={selectedUser?.name} 
-                          onChange={e => selectedUser && setSelectedUser({...selectedUser, name: e.target.value})} 
-                        />
+                        <Input value={selectedUser?.name} onChange={e => selectedUser && setSelectedUser({...selectedUser, name: e.target.value})} />
                       </div>
                       <div className="grid gap-2">
                         <Label>Email</Label>
-                        <Input 
-                          value={selectedUser?.email} 
-                          onChange={e => selectedUser && setSelectedUser({...selectedUser, email: e.target.value})} 
-                        />
+                        <Input value={selectedUser?.email} onChange={e => selectedUser && setSelectedUser({...selectedUser, email: e.target.value})} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
                         <Label>Role</Label>
-                        <Select 
-                          value={selectedUser?.role} 
-                          onValueChange={(v: Role) => selectedUser && setSelectedUser({...selectedUser, role: v})}
-                        >
+                        <Select value={selectedUser?.role} onValueChange={(v: Role) => selectedUser && setSelectedUser({...selectedUser, role: v})}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="operative">Operative</SelectItem>
@@ -688,10 +663,7 @@ export default function UserManagement() {
                       </div>
                       <div className="grid gap-2">
                         <Label>Team</Label>
-                        <Input 
-                          value={selectedUser?.team} 
-                          onChange={e => selectedUser && setSelectedUser({...selectedUser, team: e.target.value})} 
-                        />
+                        <Input value={selectedUser?.team} onChange={e => selectedUser && setSelectedUser({...selectedUser, team: e.target.value})} />
                       </div>
                     </div>
                     
@@ -705,9 +677,7 @@ export default function UserManagement() {
                               checked={selectedTrainings.includes(option)}
                               onCheckedChange={() => toggleTraining(option)}
                             />
-                            <label htmlFor={`edit-training-${option}`} className="text-sm font-medium leading-none cursor-pointer">
-                              {option}
-                            </label>
+                            <label htmlFor={`edit-training-${option}`} className="text-sm font-medium leading-none cursor-pointer">{option}</label>
                           </div>
                         ))}
                       </div>
@@ -716,17 +686,11 @@ export default function UserManagement() {
                     <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/20">
                       <div className="flex items-center justify-between">
                         <Label>Fleet Driver</Label>
-                        <Switch 
-                          checked={selectedUser?.isDriver} 
-                          onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isDriver: v})} 
-                        />
+                        <Switch checked={selectedUser?.isDriver} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isDriver: v})} />
                       </div>
                       <div className="flex items-center justify-between">
                         <Label>RoSPA Certified</Label>
-                        <Switch 
-                          checked={selectedUser?.isRoSPATrained} 
-                          onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isRoSPATrained: v})} 
-                        />
+                        <Switch checked={selectedUser?.isRoSPATrained} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isRoSPATrained: v})} />
                       </div>
                     </div>
                     <Button onClick={handleUpdateUser} className="w-full font-bold" disabled={isSubmitting}>
@@ -739,14 +703,14 @@ export default function UserManagement() {
                       <div className="p-4 border rounded-lg bg-card">
                         <div className="flex items-center gap-3 text-primary mb-2">
                           <Briefcase className="h-4 w-4" />
-                          <h4 className="text-xs font-bold uppercase tracking-wider">Departmental Info</h4>
+                          <h4 className="text-xs font-bold uppercase tracking-wider">Department</h4>
                         </div>
                         <p className="text-sm font-semibold">{selectedUser?.team}</p>
                       </div>
                       <div className="p-4 border rounded-lg bg-card">
                         <div className="flex items-center gap-3 text-primary mb-2">
                           <Shield className="h-4 w-4" />
-                          <h4 className="text-xs font-bold uppercase tracking-wider">Certification</h4>
+                          <h4 className="text-xs font-bold uppercase tracking-wider">Certifications</h4>
                         </div>
                         <p className="text-sm font-semibold whitespace-pre-line">{selectedUser?.training}</p>
                       </div>
@@ -767,7 +731,7 @@ export default function UserManagement() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <p className="text-sm font-medium">No tasks currently assigned to {selectedUser?.name}.</p>
+                    <p className="text-sm font-medium">No tasks assigned to {selectedUser?.name}.</p>
                   </div>
                 )}
               </TabsContent>
