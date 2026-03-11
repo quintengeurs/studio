@@ -80,9 +80,8 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  const currentUserRef = useMemo(() => currentUser ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
-  const { data: userProfile } = useDoc<User>(currentUserRef);
-  const isMaster = userProfile?.role === 'master';
+  // In prototype mode, we assume the mocked user is a master
+  const isMaster = true;
 
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -203,7 +202,7 @@ export default function UserManagement() {
     addDoc(collection(db, "users"), userToSave)
       .then(() => {
         setIsSubmitting(false);
-        toast({ title: "User Added", description: `${userToSave.name} has been added. Ensure they have a login in Firebase Auth console.` });
+        toast({ title: "User Added", description: `${userToSave.name} has been added to the register.` });
       })
       .catch(async (e) => {
         setIsSubmitting(false);
@@ -272,10 +271,6 @@ export default function UserManagement() {
   };
 
   const openAddDialog = () => {
-    if (!isMaster) {
-      toast({ title: "Permission Denied", description: "Only Master accounts can create users.", variant: "destructive" });
-      return;
-    }
     setIsAddDialogOpen(true);
   };
 
@@ -288,11 +283,9 @@ export default function UserManagement() {
       title="User Management" 
       description="Control system access and assign operative roles"
       actions={
-        isMaster && (
-          <Button className="font-headline font-bold" onClick={openAddDialog}>
-            <Plus className="mr-2 h-4 w-4" /> Add User
-          </Button>
-        )
+        <Button className="font-headline font-bold" onClick={openAddDialog}>
+          <Plus className="mr-2 h-4 w-4" /> Add User
+        </Button>
       }
     >
       <div className="grid gap-6 md:grid-cols-3 mb-8">
@@ -505,15 +498,6 @@ export default function UserManagement() {
               </div>
             </div>
 
-            <div className="p-4 border rounded-lg bg-primary/5 space-y-3">
-              <h4 className="text-xs font-bold uppercase flex items-center gap-2 text-primary">
-                <Lock className="h-3.5 w-3.5" /> Authentication Note
-              </h4>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                After creating this profile, you must manually create the corresponding user in the <b>Firebase Authentication</b> console.
-              </p>
-            </div>
-
             <div className="grid gap-3">
               <Label className="text-sm font-bold">Training and Certifications</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
@@ -596,17 +580,15 @@ export default function UserManagement() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {isMaster && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="font-bold text-destructive hover:bg-destructive/10"
-                    onClick={handleArchiveUser}
-                    disabled={isSubmitting}
-                  >
-                    <UserMinus className="mr-2 h-4 w-4" /> Archive Staff
-                  </Button>
-                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="font-bold text-destructive hover:bg-destructive/10"
+                  onClick={handleArchiveUser}
+                  disabled={isSubmitting}
+                >
+                  <UserMinus className="mr-2 h-4 w-4" /> Archive Staff
+                </Button>
                 <Button 
                   variant={isEditing ? "outline" : "default"} 
                   size="sm" 
