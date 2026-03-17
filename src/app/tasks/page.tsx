@@ -17,7 +17,8 @@ import {
   ThumbsUp,
   AlertCircle,
   MapPin,
-  User as UserIcon
+  User as UserIcon,
+  RefreshCcw
 } from "lucide-react";
 import { MOCK_RECURRING_SCHEDULES, MOCK_ASSETS } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
@@ -45,7 +46,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
-import { User } from "@/lib/types";
+import { User, Task, Frequency } from "@/lib/types";
+import { addDays, addMonths, format } from "date-fns";
 
 const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
 
@@ -58,7 +60,7 @@ export default function TasksPage() {
     if (!db) return null;
     return query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status"));
   }, [db]);
-  const { data: tasks = [], loading: tasksLoading } = useCollection(tasksQuery);
+  const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery);
 
   // Live Users for assignment
   const usersQuery = useMemoFirebase(() => {
@@ -78,7 +80,8 @@ export default function TasksPage() {
     objective: "",
     park: "",
     assignedTo: "",
-    dueDate: new Date().toISOString().split('T')[0]
+    dueDate: format(new Date(), 'yyyy-MM-dd'),
+    frequency: "One-off" as Frequency
   });
 
   const getStatusColor = (status: string) => {
@@ -92,14 +95,39 @@ export default function TasksPage() {
 
   const handleCreateTask = () => {
     if (!db) return;
-    const task = {
-      ...newTask,
-      status: 'Todo'
+    const taskData = {
+      title: newTask.title,
+      objective: newTask.objective,
+      park: newTask.park,
+      assignedTo: newTask.assignedTo,
+      dueDate: newTask.dueDate,
+      frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
+      status: 'Todo' as const
     };
-    addDoc(collection(db, "tasks"), task);
+    
+    addDoc(collection(db, "tasks"), taskData);
     setIsTaskDialogOpen(false);
-    setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: new Date().toISOString().split('T')[0] });
+    setNewTask({ 
+      title: "", 
+      objective: "", 
+      park: "", 
+      assignedTo: "", 
+      dueDate: format(new Date(), 'yyyy-MM-dd'),
+      frequency: "One-off"
+    });
     toast({ title: "Task Created", description: "The new task has been added to the queue." });
+  };
+
+  const calculateNextDueDate = (currentDate: string, frequency: Frequency) => {
+    const date = new Date(currentDate);
+    switch (frequency) {
+      case 'Daily': return format(addDays(date, 1), 'yyyy-MM-dd');
+      case 'Weekly': return format(addDays(date, 7), 'yyyy-MM-dd');
+      case 'Monthly': return format(addMonths(date, 1), 'yyyy-MM-dd');
+      case 'Six Monthly': return format(addMonths(date, 6), 'yyyy-MM-dd');
+      case 'Yearly': return format(addMonths(date, 12), 'yyyy-MM-dd');
+      default: return null;
+    }
   };
 
   const handleOpenAssignDialog = (id: string) => {
@@ -123,7 +151,23 @@ export default function TasksPage() {
     // 1. Mark task as Completed (Archives it)
     updateDoc(doc(db, "tasks", taskId), { status: 'Completed' });
 
-    // 2. If it was linked to an issue, verify that issue is also resolved
+    // 2. If recurring, spawn next task
+    if (task.frequency && task.frequency !== 'One-off') {
+      const nextDate = calculateNextDueDate(task.dueDate, task.frequency);
+      if (nextDate) {
+        addDoc(collection(db, "tasks"), {
+          title: task.title,
+          objective: task.objective,
+          park: task.park,
+          assignedTo: task.assignedTo,
+          dueDate: nextDate,
+          frequency: task.frequency,
+          status: 'Todo'
+        });
+      }
+    }
+
+    // 3. If it was linked to an issue, verify that issue is also resolved
     if (task.linkedIssueId) {
       updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Resolved' });
     }
@@ -181,9 +225,27 @@ export default function TasksPage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="t-date">Due Date</Label>
-                <Input id="t-date" type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="t-date">Due Date</Label>
+                  <Input id="t-date" type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Frequency</Label>
+                  <Select value={newTask.frequency} onValueChange={(v: Frequency) => setNewTask({...newTask, frequency: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="One-off" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="One-off">One-off</SelectItem>
+                      <SelectItem value="Daily">Daily</SelectItem>
+                      <SelectItem value="Weekly">Weekly</SelectItem>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                      <SelectItem value="Yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -217,9 +279,17 @@ export default function TasksPage() {
                 <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
                   <CardHeader className="pb-3 px-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0">
-                        {task.park}
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">
+                          {task.park}
+                        </Badge>
+                        {task.frequency && (
+                          <div className="flex items-center gap-1 text-[8px] font-bold text-primary uppercase">
+                            <RefreshCcw className="h-2.5 w-2.5" />
+                            Recurring: {task.frequency}
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0">
                         <Clock className="h-3 w-3" />
                         {task.dueDate}
@@ -300,31 +370,36 @@ export default function TasksPage() {
 
         <TabsContent value="recurring">
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {MOCK_RECURRING_SCHEDULES.map((schedule) => (
-              <Card key={schedule.id} className="border-2 hover:border-accent transition-colors shadow-sm">
+             {tasks.filter(t => t.frequency).map((task) => (
+                <Card key={task.id} className="border-2 hover:border-accent transition-colors shadow-sm">
                 <CardHeader>
                   <div className="flex justify-between items-center mb-2">
-                    <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">{schedule.frequency}</Badge>
-                    <Badge variant="outline" className="text-[10px] font-bold">{schedule.park}</Badge>
+                    <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">{task.frequency}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-bold">{task.park}</Badge>
                   </div>
-                  <CardTitle className="text-lg font-headline">{schedule.title}</CardTitle>
+                  <CardTitle className="text-lg font-headline">{task.title}</CardTitle>
                   <CardDescription className="text-xs font-medium text-muted-foreground">
-                    Next run: <span className="text-foreground font-bold">{schedule.nextRun}</span>
+                    Next instance due: <span className="text-foreground font-bold">{task.dueDate}</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-[10px] font-bold uppercase py-2 border-y border-dashed">
-                      <span className="text-muted-foreground">Responsible</span>
-                      <span className="text-foreground">{schedule.assignedTo}</span>
+                      <span className="text-muted-foreground">Assigned To</span>
+                      <span className="text-foreground">{task.assignedTo}</span>
                     </div>
-                    <Button variant="outline" size="sm" className="w-full font-bold text-xs">
-                      <Clock className="mr-2 h-3.5 w-3.5" /> Edit Frequency
-                    </Button>
+                    <div className="flex items-center gap-2 p-2 rounded bg-muted/20 text-[10px] font-medium italic text-muted-foreground">
+                      <RefreshCcw className="h-3 w-3" /> This schedule will automatically renew upon completion.
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+             ))}
+             {tasks.filter(t => t.frequency).length === 0 && (
+               <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50">
+                 <p className="text-sm font-bold">No recurring task schedules active.</p>
+               </div>
+             )}
           </div>
         </TabsContent>
       </Tabs>

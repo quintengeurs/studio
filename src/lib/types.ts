@@ -39,6 +39,8 @@ export interface Issue {
   createdAt: string;
 }
 
+export type Frequency = 'One-off' | 'Twice Daily' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Six Monthly' | 'Yearly';
+
 export interface Task {
   id: string;
   title: string;
@@ -50,9 +52,8 @@ export interface Task {
   linkedIssueId?: string;
   completionNote?: string;
   completionImageUrl?: string;
+  frequency?: Frequency | null;
 }
-
-export type Frequency = 'One-off' | 'Twice Daily' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Six Monthly' | 'Yearly';
 
 export interface RecurringSchedule {
   id: string;
