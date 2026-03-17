@@ -52,7 +52,7 @@ export interface Task {
   completionImageUrl?: string;
 }
 
-export type Frequency = 'Twice Daily' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly';
+export type Frequency = 'One-off' | 'Twice Daily' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Six Monthly' | 'Yearly';
 
 export interface RecurringSchedule {
   id: string;
@@ -78,6 +78,7 @@ export interface Inspection {
   park: string;
   status: 'Pending' | 'Completed' | 'Overdue';
   dueDate: string;
+  frequency?: Frequency;
   completedAt?: string;
   inspectedBy?: string;
   results?: { item: string; passed: boolean; notes?: string }[];

@@ -13,9 +13,10 @@ import {
   AlertCircle, 
   CheckCircle2,
   Plus,
-  Filter
+  Filter,
+  RefreshCcw
 } from "lucide-react";
-import { MOCK_INSPECTIONS, MOCK_ASSETS, MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_INSPECTIONS, MOCK_ASSETS } from "@/lib/mock-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -30,14 +31,16 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Frequency, Inspection } from "@/lib/types";
 
 export default function InspectionsPage() {
   const { toast } = useToast();
-  const [inspections, setInspections] = useState(MOCK_INSPECTIONS);
+  const [inspections, setInspections] = useState<Inspection[]>(MOCK_INSPECTIONS as Inspection[]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newInspection, setNewInspection] = useState({
     assetId: "",
     park: "",
+    frequency: "One-off" as Frequency,
     dueDate: new Date().toISOString().split('T')[0]
   });
 
@@ -54,19 +57,23 @@ export default function InspectionsPage() {
     const asset = MOCK_ASSETS.find(a => a.id === newInspection.assetId);
     if (!asset) return;
 
-    const inspection = {
+    const inspection: Inspection = {
       id: `ins${Date.now()}`,
       assetId: asset.id,
       assetName: asset.name,
       park: asset.park,
       status: 'Pending' as const,
-      dueDate: newInspection.dueDate
+      dueDate: newInspection.dueDate,
+      frequency: newInspection.frequency !== 'One-off' ? newInspection.frequency : undefined
     };
 
     setInspections([inspection, ...inspections]);
     setIsDialogOpen(false);
-    setNewInspection({ assetId: "", park: "", dueDate: new Date().toISOString().split('T')[0] });
-    toast({ title: "Inspection Scheduled", description: `Safety check scheduled for ${asset.name}.` });
+    setNewInspection({ assetId: "", park: "", frequency: "One-off", dueDate: new Date().toISOString().split('T')[0] });
+    toast({ 
+      title: "Inspection Scheduled", 
+      description: `${inspection.frequency ? `Recurring (${inspection.frequency})` : 'One-off'} safety check scheduled for ${asset.name}.` 
+    });
   };
 
   return (
@@ -99,9 +106,26 @@ export default function InspectionsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="i-date">Due Date</Label>
-                <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="i-date">Due Date</Label>
+                  <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Frequency</Label>
+                  <Select value={newInspection.frequency} onValueChange={(v: Frequency) => setNewInspection({...newInspection, frequency: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="One-off">One-off</SelectItem>
+                      <SelectItem value="Weekly">Weekly</SelectItem>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                      <SelectItem value="Yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -129,7 +153,15 @@ export default function InspectionsPage() {
               <Card key={inspection.id} className="border-2 hover:border-primary/30 transition-all group">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start mb-2">
-                    <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-wider">{inspection.park}</Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-wider w-fit">{inspection.park}</Badge>
+                      {inspection.frequency && (
+                        <div className="flex items-center gap-1 text-[8px] font-bold text-primary uppercase">
+                          <RefreshCcw className="h-2.5 w-2.5" />
+                          Recurring: {inspection.frequency}
+                        </div>
+                      )}
+                    </div>
                     {getStatusBadge(inspection.status)}
                   </div>
                   <CardTitle className="text-lg font-headline group-hover:text-primary transition-colors">{inspection.assetName}</CardTitle>
