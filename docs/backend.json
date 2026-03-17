@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -67,6 +68,21 @@
         "completionImageUrl": { "type": "string" }
       },
       "required": ["title", "objective", "status", "dueDate", "assignedTo", "park"]
+    },
+    "MaterialRequest": {
+      "title": "MaterialRequest",
+      "description": "A staff request for materials or equipment",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string", "enum": ["Materials", "Tools", "Equipment", "PPE", "Other"] },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["Open", "Available", "Archived"] },
+        "requestedBy": { "type": "string" },
+        "depot": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["category", "description", "requestedBy", "depot", "status"]
     }
   },
   "auth": {
@@ -88,6 +104,10 @@
     "/tasks/{taskId}": {
       "schema": { "$ref": "#/backend/entities/Task" },
       "description": "Work tasks"
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "#/backend/entities/MaterialRequest" },
+      "description": "Staff resource requests"
     }
   }
 }

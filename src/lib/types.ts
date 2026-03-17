@@ -11,6 +11,7 @@ export interface User {
   training?: string;
   isDriver?: boolean;
   isRoSPATrained?: boolean;
+  isArchived?: boolean;
 }
 
 export interface Asset {
@@ -80,4 +81,18 @@ export interface Inspection {
   completedAt?: string;
   inspectedBy?: string;
   results?: { item: string; passed: boolean; notes?: string }[];
+}
+
+export type RequestCategory = 'Materials' | 'Tools' | 'Equipment' | 'PPE' | 'Other';
+export type RequestStatus = 'Open' | 'Available' | 'Archived';
+
+export interface MaterialRequest {
+  id: string;
+  category: RequestCategory;
+  description: string;
+  imageUrl?: string;
+  status: RequestStatus;
+  requestedBy: string;
+  depot: string;
+  createdAt: string;
 }
