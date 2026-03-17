@@ -78,7 +78,7 @@ export interface Inspection {
   park: string;
   status: 'Pending' | 'Completed' | 'Overdue';
   dueDate: string;
-  frequency?: Frequency;
+  frequency?: Frequency | null;
   completedAt?: string;
   inspectedBy?: string;
   results?: { item: string; passed: boolean; notes?: string }[];

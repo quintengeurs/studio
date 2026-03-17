@@ -83,6 +83,33 @@
         "createdAt": { "type": "string" }
       },
       "required": ["category", "description", "requestedBy", "depot", "status"]
+    },
+    "Inspection": {
+      "title": "Inspection",
+      "description": "A recorded safety or condition check",
+      "type": "object",
+      "properties": {
+        "assetId": { "type": "string" },
+        "assetName": { "type": "string" },
+        "park": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Completed", "Overdue"] },
+        "dueDate": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["One-off", "Weekly", "Monthly", "Six Monthly", "Yearly"] },
+        "completedAt": { "type": "string" },
+        "inspectedBy": { "type": "string" },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": { "type": "string" },
+              "passed": { "type": "boolean" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["assetId", "assetName", "park", "status", "dueDate"]
     }
   },
   "auth": {
@@ -108,6 +135,10 @@
     "/requests/{requestId}": {
       "schema": { "$ref": "#/backend/entities/MaterialRequest" },
       "description": "Staff resource requests"
+    },
+    "/inspections/{inspectionId}": {
+      "schema": { "$ref": "#/backend/entities/Inspection" },
+      "description": "Individual inspection records"
     }
   }
 }
