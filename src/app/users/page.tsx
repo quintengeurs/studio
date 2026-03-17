@@ -28,7 +28,8 @@ import {
   Users as UsersIcon,
   Filter,
   UserMinus,
-  Lock
+  Lock,
+  UserPlus
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -60,7 +61,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -127,8 +128,9 @@ export default function UserManagement() {
     });
   }, [users, roleFilter]);
 
-  const syncTrainingState = (trainingString: string) => {
-    const parts = trainingString ? trainingString.split(',').map(s => s.trim()) : [];
+  const syncTrainingState = (trainingString: string | undefined | null) => {
+    const str = trainingString || "";
+    const parts = str ? str.split(',').map(s => s.trim()) : [];
     const standard = parts.filter(p => TRAINING_OPTIONS.includes(p));
     const others = parts.filter(p => !TRAINING_OPTIONS.includes(p));
     
@@ -144,8 +146,8 @@ export default function UserManagement() {
 
   const getFinalTrainingString = () => {
     let combined = [...selectedTrainings];
-    if (isOtherChecked && otherTraining) {
-      combined.push(otherTraining);
+    if (isOtherChecked && otherTraining && typeof otherTraining === 'string') {
+      combined.push(otherTraining.trim());
     }
     return combined.join(', ');
   };
@@ -187,6 +189,8 @@ export default function UserManagement() {
     const trainingString = getFinalTrainingString() || "None";
     const userToSave = {
       ...newUser,
+      name: newUser.name || "Unknown User",
+      email: newUser.email || "",
       training: trainingString,
       isArchived: false,
       createdAt: new Date().toISOString()
@@ -265,7 +269,7 @@ export default function UserManagement() {
 
   const openUserProfile = (user: User) => {
     setSelectedUser(user);
-    syncTrainingState(user.training || "");
+    syncTrainingState(user.training);
     setIsEditing(false);
     setIsProfileDialogOpen(true);
   };
@@ -387,7 +391,7 @@ export default function UserManagement() {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border-2 border-primary/10">
                           <AvatarImage src={user.avatar || undefined} />
-                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col min-w-0">
                           <div className="font-bold text-sm truncate">{user.name}</div>
@@ -564,7 +568,7 @@ export default function UserManagement() {
               <div className="flex items-center gap-4">
                  <Avatar className="h-16 w-16 border-2 border-primary/20">
                   <AvatarImage src={selectedUser?.avatar || undefined} />
-                  <AvatarFallback className="text-xl font-bold">{selectedUser?.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className="text-xl font-bold">{selectedUser?.name?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
                 <div>
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>

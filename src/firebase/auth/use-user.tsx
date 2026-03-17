@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 
 /**
  * MOCKED useUser hook for prototyping.
- * This returns a static master user to bypass live Firebase Auth requirements.
+ * Returns a consistent user object with string defaults to prevent 
+ * property access errors during development.
  */
 export function useUser() {
   const [user, setUser] = useState<any>(null);
@@ -18,6 +19,7 @@ export function useUser() {
         email: 'quinten.geurs@hackney.gov.uk',
         displayName: 'Quinten Geurs',
         photoURL: 'https://picsum.photos/seed/quinten/40/40',
+        role: 'master', // Add role to mock user for immediate permission checks
       });
       setLoading(false);
     }, 500);
