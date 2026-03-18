@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
   Table, 
@@ -28,10 +29,11 @@ import {
   Users as UsersIcon,
   Filter,
   UserMinus,
-  Lock,
-  UserPlus
+  Settings2,
+  Check,
+  Trash2
 } from "lucide-react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -61,28 +63,29 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { collection, addDoc, updateDoc, doc, query, where, setDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
-
-const TRAINING_OPTIONS = [
-  "Health & Safety",
-  "Equipment Handling",
-  "First Aid",
-  "Pesticide Application",
-  "Chain Saw Operation"
-];
 
 export default function UserManagement() {
   const { toast } = useToast();
   const db = useFirestore();
-  const { user: currentUser } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  // In prototype mode, we assume the mocked user is a master
-  const isMaster = true;
+  // LIVE RECURRING CONFIGURATION
+  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: registryConfig, loading: configLoading } = useDoc<any>(registryConfigRef);
+
+  const teams = registryConfig?.teams || ["North Parks", "South Parks", "Central Management"];
+  const trainingOptions = registryConfig?.trainingOptions || [
+    "Health & Safety",
+    "Equipment Handling",
+    "First Aid",
+    "Pesticide Application",
+    "Chain Saw Operation"
+  ];
 
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -98,14 +101,16 @@ export default function UserManagement() {
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management'>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Selection States
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
-  const [otherTraining, setOtherTraining] = useState("");
-  const [isOtherChecked, setIsOtherChecked] = useState(false);
+  const [configNewTeam, setConfigNewTeam] = useState("");
+  const [configNewTraining, setConfigNewTraining] = useState("");
 
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: '',
@@ -131,25 +136,11 @@ export default function UserManagement() {
   const syncTrainingState = (trainingString: string | undefined | null) => {
     const str = trainingString || "";
     const parts = str ? str.split(',').map(s => s.trim()) : [];
-    const standard = parts.filter(p => TRAINING_OPTIONS.includes(p));
-    const others = parts.filter(p => !TRAINING_OPTIONS.includes(p));
-    
-    setSelectedTrainings(standard);
-    if (others.length > 0) {
-      setIsOtherChecked(true);
-      setOtherTraining(others.join(', '));
-    } else {
-      setIsOtherChecked(false);
-      setOtherTraining("");
-    }
+    setSelectedTrainings(parts);
   };
 
   const getFinalTrainingString = () => {
-    let combined = [...selectedTrainings];
-    if (isOtherChecked && otherTraining && typeof otherTraining === 'string') {
-      combined.push(otherTraining.trim());
-    }
-    return combined.join(', ');
+    return selectedTrainings.join(', ');
   };
 
   const toggleTraining = (training: string) => {
@@ -196,12 +187,9 @@ export default function UserManagement() {
       createdAt: new Date().toISOString()
     };
 
-    // Optimistically close dialog and reset
     setIsAddDialogOpen(false);
     setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
     setSelectedTrainings([]);
-    setOtherTraining("");
-    setIsOtherChecked(false);
 
     addDoc(collection(db, "users"), userToSave)
       .then(() => {
@@ -267,15 +255,20 @@ export default function UserManagement() {
       });
   };
 
+  const handleSaveConfig = (newTeams: string[], newTraining: string[]) => {
+    if (!db) return;
+    setDoc(doc(db, "settings", "registry"), {
+      teams: newTeams,
+      trainingOptions: newTraining
+    });
+    toast({ title: "Configuration Updated", description: "Registry options have been saved." });
+  };
+
   const openUserProfile = (user: User) => {
     setSelectedUser(user);
     syncTrainingState(user.training);
     setIsEditing(false);
     setIsProfileDialogOpen(true);
-  };
-
-  const openAddDialog = () => {
-    setIsAddDialogOpen(true);
   };
 
   const userTasks = selectedUser 
@@ -287,9 +280,14 @@ export default function UserManagement() {
       title="User Management" 
       description="Control system access and assign operative roles"
       actions={
-        <Button className="font-headline font-bold" onClick={openAddDialog}>
-          <Plus className="mr-2 h-4 w-4" /> Add User
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="font-bold" onClick={() => setIsConfigDialogOpen(true)}>
+            <Settings2 className="mr-2 h-4 w-4" /> Configure Registry
+          </Button>
+          <Button className="font-headline font-bold" onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add User
+          </Button>
+        </div>
       }
     >
       <div className="grid gap-6 md:grid-cols-3 mb-8">
@@ -346,18 +344,6 @@ export default function UserManagement() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-          <Filter className="h-3.5 w-3.5" />
-          Current View: {roleFilter === 'all' ? 'All Users' : roleFilter === 'operative' ? 'Field Operatives' : 'Management'}
-        </div>
-        {roleFilter !== 'all' && (
-          <Button variant="ghost" size="sm" onClick={() => setRoleFilter('all')} className="h-7 text-[10px] uppercase font-bold">
-            Clear Filter
-          </Button>
-        )}
-      </div>
-
       <Card className="overflow-hidden border-2">
         <div className="overflow-x-auto w-full">
           <Table>
@@ -404,45 +390,22 @@ export default function UserManagement() {
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         <Badge className={`${getRoleColor(user.role)} font-bold text-[9px] uppercase w-fit`} variant="outline">
-                          <span className="flex items-center gap-1">
-                            {user.role === 'master' && <Shield className="h-2 w-2" />}
-                            {user.role}
-                          </span>
+                          {user.role}
                         </Badge>
                         <span className="text-[10px] font-bold text-muted-foreground">{user.team}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1 max-w-[200px]">
-                        <span className="text-[10px] font-bold text-foreground line-clamp-2">{user.training || 'None'}</span>
-                      </div>
+                      <span className="text-[10px] font-bold text-foreground line-clamp-2">{user.training || 'None'}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {user.isDriver && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="p-1 rounded bg-blue-50 text-blue-600 border border-blue-100 cursor-help">
-                                <Car className="h-4 w-4" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Authorized Fleet Driver</p></TooltipContent>
-                          </Tooltip>
-                        )}
-                        {user.isRoSPATrained && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="p-1 rounded bg-yellow-50 text-yellow-600 border border-yellow-100 cursor-help">
-                                <Award className="h-4 w-4" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent><p>RoSPA Safety Certified</p></TooltipContent>
-                          </Tooltip>
-                        )}
+                        {user.isDriver && <Car className="h-4 w-4 text-blue-600" />}
+                        {user.isRoSPATrained && <Award className="h-4 w-4 text-yellow-600" />}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" onClick={() => openUserProfile(user)}>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -454,26 +417,72 @@ export default function UserManagement() {
         </div>
       </Card>
 
+      {/* Configuration Dialog */}
+      <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Registry Configuration</DialogTitle>
+            <DialogDescription>Manage the dynamic lists for departments and training.</DialogDescription>
+          </DialogHeader>
+          <Tabs defaultValue="teams" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="teams">Teams</TabsTrigger>
+              <TabsTrigger value="training">Training</TabsTrigger>
+            </TabsList>
+            <TabsContent value="teams" className="space-y-4 py-4">
+              <div className="flex gap-2">
+                <Input value={configNewTeam} onChange={e => setConfigNewTeam(e.target.value)} placeholder="New Team Name" />
+                <Button onClick={() => {
+                  if (configNewTeam) {
+                    handleSaveConfig([...teams, configNewTeam], trainingOptions);
+                    setConfigNewTeam("");
+                  }
+                }}><Plus className="h-4 w-4" /></Button>
+              </div>
+              <ScrollArea className="h-[200px] border rounded-md p-2">
+                {teams.map(team => (
+                  <div key={team} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
+                    <span className="text-sm">{team}</span>
+                    <Button variant="ghost" size="icon" onClick={() => handleSaveConfig(teams.filter(t => t !== team), trainingOptions)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </ScrollArea>
+            </TabsContent>
+            <TabsContent value="training" className="space-y-4 py-4">
+              <div className="flex gap-2">
+                <Input value={configNewTraining} onChange={e => setConfigNewTraining(e.target.value)} placeholder="New Training Course" />
+                <Button onClick={() => {
+                  if (configNewTraining) {
+                    handleSaveConfig(teams, [...trainingOptions, configNewTraining]);
+                    setConfigNewTraining("");
+                  }
+                }}><Plus className="h-4 w-4" /></Button>
+              </div>
+              <ScrollArea className="h-[200px] border rounded-md p-2">
+                {trainingOptions.map(opt => (
+                  <div key={opt} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
+                    <span className="text-sm">{opt}</span>
+                    <Button variant="ghost" size="icon" onClick={() => handleSaveConfig(teams, trainingOptions.filter(t => t !== opt))}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add User Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-headline">Add New System User</DialogTitle>
-            <DialogDescription>Create a new operative or management profile.</DialogDescription>
+            <DialogTitle>Add New System User</DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4">
-            <div className="flex justify-center">
-              <div className="relative group">
-                <Avatar className="h-24 w-24 border-4 border-muted cursor-pointer transition-opacity group-hover:opacity-70" onClick={() => fileInputRef.current?.click()}>
-                  <AvatarImage src={newUser.avatar || undefined} />
-                  <AvatarFallback className="text-2xl font-bold bg-muted text-muted-foreground">
-                    {newUser.name ? newUser.name.charAt(0) : <Camera className="h-8 w-8" />}
-                  </AvatarFallback>
-                </Avatar>
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e)} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Full Name</Label>
                 <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" />
@@ -488,7 +497,7 @@ export default function UserManagement() {
               <div className="grid gap-2">
                 <Label>Role</Label>
                 <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select Role" /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="operative">Field Operative</SelectItem>
                     <SelectItem value="supervisor">Supervisor</SelectItem>
@@ -498,69 +507,36 @@ export default function UserManagement() {
               </div>
               <div className="grid gap-2">
                 <Label>Team / Department</Label>
-                <Input value={newUser.team} onChange={e => setNewUser({...newUser, team: e.target.value})} placeholder="e.g. North Parks" />
+                <Select value={newUser.team} onValueChange={v => setNewUser({...newUser, team: v})}>
+                  <SelectTrigger><SelectValue placeholder="Select Team" /></SelectTrigger>
+                  <SelectContent>
+                    {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="grid gap-3">
               <Label className="text-sm font-bold">Training and Certifications</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
-                {TRAINING_OPTIONS.map((option) => (
+                {trainingOptions.map((option) => (
                   <div key={option} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`training-${option}`} 
-                      checked={selectedTrainings.includes(option)}
-                      onCheckedChange={() => toggleTraining(option)}
-                    />
-                    <label htmlFor={`training-${option}`} className="text-sm font-medium leading-none cursor-pointer">
-                      {option}
-                    </label>
+                    <Checkbox id={`add-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
+                    <label htmlFor={`add-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
                   </div>
                 ))}
-                <div className="flex items-center space-x-2 col-span-full mt-2">
-                  <Checkbox 
-                    id="training-other" 
-                    checked={isOtherChecked}
-                    onCheckedChange={(v) => setIsOtherChecked(!!v)}
-                  />
-                  <label htmlFor="training-other" className="text-sm font-medium leading-none cursor-pointer">Other</label>
-                </div>
-                {isOtherChecked && (
-                  <div className="col-span-full mt-1">
-                    <Input 
-                      placeholder="Enter other certification..." 
-                      value={otherTraining}
-                      onChange={(e) => setOtherTraining(e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 border rounded-lg p-4 bg-muted/20">
-              <div className="flex items-center justify-between space-x-2">
-                <Label className="flex items-center gap-2"><Car className="h-4 w-4" /> Valid Driver</Label>
-                <Switch checked={newUser.isDriver} onCheckedChange={v => setNewUser({...newUser, isDriver: v})} />
-              </div>
-              <div className="flex items-center justify-between space-x-2">
-                <Label className="flex items-center gap-2"><Award className="h-4 w-4" /> RoSPA Trained</Label>
-                <Switch checked={newUser.isRoSPATrained} onCheckedChange={v => setNewUser({...newUser, isRoSPATrained: v})} />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              className="w-full font-bold" 
-              onClick={handleAddUser} 
-              disabled={!newUser.name || !newUser.email || isSubmitting}
-            >
+            <Button className="w-full font-bold" onClick={handleAddUser} disabled={!newUser.name || !newUser.email || isSubmitting}>
               {isSubmitting ? "Creating..." : "Create User Profile"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* User Profile / Edit Dialog */}
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col p-0">
           <div className="p-6 pb-0">
@@ -568,37 +544,21 @@ export default function UserManagement() {
               <div className="flex items-center gap-4">
                  <Avatar className="h-16 w-16 border-2 border-primary/20">
                   <AvatarImage src={selectedUser?.avatar || undefined} />
-                  <AvatarFallback className="text-xl font-bold">{selectedUser?.name?.charAt(0) || 'U'}</AvatarFallback>
+                  <AvatarFallback>{selectedUser?.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge className={`${getRoleColor(selectedUser?.role || '')} font-bold text-[10px] uppercase`} variant="outline">
-                      <span className="flex items-center gap-1">
-                        {selectedUser?.role === 'master' && <Shield className="h-2 w-2" />}
-                        {selectedUser?.role}
-                      </span>
-                    </Badge>
+                    <Badge className={getRoleColor(selectedUser?.role || '')} variant="outline">{selectedUser?.role}</Badge>
                     <span className="text-xs font-medium text-muted-foreground">• {selectedUser?.team}</span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="font-bold text-destructive hover:bg-destructive/10"
-                  onClick={handleArchiveUser}
-                  disabled={isSubmitting}
-                >
+                <Button variant="outline" size="sm" className="font-bold text-destructive hover:bg-destructive/10" onClick={handleArchiveUser} disabled={isSubmitting}>
                   <UserMinus className="mr-2 h-4 w-4" /> Archive Staff
                 </Button>
-                <Button 
-                  variant={isEditing ? "outline" : "default"} 
-                  size="sm" 
-                  className="font-bold"
-                  onClick={() => setIsEditing(!isEditing)}
-                >
+                <Button variant={isEditing ? "outline" : "default"} size="sm" className="font-bold" onClick={() => setIsEditing(!isEditing)}>
                   {isEditing ? <X className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
                   {isEditing ? "Cancel" : "Edit"}
                 </Button>
@@ -609,22 +569,13 @@ export default function UserManagement() {
           <Tabs defaultValue="overview" className="flex-1 overflow-hidden flex flex-col mt-4">
             <TabsList className="mx-6 justify-start h-10 bg-transparent border-b rounded-none p-0 gap-6">
               <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Overview</TabsTrigger>
-              <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Assigned Tasks ({userTasks.length})</TabsTrigger>
+              <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Tasks ({userTasks.length})</TabsTrigger>
             </TabsList>
 
             <ScrollArea className="flex-1 p-6">
               <TabsContent value="overview" className="mt-0 space-y-6">
                 {isEditing ? (
                   <div className="grid gap-6">
-                    <div className="flex justify-center mb-2">
-                       <div className="relative group">
-                        <Avatar className="h-20 w-20 border-2 border-muted cursor-pointer hover:opacity-80" onClick={() => editFileInputRef.current?.click()}>
-                          <AvatarImage src={selectedUser?.avatar || undefined} />
-                          <AvatarFallback><Camera className="h-6 w-6" /></AvatarFallback>
-                        </Avatar>
-                        <input type="file" ref={editFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, true)} />
-                      </div>
-                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
                         <Label>Full Name</Label>
@@ -649,21 +600,22 @@ export default function UserManagement() {
                       </div>
                       <div className="grid gap-2">
                         <Label>Team</Label>
-                        <Input value={selectedUser?.team} onChange={e => selectedUser && setSelectedUser({...selectedUser, team: e.target.value})} />
+                        <Select value={selectedUser?.team} onValueChange={v => selectedUser && setSelectedUser({...selectedUser, team: v})}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     
                     <div className="grid gap-3">
                       <Label className="text-sm font-bold">Training and Certifications</Label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
-                        {TRAINING_OPTIONS.map((option) => (
+                        {trainingOptions.map((option) => (
                           <div key={option} className="flex items-center space-x-2">
-                            <Checkbox 
-                              id={`edit-training-${option}`} 
-                              checked={selectedTrainings.includes(option)}
-                              onCheckedChange={() => toggleTraining(option)}
-                            />
-                            <label htmlFor={`edit-training-${option}`} className="text-sm font-medium leading-none cursor-pointer">{option}</label>
+                            <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
+                            <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
                           </div>
                         ))}
                       </div>
@@ -709,15 +661,15 @@ export default function UserManagement() {
                 {userTasks.length > 0 ? (
                   <div className="grid gap-3">
                     {userTasks.map(task => (
-                      <div key={task.id} className="p-4 border rounded-lg hover:border-primary/40 transition-colors group">
-                        <h5 className="font-headline font-bold text-sm group-hover:text-primary transition-colors">{task.title}</h5>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.objective}</p>
+                      <div key={task.id} className="p-4 border rounded-lg">
+                        <h5 className="font-bold text-sm">{task.title}</h5>
+                        <p className="text-xs text-muted-foreground mt-1">{task.objective}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <p className="text-sm font-medium">No tasks assigned to {selectedUser?.name}.</p>
+                    <p className="text-sm font-medium">No tasks assigned.</p>
                   </div>
                 )}
               </TabsContent>
