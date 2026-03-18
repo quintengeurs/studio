@@ -39,7 +39,7 @@ export default function LoginPage() {
           <form onSubmit={handleMockLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="quinten.geurs@hackney.gov.uk" disabled value="quinten.geurs@hackney.gov.uk" />
+              <Input id="email" type="email" placeholder="quinten.geurs@gmail.com" disabled value="quinten.geurs@gmail.com" />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>

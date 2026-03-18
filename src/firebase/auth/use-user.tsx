@@ -16,7 +16,7 @@ export function useUser() {
     const timer = setTimeout(() => {
       setUser({
         uid: 'quinten-master-mock-id',
-        email: 'quinten.geurs@hackney.gov.uk',
+        email: 'quinten.geurs@gmail.com',
         displayName: 'Quinten Geurs',
         photoURL: 'https://picsum.photos/seed/quinten/40/40',
         role: 'master', // Add role to mock user for immediate permission checks
