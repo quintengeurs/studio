@@ -19,7 +19,7 @@ export function useUser() {
         email: 'quinten.geurs@gmail.com',
         displayName: 'Quinten Geurs',
         photoURL: 'https://picsum.photos/seed/quinten/40/40',
-        role: 'master', // Add role to mock user for immediate permission checks
+        role: 'master', // Master role for full system access
       });
       setLoading(false);
     }, 500);

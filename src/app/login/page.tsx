@@ -32,7 +32,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-headline font-bold">Hackney Parks Management</CardTitle>
           <CardDescription>
-            PROTOTYPE MODE: Click sign in to enter as Quinten Geurs
+            PROTOTYPE MODE: Click sign in to enter as Quinten Geurs (Master Access)
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -52,7 +52,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter>
           <p className="text-xs text-center w-full text-muted-foreground">
-            Authentication is currently bypassed for prototyping.
+            Authentication is currently bypassed for prototyping with Gmail workspace.
           </p>
         </CardFooter>
       </Card>
