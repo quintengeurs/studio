@@ -1,4 +1,3 @@
-
 export type Role = 'operative' | 'supervisor' | 'master';
 
 export interface User {
@@ -34,6 +33,7 @@ export interface Issue {
   park: string;
   reportedBy: string;
   assignedTo?: string;
+  collaborators?: string[];
   assetId?: string;
   imageUrl?: string;
   createdAt: string;
@@ -48,6 +48,7 @@ export interface Task {
   status: 'Todo' | 'Doing' | 'Pending Approval' | 'Completed';
   dueDate: string;
   assignedTo: string;
+  collaborators?: string[];
   park: string;
   linkedIssueId?: string;
   completionNote?: string;

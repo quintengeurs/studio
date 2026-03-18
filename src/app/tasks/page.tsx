@@ -18,7 +18,8 @@ import {
   AlertCircle,
   MapPin,
   User as UserIcon,
-  RefreshCcw
+  RefreshCcw,
+  Users
 } from "lucide-react";
 import { MOCK_RECURRING_SCHEDULES, MOCK_ASSETS } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
@@ -309,6 +310,12 @@ export default function TasksPage() {
                             <AlertCircle className="h-4 w-4 text-yellow-600" />
                             <span className="text-[10px] font-bold text-yellow-700 uppercase">Work Pending Approval</span>
                           </div>
+                          {task.collaborators && task.collaborators.length > 0 && (
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-[10px] font-bold text-muted-foreground">Assisted by: {task.collaborators.join(', ')}</span>
+                            </div>
+                          )}
                           {task.completionImageUrl && (
                             <div className="relative aspect-video w-full rounded border overflow-hidden">
                               <Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" />

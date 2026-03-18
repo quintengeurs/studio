@@ -16,7 +16,8 @@ import {
   PlayCircle,
   X,
   Camera,
-  Send
+  Send,
+  Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,13 +28,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, updateDoc, doc, query, where } from "firebase/firestore";
+import { User as UserType } from "@/lib/types";
 
 export default function MyTasksPage() {
   const { toast } = useToast();
@@ -43,7 +45,18 @@ export default function MyTasksPage() {
   // Static current user for prototype session
   const currentUserName = "Sarah Smith";
 
-  const tasksQuery = useMemo(() => {
+  // Fetch all users to find colleagues
+  const usersQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "users"), where("isArchived", "==", false));
+  }, [db]);
+  const { data: allUsers = [] } = useCollection<UserType>(usersQuery);
+
+  // Find current user profile to get team
+  const currentUserProfile = allUsers.find(u => u.name === currentUserName);
+  const colleagues = allUsers.filter(u => u.team === currentUserProfile?.team && u.name !== currentUserName);
+
+  const tasksQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "tasks"), where("assignedTo", "==", currentUserName));
   }, [db]);
@@ -51,6 +64,8 @@ export default function MyTasksPage() {
 
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showColleagueSelection, setShowColleagueSelection] = useState(false);
+  const [selectedColleagues, setSelectedColleagues] = useState<string[]>([]);
   const [completionData, setCompletionData] = useState({
     note: "",
     imageUrl: ""
@@ -61,6 +76,8 @@ export default function MyTasksPage() {
     if (newStatus === 'Pending Approval') {
       setSelectedTaskId(taskId);
       setCompletionData({ note: "", imageUrl: "" });
+      setSelectedColleagues([]);
+      setShowColleagueSelection(false);
       setIsCompletionDialogOpen(true);
       return;
     }
@@ -90,12 +107,16 @@ export default function MyTasksPage() {
     await updateDoc(doc(db, "tasks", selectedTaskId), { 
       status: 'Pending Approval',
       completionNote: completionData.note,
-      completionImageUrl: completionData.imageUrl
+      completionImageUrl: completionData.imageUrl,
+      collaborators: selectedColleagues
     });
 
     // 2. Set Issue to Pending Approval if linked
     if (task.linkedIssueId) {
-      await updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Pending Approval' });
+      await updateDoc(doc(db, "issues", task.linkedIssueId), { 
+        status: 'Pending Approval',
+        collaborators: selectedColleagues
+      });
     }
 
     setIsCompletionDialogOpen(false);
@@ -104,6 +125,12 @@ export default function MyTasksPage() {
       title: "Task Submitted", 
       description: "Work proof sent to supervisor for approval." 
     });
+  };
+
+  const toggleColleague = (name: string) => {
+    setSelectedColleagues(prev => 
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -214,6 +241,12 @@ export default function MyTasksPage() {
                     <div>
                       <h4 className="font-bold text-sm">{task.title}</h4>
                       <p className="text-xs text-muted-foreground">{task.park} • Archived {task.dueDate}</p>
+                      {task.collaborators && task.collaborators.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Users className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-[10px] text-muted-foreground">Assisted by: {task.collaborators.join(', ')}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {task.completionImageUrl && (
@@ -243,6 +276,45 @@ export default function MyTasksPage() {
                 onChange={e => setCompletionData({...completionData, note: e.target.value})}
               />
             </div>
+
+            <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
+                  <Label className="font-bold">Add Colleagues</Label>
+                </div>
+                <Checkbox 
+                  id="add-colleagues" 
+                  checked={showColleagueSelection} 
+                  onCheckedChange={(v) => setShowColleagueSelection(!!v)}
+                />
+              </div>
+              
+              {showColleagueSelection && (
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Colleagues in {currentUserProfile?.team}</p>
+                  <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto pr-2">
+                    {colleagues.map(colleague => (
+                      <div 
+                        key={colleague.id} 
+                        className="flex items-center justify-between p-2 rounded hover:bg-white transition-colors cursor-pointer"
+                        onClick={() => toggleColleague(colleague.name)}
+                      >
+                        <span className="text-xs font-medium">{colleague.name}</span>
+                        <Checkbox 
+                          checked={selectedColleagues.includes(colleague.name)} 
+                          onCheckedChange={() => toggleColleague(colleague.name)}
+                        />
+                      </div>
+                    ))}
+                    {colleagues.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic text-center py-2">No colleagues found in your team.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Photo Evidence</Label>
               <div className="flex flex-col gap-2">
