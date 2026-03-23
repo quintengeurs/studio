@@ -21,7 +21,6 @@ import {
   RefreshCcw,
   Users
 } from "lucide-react";
-import { MOCK_RECURRING_SCHEDULES, MOCK_ASSETS } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -47,10 +46,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
-import { User, Task, Frequency } from "@/lib/types";
+import { User, Task, Frequency, Asset } from "@/lib/types";
 import { addDays, addMonths, format } from "date-fns";
-
-const PARKS = Array.from(new Set(MOCK_ASSETS.map(a => a.park))).sort();
 
 export default function TasksPage() {
   const { toast } = useToast();
@@ -63,6 +60,12 @@ export default function TasksPage() {
   }, [db]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery);
 
+  const assetsQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "assets"), orderBy("name"));
+  }, [db]);
+  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
+
   // Live Users for assignment
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -71,6 +74,7 @@ export default function TasksPage() {
   const { data: users = [] } = useCollection<User>(usersQuery);
 
   const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
+  const parks = useMemo(() => Array.from(new Set(assets.map(a => a.park))).sort(), [assets]);
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -97,27 +101,36 @@ export default function TasksPage() {
   const handleCreateTask = () => {
     if (!db) return;
     const taskData = {
-      title: newTask.title,
-      objective: newTask.objective,
-      park: newTask.park,
-      assignedTo: newTask.assignedTo,
-      dueDate: newTask.dueDate,
-      frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
-      status: 'Todo' as const
+        title: newTask.title,
+        objective: newTask.objective,
+        park: newTask.park,
+        assignedTo: newTask.assignedTo,
+        dueDate: newTask.dueDate,
+        frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
+        status: 'Todo' as const,
     };
-    
-    addDoc(collection(db, "tasks"), taskData);
-    setIsTaskDialogOpen(false);
-    setNewTask({ 
-      title: "", 
-      objective: "", 
-      park: "", 
-      assignedTo: "", 
-      dueDate: format(new Date(), 'yyyy-MM-dd'),
-      frequency: "One-off"
-    });
-    toast({ title: "Task Created", description: "The new task has been added to the queue." });
-  };
+
+    addDoc(collection(db, "tasks"), taskData)
+        .then(() => {
+            toast({ title: "Task Created", description: "The new task has been added to the queue." });
+            setIsTaskDialogOpen(false);
+            setNewTask({ 
+                title: "", 
+                objective: "", 
+                park: "", 
+                assignedTo: "", 
+                dueDate: format(new Date(), 'yyyy-MM-dd'),
+                frequency: "One-off"
+            });
+        })
+        .catch(() => {
+            toast({ 
+                title: "Error Creating Task", 
+                description: "There was an issue creating the task. Please try again.", 
+                variant: "destructive" 
+            });
+        });
+};
 
   const calculateNextDueDate = (currentDate: string, frequency: Frequency) => {
     const date = new Date(currentDate);
@@ -209,7 +222,8 @@ export default function TasksPage() {
                       <SelectValue placeholder="Select Park" />
                     </SelectTrigger>
                     <SelectContent>
-                      {PARKS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      <SelectItem value="None">None</SelectItem>
+                      {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -220,6 +234,7 @@ export default function TasksPage() {
                       <SelectValue placeholder="Select User" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="None">None</SelectItem>
                       {operatives.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
                       {operatives.length === 0 && <SelectItem value="none" disabled>No active operatives</SelectItem>}
                     </SelectContent>
@@ -267,7 +282,7 @@ export default function TasksPage() {
         </TabsList>
 
         <TabsContent value="active">
-          {tasksLoading ? (
+          {tasksLoading || assetsLoading ? (
             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
           ) : tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">

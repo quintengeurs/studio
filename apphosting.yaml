@@ -5,3 +5,7 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  
+# Specifies the command to run your application. For a Next.js app, this 
+# should be 'npm run start'
+command: ["npm", "run", "start"]

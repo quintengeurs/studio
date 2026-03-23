@@ -78,14 +78,8 @@ export default function UserManagement() {
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig, loading: configLoading } = useDoc<any>(registryConfigRef);
 
-  const teams = registryConfig?.teams || ["North Parks", "South Parks", "Central Management"];
-  const trainingOptions = registryConfig?.trainingOptions || [
-    "Health & Safety",
-    "Equipment Handling",
-    "First Aid",
-    "Pesticide Application",
-    "Chain Saw Operation"
-  ];
+  const teams = registryConfig?.teams ?? [];
+  const trainingOptions = registryConfig?.trainingOptions ?? [];
 
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -175,36 +169,41 @@ export default function UserManagement() {
 
   const handleAddUser = () => {
     if (!db || isSubmitting) return;
-    
+
     setIsSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
     const userToSave = {
-      ...newUser,
-      name: newUser.name || "Unknown User",
-      email: newUser.email || "",
-      training: trainingString,
-      isArchived: false,
-      createdAt: new Date().toISOString()
+        ...newUser,
+        name: newUser.name || "Unknown User",
+        email: newUser.email || "",
+        training: trainingString,
+        isArchived: false,
+        createdAt: new Date().toISOString(),
     };
 
-    setIsAddDialogOpen(false);
-    setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
-    setSelectedTrainings([]);
-
     addDoc(collection(db, "users"), userToSave)
-      .then(() => {
-        setIsSubmitting(false);
-        toast({ title: "User Added", description: `${userToSave.name} has been added to the register.` });
-      })
-      .catch(async (e) => {
-        setIsSubmitting(false);
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: 'users',
-          operation: 'create',
-          requestResourceData: userToSave
-        }));
-      });
-  };
+        .then(() => {
+            toast({ title: "User Added", description: `${userToSave.name} has been added to the register.` });
+            setIsAddDialogOpen(false);
+            setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
+            setSelectedTrainings([]);
+        })
+        .catch(async (e) => {
+            toast({
+                title: "Error Creating User",
+                description: "There was a problem saving the user profile. Please try again.",
+                variant: "destructive",
+            });
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'users',
+                operation: 'create',
+                requestResourceData: userToSave,
+            }));
+        })
+        .finally(() => {
+            setIsSubmitting(false);
+        });
+};
 
   const handleUpdateUser = () => {
     if (!db || !selectedUser || isSubmitting) return;

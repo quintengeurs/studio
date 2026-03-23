@@ -30,6 +30,7 @@ import { collection, query, where, doc, updateDoc } from "firebase/firestore";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,

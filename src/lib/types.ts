@@ -1,3 +1,4 @@
+
 export type Role = 'operative' | 'supervisor' | 'master';
 
 export interface User {
@@ -5,12 +6,13 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  team: string;
   avatar?: string;
-  team?: string;
   training?: string;
   isDriver?: boolean;
   isRoSPATrained?: boolean;
   isArchived?: boolean;
+  createdAt?: string;
 }
 
 export interface Asset {
@@ -19,7 +21,7 @@ export interface Asset {
   type: string;
   park: string;
   location: string;
-  condition: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical';
+  condition: string;
   lastInspected: string;
 }
 
@@ -27,19 +29,18 @@ export interface Issue {
   id: string;
   title: string;
   description: string;
-  status: 'Open' | 'In Progress' | 'Pending Approval' | 'Resolved' | 'Closed';
-  priority: 'Low' | 'Medium' | 'High' | 'Emergency';
+  status: 'Open' | 'In Progress' | 'Resolved';
+  priority: 'Low' | 'Medium' | 'High';
   category: string;
   park: string;
   reportedBy: string;
   assignedTo?: string;
-  collaborators?: string[];
+  createdAt: string;
   assetId?: string;
   imageUrl?: string;
-  createdAt: string;
 }
 
-export type Frequency = 'One-off' | 'Twice Daily' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Six Monthly' | 'Yearly';
+export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthly' | 'Yearly';
 
 export interface Task {
   id: string;
@@ -48,22 +49,20 @@ export interface Task {
   status: 'Todo' | 'Doing' | 'Pending Approval' | 'Completed';
   dueDate: string;
   assignedTo: string;
-  collaborators?: string[];
   park: string;
-  linkedIssueId?: string;
+  frequency?: Frequency | null;
   completionNote?: string;
   completionImageUrl?: string;
-  frequency?: Frequency | null;
+  collaborators?: string[];
+  linkedIssueId?: string;
 }
 
 export interface RecurringSchedule {
   id: string;
   title: string;
-  frequency: Frequency;
+  frequency: string;
   park: string;
-  assetType?: string;
   assignedTo: string;
-  lastRun?: string;
   nextRun: string;
 }
 
@@ -78,24 +77,10 @@ export interface Inspection {
   assetId: string;
   assetName: string;
   park: string;
-  status: 'Pending' | 'Completed' | 'Overdue';
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Overdue';
   dueDate: string;
-  frequency?: Frequency | null;
   completedAt?: string;
   inspectedBy?: string;
-  results?: { item: string; passed: boolean; notes?: string }[];
-}
-
-export type RequestCategory = 'Materials' | 'Tools' | 'Equipment' | 'PPE' | 'Other';
-export type RequestStatus = 'Open' | 'Available' | 'Archived';
-
-export interface MaterialRequest {
-  id: string;
-  category: RequestCategory;
-  description: string;
-  imageUrl?: string;
-  status: RequestStatus;
-  requestedBy: string;
-  depot: string;
-  createdAt: string;
+  notes?: string;
+  checklist?: { item: string, status: 'Pass' | 'Fail' | 'N/A', notes: string }[];
 }

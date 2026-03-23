@@ -123,17 +123,23 @@ export default function IssuesPage() {
     };
 
     addDoc(collection(db, "issues"), issueData)
+      .then(() => {
+        toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
+        setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
+        setIsDialogOpen(false);
+      })
       .catch(async (e) => {
+        toast({
+          title: "Error Creating Issue",
+          description: "There was a problem raising the new issue. Please try again.",
+          variant: "destructive",
+        });
         errorEmitter.emit("permission-error", new FirestorePermissionError({
           path: "issues",
           operation: "create",
           requestResourceData: issueData
         }));
       });
-      
-    setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
-    setIsDialogOpen(false);
-    toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
   };
 
   const handleOpenAssignDialog = (id: string) => {
@@ -253,6 +259,7 @@ export default function IssuesPage() {
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Select">Select</SelectItem>
                     <SelectItem value="Low">Low</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="High">High</SelectItem>
@@ -367,7 +374,7 @@ export default function IssuesPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex-1 pb-4 px-4 sm:px-6">
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">
+                <p className="text-sm text-muted-foreground leading- relaxed line-clamp-3 break-words">
                   {issue.description}
                 </p>
                 {issue.status === 'Pending Approval' && (
