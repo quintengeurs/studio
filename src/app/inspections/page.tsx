@@ -36,37 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Frequency, Inspection, Asset } from "@/lib/types";
 import { addDays, addMonths, format } from "date-fns";
 
-export default function InspectionsPage() {
-  const { toast } = useToast();
-  const db = useFirestore();
-  const { user } = useUser();
-  
-  // Fetch Assets for scheduling
-  const assetsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "assets"), orderBy("name"));
-  }, [db]);
-  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
-
-  // Fetch Inspections
-  const inspectionsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "inspections"), orderBy("dueDate", "desc"));
-  }, [db]);
-  const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery);
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
-  const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null);
-  
-  const [newInspection, setNewInspection] = useState({
-    assetId: "",
-    frequency: "One-off" as Frequency,
-    dueDate: format(new Date(), 'yyyy-MM-dd')
-  });
-
-  const [inspectionResults, setInspectionResults] = useState<{item: string, passed: boolean, notes: string}[]>([]);
-
+const InspectionCard = ({ inspection, onStart }: { inspection: Inspection, onStart: (inspection: Inspection) => void }) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Pending': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 font-bold uppercase text-[10px]">Pending</Badge>;
@@ -76,10 +46,84 @@ export default function InspectionsPage() {
     }
   };
 
-  const handleScheduleInspection = () => {
-    if (!db) return;
+  return (
+    <Card className="border-2 hover:border-primary/30 transition-all group">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex flex-col gap-1">
+            <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-wider w-fit">{inspection.park}</Badge>
+            {inspection.frequency && inspection.status !== 'Completed' && (
+              <div className="flex items-center gap-1 text-[8px] font-bold text-primary uppercase">
+                <RefreshCcw className="h-2.5 w-2.5" />
+                Recurring: {inspection.frequency}
+              </div>
+            )}
+          </div>
+          {getStatusBadge(inspection.status)}
+        </div>
+        <CardTitle className="text-lg font-headline group-hover:text-primary transition-colors">{inspection.assetName}</CardTitle>
+        <CardDescription className="flex items-center gap-1.5 text-xs font-medium">
+          <Calendar className="h-3 w-3" /> {inspection.status === 'Completed' ? `Finished ${format(new Date(inspection.completedAt!), 'dd MMM')}` : `Due ${inspection.dueDate}`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between py-2 border-y border-dashed">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground">Reference</span>
+            <span className="text-[10px] font-mono text-muted-foreground">{inspection.id.substring(0, 8)}</span>
+          </div>
+          
+          {inspection.status === 'Completed' ? (
+            <div className="space-y-2">
+                <div className="flex items-center gap-2 text-[10px] text-green-700 font-bold">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Inspection Record Logged
+                </div>
+                <p className="text-[10px] text-muted-foreground">Inspected by: {inspection.inspectedBy}</p>
+            </div>
+          ) : (
+            <Button className="w-full h-9 text-xs font-bold" onClick={() => onStart(inspection)}>
+              <ClipboardCheck className="mr-2 h-4 w-4" /> Start Inspection
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function InspectionsPage() {
+  const { toast } = useToast();
+  const db = useFirestore();
+  const { user } = useUser();
+  
+  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
+  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
+
+  const inspectionsQuery = useMemoFirebase(() => db ? query(collection(db, "inspections"), orderBy("dueDate", "desc")) : null, [db]);
+  const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
+  const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [newInspection, setNewInspection] = useState({
+    assetId: "",
+    frequency: "One-off" as Frequency,
+    dueDate: format(new Date(), 'yyyy-MM-dd')
+  });
+
+  const [inspectionResults, setInspectionResults] = useState<{item: string, passed: boolean, notes: string}[]>([]);
+
+  const handleScheduleInspection = async () => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
     const asset = assets.find(a => a.id === newInspection.assetId);
-    if (!asset) return;
+    if (!asset) {
+        toast({ title: "Error", description: "Selected asset not found.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
 
     const inspectionData = {
       assetId: asset.id,
@@ -90,18 +134,23 @@ export default function InspectionsPage() {
       frequency: newInspection.frequency !== 'One-off' ? newInspection.frequency : null
     };
 
-    addDoc(collection(db, "inspections"), inspectionData);
-    setIsDialogOpen(false);
-    setNewInspection({ assetId: "", frequency: "One-off", dueDate: format(new Date(), 'yyyy-MM-dd') });
-    toast({ 
-      title: "Inspection Scheduled", 
-      description: `${inspectionData.frequency ? `Recurring (${inspectionData.frequency})` : 'One-off'} safety check scheduled for ${asset.name}.` 
-    });
+    try {
+      await addDoc(collection(db, "inspections"), inspectionData);
+      setIsDialogOpen(false);
+      setNewInspection({ assetId: "", frequency: "One-off", dueDate: format(new Date(), 'yyyy-MM-dd') });
+      toast({ 
+        title: "Inspection Scheduled", 
+        description: `${inspectionData.frequency ? `Recurring (${inspectionData.frequency})` : 'One-off'} safety check scheduled for ${asset.name}.` 
+      });
+    } catch (error) {
+        toast({ title: "Error", description: "Could not schedule inspection. Please try again.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const openCompleteDialog = (inspection: Inspection) => {
     setSelectedInspection(inspection);
-    // Simple mock checklist items based on asset type or generic
     setInspectionResults([
       { item: "General Structural Integrity", passed: true, notes: "" },
       { item: "Cleanliness and Hygiene", passed: true, notes: "" },
@@ -121,41 +170,45 @@ export default function InspectionsPage() {
     }
   };
 
-  const handleFinishInspection = () => {
-    if (!db || !selectedInspection || !user) return;
+  const handleFinishInspection = async () => {
+    if (!db || !selectedInspection || !user || isSubmitting) return;
+    setIsSubmitting(true);
 
-    // 1. Mark current instance as Completed with results
-    updateDoc(doc(db, "inspections", selectedInspection.id), {
-      status: 'Completed',
-      completedAt: new Date().toISOString(),
-      inspectedBy: user.displayName || user.email,
-      results: inspectionResults
-    });
-
-    // 2. If it's recurring, schedule the next instance as a new record
-    if (selectedInspection.frequency && selectedInspection.frequency !== 'One-off') {
-      const nextDate = calculateNextDueDate(selectedInspection.dueDate, selectedInspection.frequency);
-      if (nextDate) {
-        addDoc(collection(db, "inspections"), {
-          assetId: selectedInspection.assetId,
-          assetName: selectedInspection.assetName,
-          park: selectedInspection.park,
-          status: 'Pending',
-          dueDate: nextDate,
-          frequency: selectedInspection.frequency
+    try {
+        await updateDoc(doc(db, "inspections", selectedInspection.id), {
+            status: 'Completed',
+            completedAt: new Date().toISOString(),
+            inspectedBy: user.displayName || user.email,
+            results: inspectionResults
         });
-      }
+
+        if (selectedInspection.frequency && selectedInspection.frequency !== 'One-off') {
+            const nextDate = calculateNextDueDate(selectedInspection.dueDate, selectedInspection.frequency);
+            if (nextDate) {
+                await addDoc(collection(db, "inspections"), {
+                    assetId: selectedInspection.assetId,
+                    assetName: selectedInspection.assetName,
+                    park: selectedInspection.park,
+                    status: 'Pending',
+                    dueDate: nextDate,
+                    frequency: selectedInspection.frequency
+                });
+            }
+        }
+
+        const assetRef = doc(db, "assets", selectedInspection.assetId);
+        await updateDoc(assetRef, { lastInspected: format(new Date(), 'yyyy-MM-dd') });
+
+        setIsCompleteDialogOpen(false);
+        toast({ 
+            title: "Inspection Logged", 
+            description: `Check results for ${selectedInspection.assetName} have been permanently recorded.` 
+        });
+    } catch (error) {
+        toast({ title: "Error", description: "Could not log inspection. Please try again.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
     }
-
-    // 3. Update asset's last inspected date
-    const assetRef = doc(db, "assets", selectedInspection.assetId);
-    updateDoc(assetRef, { lastInspected: format(new Date(), 'yyyy-MM-dd') });
-
-    setIsCompleteDialogOpen(false);
-    toast({ 
-      title: "Inspection Logged", 
-      description: `Check results for ${selectedInspection.assetName} have been permanently recorded.` 
-    });
   };
 
   return (
@@ -211,7 +264,9 @@ export default function InspectionsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full" onClick={handleScheduleInspection} disabled={!newInspection.assetId}>Complete Schedule</Button>
+              <Button className="w-full" onClick={handleScheduleInspection} disabled={!newInspection.assetId || isSubmitting}>
+                {isSubmitting ? "Scheduling..." : "Complete Schedule"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -229,70 +284,30 @@ export default function InspectionsPage() {
           </Button>
         </div>
 
-        <TabsContent value="all" className="mt-0">
-          {loading ? (
-             <div className="flex justify-center py-12"><Clock className="h-8 w-8 animate-spin text-primary" /></div>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {inspections.map((inspection) => (
-                <Card key={inspection.id} className="border-2 hover:border-primary/30 transition-all group">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-wider w-fit">{inspection.park}</Badge>
-                        {inspection.frequency && inspection.status !== 'Completed' && (
-                          <div className="flex items-center gap-1 text-[8px] font-bold text-primary uppercase">
-                            <RefreshCcw className="h-2.5 w-2.5" />
-                            Recurring: {inspection.frequency}
-                          </div>
-                        )}
-                      </div>
-                      {getStatusBadge(inspection.status)}
-                    </div>
-                    <CardTitle className="text-lg font-headline group-hover:text-primary transition-colors">{inspection.assetName}</CardTitle>
-                    <CardDescription className="flex items-center gap-1.5 text-xs font-medium">
-                      <Calendar className="h-3 w-3" /> {inspection.status === 'Completed' ? `Finished ${format(new Date(inspection.completedAt!), 'dd MMM')}` : `Due ${inspection.dueDate}`}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between py-2 border-y border-dashed">
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Reference</span>
-                        <span className="text-[10px] font-mono text-muted-foreground">{inspection.id.substring(0, 8)}</span>
-                      </div>
-                      
-                      {inspection.status === 'Completed' ? (
-                        <div className="space-y-2">
-                           <div className="flex items-center gap-2 text-[10px] text-green-700 font-bold">
-                             <CheckCircle2 className="h-3.5 w-3.5" /> Inspection Record Logged
-                           </div>
-                           <p className="text-[10px] text-muted-foreground">Inspected by: {inspection.inspectedBy}</p>
-                        </div>
-                      ) : (
-                        <Button className="w-full h-9 text-xs font-bold" onClick={() => openCompleteDialog(inspection)}>
-                          <ClipboardCheck className="mr-2 h-4 w-4" /> Start Inspection
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {inspections.length === 0 && (
-                <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">
-                  No inspection records found.
-                </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="pending" className="mt-0">
-           {/* Similar structure filtered by Pending */}
-        </TabsContent>
-
-        <TabsContent value="completed" className="mt-0">
-           {/* Similar structure filtered by Completed */}
-        </TabsContent>
+        {loading ? (
+          <div className="flex justify-center py-12"><Clock className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : (
+          <>
+            <TabsContent value="all" className="mt-0">
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {inspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
+                {inspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No inspection records found.</div>}
+              </div>
+            </TabsContent>
+            <TabsContent value="pending" className="mt-0">
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {inspections.filter(i => i.status === 'Pending').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
+                {inspections.filter(i => i.status === 'Pending').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No pending inspections.</div>}
+              </div>
+            </TabsContent>
+            <TabsContent value="completed" className="mt-0">
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {inspections.filter(i => i.status === 'Completed').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
+                {inspections.filter(i => i.status === 'Completed').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}
+              </div>
+            </TabsContent>
+          </>
+        )}
       </Tabs>
 
       <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
@@ -334,8 +349,9 @@ export default function InspectionsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button className="w-full font-bold" onClick={handleFinishInspection}>
-              <CheckCircle2 className="mr-2 h-4 w-4" /> Log Completed Inspection
+            <Button className="w-full font-bold" onClick={handleFinishInspection} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Finish Inspection"}
+              <CheckCircle2 className="ml-2 h-4 w-4" />
             </Button>
           </DialogFooter>
         </DialogContent>

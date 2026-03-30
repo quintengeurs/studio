@@ -51,7 +51,7 @@ export default function ArchivedTasksPage() {
     );
   }, [db]);
 
-  const { data: tasks = [], loading } = useCollection(archivedTasksQuery);
+  const { data: tasks = [], loading, error } = useCollection(archivedTasksQuery);
 
   const filteredTasks = tasks.filter(task => 
     task.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -95,6 +95,12 @@ export default function ArchivedTasksPage() {
                   Loading archives...
                 </TableCell>
               </TableRow>
+            ) : error ? (
+                <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-destructive">
+                        Error loading tasks. Please try again.
+                    </TableCell>
+                </TableRow>
             ) : filteredTasks.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
@@ -131,11 +137,11 @@ export default function ArchivedTasksPage() {
                   <TableCell className="text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5" />
-                      {task.dueDate}
+                      {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : task.dueDate}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedTask(task)}>
                       <ExternalLink className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -162,7 +168,7 @@ export default function ArchivedTasksPage() {
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2">
               <MapPin className="h-3 w-3 text-primary" />
-              {selectedTask?.park} • Completed {selectedTask?.dueDate}
+              {selectedTask?.park} • Completed {selectedTask?.completedAt ? new Date(selectedTask.completedAt).toLocaleDateString() : selectedTask?.dueDate}
             </DialogDescription>
           </DialogHeader>
 

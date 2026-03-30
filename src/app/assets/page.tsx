@@ -91,6 +91,7 @@ export default function AssetRegister() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [search, setSearch] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [newAsset, setNewAsset] = useState({
     name: '',
@@ -99,7 +100,6 @@ export default function AssetRegister() {
     location: '',
     condition: 'Excellent' as const,
     setupInspection: false,
-    setupTask: false
   });
 
   const parks = useMemo(() => Array.from(new Set(assets.map(a => a.park))).sort(), [assets]);
@@ -121,8 +121,9 @@ export default function AssetRegister() {
     }
   };
 
-  const handleAddAsset = () => {
-    if (!db) return;
+  const handleAddAsset = async () => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
     const assetData = {
       name: newAsset.name,
       type: newAsset.type,
@@ -132,9 +133,10 @@ export default function AssetRegister() {
       lastInspected: 'Never'
     };
 
-    addDoc(collection(db, "assets"), assetData).then((docRef) => {
+    try {
+      const docRef = await addDoc(collection(db, "assets"), assetData);
       if (newAsset.setupInspection) {
-        addDoc(collection(db, "inspections"), {
+        await addDoc(collection(db, "inspections"), {
           assetId: docRef.id,
           assetName: assetData.name,
           park: assetData.park,
@@ -143,18 +145,28 @@ export default function AssetRegister() {
           frequency: 'Monthly'
         });
       }
-    });
-
-    setIsAddDialogOpen(false);
-    setNewAsset({ name: '', type: '', park: '', location: '', condition: 'Excellent', setupInspection: false, setupTask: false });
-    toast({ title: "Asset Added", description: `${assetData.name} registered successfully.` });
+      setIsAddDialogOpen(false);
+      setNewAsset({ name: '', type: '', park: '', location: '', condition: 'Excellent', setupInspection: false });
+      toast({ title: "Asset Added", description: `${assetData.name} registered successfully.` });
+    } catch (error) {
+      toast({ title: "Error", description: "An error occurred while adding the asset.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleUpdateAsset = () => {
-    if (!db || !selectedAsset) return;
-    updateDoc(doc(db, "assets", selectedAsset.id), selectedAsset);
-    setIsEditing(false);
-    toast({ title: "Asset Updated", description: "Changes saved successfully." });
+  const handleUpdateAsset = async () => {
+    if (!db || !selectedAsset || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, "assets", selectedAsset.id), selectedAsset);
+      setIsEditing(false);
+      toast({ title: "Asset Updated", description: "Changes saved successfully." });
+    } catch (error) {
+      toast({ title: "Error", description: "An error occurred while updating the asset.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openAssetDetails = (asset: Asset) => {
@@ -217,10 +229,7 @@ export default function AssetRegister() {
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
-                      {parks.length > 0 ? parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>) : <SelectItem value="Hackney Central" disabled>No parks found</SelectItem>}
-                      <SelectItem value="London Fields">London Fields</SelectItem>
-                      <SelectItem value="Clissold Park">Clissold Park</SelectItem>
-                      <SelectItem value="Hackney Marshes">Hackney Marshes</SelectItem>
+                      {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -240,7 +249,9 @@ export default function AssetRegister() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full" onClick={handleAddAsset} disabled={!newAsset.name || !newAsset.park}>Complete Registration</Button>
+              <Button className="w-full" onClick={handleAddAsset} disabled={!newAsset.name || !newAsset.park || isSubmitting}>
+                {isSubmitting ? "Adding Asset..." : "Complete Registration"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -398,7 +409,9 @@ export default function AssetRegister() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={handleUpdateAsset} className="w-full font-bold">Save Asset Changes</Button>
+                    <Button onClick={handleUpdateAsset} className="w-full font-bold" disabled={isSubmitting}>
+                      {isSubmitting ? "Saving Changes..." : "Save Asset Changes"}
+                      </Button>
                   </div>
                 ) : (
                   <div className="grid gap-6">

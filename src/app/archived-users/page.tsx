@@ -43,27 +43,33 @@ export default function ArchivedUsersPage() {
   const db = useFirestore();
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const archivedUsersQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "users"), where("isArchived", "==", true));
   }, [db]);
 
-  const { data: users = [], loading } = useCollection<User>(archivedUsersQuery);
+  const { data: users = [], loading, error } = useCollection<User>(archivedUsersQuery);
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(search.toLowerCase()) ||
     user.email.toLowerCase().includes(search.toLowerCase()) ||
-    user.team?.toLowerCase().includes(search.toLowerCase())
+    (user.team && user.team.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleRestoreUser = (user: User) => {
-    if (!db) return;
-    updateDoc(doc(db, "users", user.id), { isArchived: false })
-      .then(() => {
+  const handleRestoreUser = async (user: User) => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+        await updateDoc(doc(db, "users", user.id), { isArchived: false });
         setSelectedUser(null);
         toast({ title: "User Restored", description: `${user.name} has been moved back to the active directory.` });
-      });
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to restore user.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -101,6 +107,12 @@ export default function ArchivedUsersPage() {
                   Loading archives...
                 </TableCell>
               </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-10 text-destructive">
+                  Error loading users. Please try again.
+                </TableCell>
+              </TableRow>
             ) : filteredUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
@@ -116,10 +128,7 @@ export default function ArchivedUsersPage() {
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 border opacity-70">
-                        <AvatarImage src={user.avatar || undefined} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                      <Avatar className="h-9 w-9 border opacity-70"><AvatarImage src={user.avatar || undefined} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold">{user.name}</span>
                         <span className="text-[10px] text-muted-foreground">{user.email}</span>
@@ -127,17 +136,11 @@ export default function ArchivedUsersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">
-                      {user.role}
-                    </Badge>
+                    <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">{user.role}</Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {user.team}
-                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{user.team}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedUser(user)}><ExternalLink className="h-4 w-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -149,23 +152,12 @@ export default function ArchivedUsersPage() {
       <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">
-                Archived
-              </Badge>
-            </div>
+            <div className="flex items-center gap-2 mb-1"><Badge variant="outline" className="text-[10px] uppercase font-bold text-muted-foreground">Archived</Badge></div>
             <div className="flex items-center gap-4 py-2">
-              <Avatar className="h-14 w-14 border">
-                <AvatarImage src={selectedUser?.avatar || undefined} />
-                <AvatarFallback className="text-xl font-bold">{selectedUser?.name.charAt(0)}</AvatarFallback>
-              </Avatar>
+              <Avatar className="h-14 w-14 border"><AvatarImage src={selectedUser?.avatar || undefined} /><AvatarFallback className="text-xl font-bold">{selectedUser?.name.charAt(0)}</AvatarFallback></Avatar>
               <div className="flex flex-col">
-                <DialogTitle className="text-2xl font-headline font-bold">
-                  {selectedUser?.name}
-                </DialogTitle>
-                <DialogDescription className="flex items-center gap-2">
-                  <Mail className="h-3 w-3" /> {selectedUser?.email}
-                </DialogDescription>
+                <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
+                <DialogDescription className="flex items-center gap-2"><Mail className="h-3 w-3" /> {selectedUser?.email}</DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -174,17 +166,11 @@ export default function ArchivedUsersPage() {
              <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 border rounded-lg bg-muted/20">
                   <h4 className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Last Role</h4>
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-bold capitalize">{selectedUser?.role}</span>
-                  </div>
+                  <div className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /><span className="text-sm font-bold capitalize">{selectedUser?.role}</span></div>
                 </div>
                 <div className="p-4 border rounded-lg bg-muted/20">
                   <h4 className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Last Team</h4>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-bold">{selectedUser?.team}</span>
-                  </div>
+                  <div className="flex items-center gap-2"><Briefcase className="h-4 w-4 text-primary" /><span className="text-sm font-bold">{selectedUser?.team}</span></div>
                 </div>
               </div>
               <div className="p-4 border rounded-lg">
@@ -193,8 +179,8 @@ export default function ArchivedUsersPage() {
               </div>
           </div>
           <DialogFooter>
-            <Button className="w-full font-bold" onClick={() => selectedUser && handleRestoreUser(selectedUser)}>
-              <UserPlus className="mr-2 h-4 w-4" /> Restore Staff Member
+            <Button className="w-full font-bold" onClick={() => selectedUser && handleRestoreUser(selectedUser)} disabled={isSubmitting}>
+              <UserPlus className="mr-2 h-4 w-4" /> {isSubmitting ? "Restoring..." : "Restore Staff Member"}
             </Button>
           </DialogFooter>
         </DialogContent>

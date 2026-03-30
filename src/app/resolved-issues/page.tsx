@@ -51,7 +51,7 @@ export default function ResolvedIssuesPage() {
     );
   }, [db]);
 
-  const { data: issues = [], loading } = useCollection(resolvedIssuesQuery);
+  const { data: issues = [], loading, error } = useCollection(resolvedIssuesQuery);
 
   const filteredIssues = issues.filter(issue => 
     issue.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -95,6 +95,12 @@ export default function ResolvedIssuesPage() {
                   Loading archive...
                 </TableCell>
               </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-10 text-destructive">
+                  Error loading issues. Please try again.
+                </TableCell>
+              </TableRow>
             ) : filteredIssues.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
@@ -128,11 +134,11 @@ export default function ResolvedIssuesPage() {
                   <TableCell className="text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5" />
-                      {new Date(issue.createdAt).toLocaleDateString()}
+                      {issue.resolvedAt ? new Date(issue.resolvedAt).toLocaleDateString() : new Date(issue.createdAt).toLocaleDateString()}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setSelectedIssue(issue)}>
                       <ExternalLink className="h-4 w-4" />
                     </Button>
                   </TableCell>

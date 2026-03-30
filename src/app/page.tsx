@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -12,72 +13,60 @@ import {
   Clock
 } from "lucide-react";
 import { 
-  Bar, 
-  BarChart, 
   ResponsiveContainer, 
-  XAxis, 
-  YAxis, 
   Tooltip,
   Cell,
   PieChart,
   Pie
 } from "recharts";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { MOCK_ASSETS, MOCK_ISSUES, MOCK_TASKS } from "@/lib/mock-data";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import { Asset, Issue, Task } from "@/lib/types";
 import Link from "next/link";
 
-const taskData = [
-  { name: 'Completed', value: MOCK_TASKS.filter(t => t.status === 'Done').length, color: 'hsl(var(--primary))' },
-  { name: 'In Progress', value: MOCK_TASKS.filter(t => t.status === 'Doing').length, color: 'hsl(var(--accent))' },
-  { name: 'Pending', value: MOCK_TASKS.filter(t => t.status === 'Todo').length, color: 'hsl(var(--muted))' },
-];
-
-const trendData = {
-  daily: [
-    { label: 'Mon', count: 12 },
-    { label: 'Tue', count: 18 },
-    { label: 'Wed', count: 15 },
-    { label: 'Thu', count: 22 },
-    { label: 'Fri', count: 14 },
-    { label: 'Sat', count: 8 },
-    { label: 'Sun', count: 5 },
-  ],
-  weekly: [
-    { label: 'Week 1', count: 85 },
-    { label: 'Week 2', count: 92 },
-    { label: 'Week 3', count: 78 },
-    { label: 'Week 4', count: 110 },
-  ],
-  monthly: [
-    { label: 'Jan', count: 320 },
-    { label: 'Feb', count: 280 },
-    { label: 'Mar', count: 450 },
-    { label: 'Apr', count: 390 },
-    { label: 'May', count: 410 },
-    { label: 'Jun', count: 520 },
-  ],
-  yearly: [
-    { label: '2021', count: 3200 },
-    { label: '2022', count: 3800 },
-    { label: '2023', count: 4500 },
-    { label: '2024', count: 2100 },
-  ]
-};
-
 export default function Dashboard() {
-  const [trendView, setTrendView] = useState<keyof typeof trendData>('daily');
-  
-  const openIssues = MOCK_ISSUES.filter(i => i.status !== 'Closed').length;
-  const criticalAssets = MOCK_ASSETS.filter(a => a.condition === 'Poor' || a.condition === 'Critical').length;
-  const activeTasks = MOCK_TASKS.filter(t => t.status !== 'Done').length;
+  const db = useFirestore();
 
-  const currentTrendData = trendData[trendView];
+  const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(
+    useMemoFirebase(() => db ? collection(db, "assets") : null, [db])
+  );
+  
+  const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(
+    useMemoFirebase(() => db ? collection(db, "issues") : null, [db])
+  );
+
+  const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(
+    useMemoFirebase(() => db ? collection(db, "tasks") : null, [db])
+  );
+
+  const openIssues = issues.filter(i => i.status !== 'Closed').length;
+  const emergencyIssues = issues.filter(i => i.priority === 'Emergency').length;
+  const criticalAssets = assets.filter(a => a.condition === 'Poor' || a.condition === 'Critical').length;
+  const activeTasks = tasks.filter(t => t.status !== 'Completed').length;
+
+  const taskData = useMemo(() => {
+    if (!tasks) return [];
+    return [
+      { name: 'Completed', value: tasks.filter(t => t.status === 'Completed').length, color: 'hsl(var(--primary))' },
+      { name: 'In Progress', value: tasks.filter(t => t.status === 'Doing').length, color: 'hsl(var(--accent))' },
+      { name: 'Pending', value: tasks.filter(t => t.status === 'Todo' || t.status === 'Pending Approval').length, color: 'hsl(var(--muted))' },
+    ];
+  }, [tasks]);
+
+  const isLoading = assetsLoading || issuesLoading || tasksLoading;
+
+  if (isLoading) {
+    return (
+      <DashboardShell 
+        title="Performance Overview" 
+        description="Real-time monitoring of Hackney Green Spaces operations"
+      >
+        <div className="flex items-center justify-center h-96">
+          <Clock className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell 
@@ -92,8 +81,8 @@ export default function Dashboard() {
               <MapPin className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold font-headline">{MOCK_ASSETS.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Managed across 12 parks</p>
+              <div className="text-3xl font-bold font-headline">{assets.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Total managed assets</p>
             </CardContent>
           </Card>
         </Link>
@@ -106,7 +95,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-headline">{openIssues}</div>
-              <p className="text-xs text-destructive mt-1 font-medium">3 Emergency priority</p>
+              {emergencyIssues > 0 && <p className="text-xs text-destructive mt-1 font-medium">{emergencyIssues} Emergency priority</p>}
             </CardContent>
           </Card>
         </Link>
@@ -119,7 +108,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-headline">{activeTasks}</div>
-              <p className="text-xs text-muted-foreground mt-1">Next due in 4 hours</p>
+              <p className="text-xs text-muted-foreground mt-1">Tasks currently in progress or pending</p>
             </CardContent>
           </Card>
         </Link>
@@ -132,71 +121,14 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-headline">{criticalAssets}</div>
-              <p className="text-xs text-muted-foreground mt-1">Assets requiring urgent repair</p>
+              <p className="text-xs text-muted-foreground mt-1">Assets requiring urgent attention</p>
             </CardContent>
           </Card>
         </Link>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mt-6">
-        <Card className="lg:col-span-4">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="font-headline">Issue Reporting Trends</CardTitle>
-              <CardDescription>Volume of reported issues over time</CardDescription>
-            </div>
-            <Select value={trendView} onValueChange={(v: any) => setTrendView(v)}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
-                <SelectValue placeholder="Timeframe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={currentTrendData}>
-                  <XAxis 
-                    dataKey="label" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 10}} 
-                  />
-                  <YAxis hide />
-                  <Tooltip 
-                    cursor={{fill: 'transparent'}}
-                    content={({active, payload}) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="rounded-lg border bg-background p-2 shadow-sm">
-                            <p className="text-[10px] font-bold uppercase">{payload[0].payload.label}</p>
-                            <p className="text-xs font-bold text-primary">{payload[0].value} Issues</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {currentTrendData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={index === currentTrendData.length - 1 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.2)'} 
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3">
+      <div className="grid gap-6 mt-6">
+        <Card>
           <CardHeader>
             <CardTitle className="font-headline">Task Completion Status</CardTitle>
             <CardDescription>Current operative workload distribution</CardDescription>

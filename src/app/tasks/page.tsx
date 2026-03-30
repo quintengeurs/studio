@@ -52,25 +52,15 @@ import { addDays, addMonths, format } from "date-fns";
 export default function TasksPage() {
   const { toast } = useToast();
   const db = useFirestore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Firebase Queries
-  const tasksQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status"));
-  }, [db]);
+  const tasksQuery = useMemoFirebase(() => db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")) : null, [db]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery);
 
-  const assetsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "assets"), orderBy("name"));
-  }, [db]);
-  const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery);
+  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
+  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
 
-  // Live Users for assignment
-  const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "users"), where("isArchived", "==", false));
-  }, [db]);
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: users = [] } = useCollection<User>(usersQuery);
 
   const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
@@ -98,8 +88,9 @@ export default function TasksPage() {
     }
   };
 
-  const handleCreateTask = () => {
-    if (!db) return;
+  const handleCreateTask = async () => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
     const taskData = {
         title: newTask.title,
         objective: newTask.objective,
@@ -110,26 +101,16 @@ export default function TasksPage() {
         status: 'Todo' as const,
     };
 
-    addDoc(collection(db, "tasks"), taskData)
-        .then(() => {
-            toast({ title: "Task Created", description: "The new task has been added to the queue." });
-            setIsTaskDialogOpen(false);
-            setNewTask({ 
-                title: "", 
-                objective: "", 
-                park: "", 
-                assignedTo: "", 
-                dueDate: format(new Date(), 'yyyy-MM-dd'),
-                frequency: "One-off"
-            });
-        })
-        .catch(() => {
-            toast({ 
-                title: "Error Creating Task", 
-                description: "There was an issue creating the task. Please try again.", 
-                variant: "destructive" 
-            });
-        });
+    try {
+        await addDoc(collection(db, "tasks"), taskData);
+        toast({ title: "Task Created", description: "The new task has been added to the queue." });
+        setIsTaskDialogOpen(false);
+        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), frequency: "One-off" });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
 };
 
   const calculateNextDueDate = (currentDate: string, frequency: Frequency) => {
@@ -149,44 +130,59 @@ export default function TasksPage() {
     setIsAssignDialogOpen(true);
   };
 
-  const handleAssign = (operativeName: string) => {
-    if (!db || !selectedTaskId) return;
-    updateDoc(doc(db, "tasks", selectedTaskId), { assignedTo: operativeName });
-    setIsAssignDialogOpen(false);
-    setSelectedTaskId(null);
-    toast({ title: "Task Reassigned", description: `Task has been assigned to ${operativeName}.` });
+  const handleAssign = async (operativeName: string) => {
+    if (!db || !selectedTaskId || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+        await updateDoc(doc(db, "tasks", selectedTaskId), { assignedTo: operativeName });
+        setIsAssignDialogOpen(false);
+        setSelectedTaskId(null);
+        toast({ title: "Task Reassigned", description: `Task has been assigned to ${operativeName}.` });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to reassign task.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
-  const handleApproveTask = (taskId: string) => {
-    if (!db) return;
+  const handleApproveTask = async (taskId: string) => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
     const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    // 1. Mark task as Completed (Archives it)
-    updateDoc(doc(db, "tasks", taskId), { status: 'Completed' });
-
-    // 2. If recurring, spawn next task
-    if (task.frequency && task.frequency !== 'One-off') {
-      const nextDate = calculateNextDueDate(task.dueDate, task.frequency);
-      if (nextDate) {
-        addDoc(collection(db, "tasks"), {
-          title: task.title,
-          objective: task.objective,
-          park: task.park,
-          assignedTo: task.assignedTo,
-          dueDate: nextDate,
-          frequency: task.frequency,
-          status: 'Todo'
-        });
-      }
+    if (!task) {
+        toast({ title: "Error", description: "Task not found.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
     }
 
-    // 3. If it was linked to an issue, verify that issue is also resolved
-    if (task.linkedIssueId) {
-      updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Resolved' });
-    }
+    try {
+        await updateDoc(doc(db, "tasks", taskId), { status: 'Completed' });
 
-    toast({ title: "Task Approved", description: "Work verified and moved to archives." });
+        if (task.frequency && task.frequency !== 'One-off') {
+            const nextDate = calculateNextDueDate(task.dueDate, task.frequency);
+            if (nextDate) {
+                await addDoc(collection(db, "tasks"), {
+                    title: task.title,
+                    objective: task.objective,
+                    park: task.park,
+                    assignedTo: task.assignedTo,
+                    dueDate: nextDate,
+                    frequency: task.frequency,
+                    status: 'Todo'
+                });
+            }
+        }
+
+        if (task.linkedIssueId) {
+            await updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Resolved' });
+        }
+
+        toast({ title: "Task Approved", description: "Work verified and moved to archives." });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to approve task.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -206,66 +202,41 @@ export default function TasksPage() {
               <DialogDescription>Assign a new operational task to the team.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="t-title">Task Title</Label>
-                <Input id="t-title" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="e.g. Mow North Lawn" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="t-obj">Objective</Label>
-                <Textarea id="t-obj" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} placeholder="What needs to be achieved?" />
+                <Input placeholder="Task Title e.g. Mow North Lawn" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} />
+                <Textarea placeholder="Objective: What needs to be achieved?" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
+                    <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
+                    <SelectContent>
+                        {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
+                    <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
+                    <SelectContent>
+                        {operatives.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Park</Label>
-                  <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Park" />
-                    </SelectTrigger>
+                <Input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
+                <Select value={newTask.frequency} onValueChange={(v: Frequency) => setNewTask({...newTask, frequency: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="None">None</SelectItem>
-                      {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        <SelectItem value="One-off">One-off</SelectItem>
+                        <SelectItem value="Daily">Daily</SelectItem>
+                        <SelectItem value="Weekly">Weekly</SelectItem>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                        <SelectItem value="Yearly">Yearly</SelectItem>
                     </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Assignee</Label>
-                  <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select User" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="None">None</SelectItem>
-                      {operatives.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                      {operatives.length === 0 && <SelectItem value="none" disabled>No active operatives</SelectItem>}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="t-date">Due Date</Label>
-                  <Input id="t-date" type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Frequency</Label>
-                  <Select value={newTask.frequency} onValueChange={(v: Frequency) => setNewTask({...newTask, frequency: v})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="One-off" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="One-off">One-off</SelectItem>
-                      <SelectItem value="Daily">Daily</SelectItem>
-                      <SelectItem value="Weekly">Weekly</SelectItem>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                      <SelectItem value="Yearly">Yearly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                </Select>
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || !newTask.park || !newTask.assignedTo}>Create Task</Button>
+              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || !newTask.park || !newTask.assignedTo || isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Task"}
+                </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -273,16 +244,12 @@ export default function TasksPage() {
     >
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="active" className="flex items-center gap-2">
-            <ListTodo className="h-4 w-4" /> Active Tasks
-          </TabsTrigger>
-          <TabsTrigger value="recurring" className="flex items-center gap-2">
-            <RotateCcw className="h-4 w-4" /> Recurring Schedules
-          </TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center gap-2"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
+          <TabsTrigger value="recurring" className="flex items-center gap-2"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active">
-          {tasksLoading || assetsLoading ? (
+          {tasksLoading ? (
             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
           ) : tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
@@ -295,93 +262,40 @@ export default function TasksPage() {
                 <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
                   <CardHeader className="pb-3 px-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">
-                          {task.park}
-                        </Badge>
-                        {task.frequency && (
-                          <div className="flex items-center gap-1 text-[8px] font-bold text-primary uppercase">
-                            <RefreshCcw className="h-2.5 w-2.5" />
-                            Recurring: {task.frequency}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0">
-                        <Clock className="h-3 w-3" />
-                        {task.dueDate}
-                      </div>
+                        <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" />{task.dueDate}</div>
                     </div>
-                    <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">
-                      {task.title}
-                    </CardTitle>
+                    <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">{task.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="pb-4 px-4 sm:px-6 flex-1">
                     <p className="text-sm font-medium text-foreground/80 mb-4 line-clamp-2">{task.objective}</p>
-                    
                     <div className="space-y-4">
                       {task.status === 'Pending Approval' && (
                         <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-yellow-600" />
-                            <span className="text-[10px] font-bold text-yellow-700 uppercase">Work Pending Approval</span>
-                          </div>
-                          {task.collaborators && task.collaborators.length > 0 && (
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Users className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-[10px] font-bold text-muted-foreground">Assisted by: {task.collaborators.join(', ')}</span>
-                            </div>
-                          )}
-                          {task.completionImageUrl && (
-                            <div className="relative aspect-video w-full rounded border overflow-hidden">
-                              <Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" />
-                            </div>
-                          )}
-                          {task.completionNote && (
-                            <p className="text-[10px] italic text-muted-foreground">"{task.completionNote}"</p>
-                          )}
+                          <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-yellow-600" /><span className="text-[10px] font-bold text-yellow-700 uppercase">Work Pending Approval</span></div>
+                          {task.collaborators && task.collaborators.length > 0 && <div className="flex items-center gap-1.5 mb-1"><Users className="h-3 w-3 text-muted-foreground" /><span className="text-[10px] font-bold text-muted-foreground">Assisted by: {task.collaborators.join(', ')}</span></div>}
+                          {task.completionImageUrl && <div className="relative aspect-video w-full rounded border overflow-hidden"><Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" /></div>}
+                          {task.completionNote && <p className="text-[10px] italic text-muted-foreground">"{task.completionNote}"</p>}
                         </div>
                       )}
-
                       <div>
-                        <div className="flex items-center justify-between text-[10px] font-bold mb-1.5">
-                          <span className="uppercase text-muted-foreground">Progress</span>
-                          <span className="text-primary">{task.status === 'Pending Approval' ? '100%' : task.status === 'Doing' ? '45%' : '0%'}</span>
-                        </div>
+                        <div className="flex items-center justify-between text-[10px] font-bold mb-1.5"><span className="uppercase text-muted-foreground">Progress</span><span className="text-primary">{task.status === 'Pending Approval' ? '100%' : task.status === 'Doing' ? '45%' : '0%'}</span></div>
                         <Progress value={task.status === 'Pending Approval' ? 100 : task.status === 'Doing' ? 45 : 0} className="h-2" />
                       </div>
-                      
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                        <div 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors"
-                          onClick={() => handleOpenAssignDialog(task.id)}
-                        >
-                          <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0">
-                            <UserIcon className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span>
-                            <span className="text-xs font-semibold truncate">{task.assignedTo}</span>
-                          </div>
+                        <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors" onClick={() => handleOpenAssignDialog(task.id)}>
+                          <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
+                          <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
                         </div>
-                        <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm shrink-0`}>
-                          {task.status.toUpperCase()}
-                        </Badge>
+                        <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm shrink-0`}>{task.status.toUpperCase()}</Badge>
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter className="p-0 mt-auto border-t">
                     {task.status === 'Pending Approval' ? (
-                      <Button 
-                        variant="default" 
-                        className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm"
-                        onClick={() => handleApproveTask(task.id)}
-                      >
-                        <ThumbsUp className="mr-2 h-4 w-4" /> Approve & Archive
-                      </Button>
+                      <Button variant="default" className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}><ThumbsUp className="mr-2 h-4 w-4" /> {isSubmitting ? "Approving..." : "Approve & Archive"}</Button>
                     ) : (
-                      <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm">
-                        Monitor Progress <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
+                      <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm">Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
                     )}
                   </CardFooter>
                 </Card>
@@ -400,28 +314,17 @@ export default function TasksPage() {
                     <Badge variant="outline" className="text-[10px] font-bold">{task.park}</Badge>
                   </div>
                   <CardTitle className="text-lg font-headline">{task.title}</CardTitle>
-                  <CardDescription className="text-xs font-medium text-muted-foreground">
-                    Next instance due: <span className="text-foreground font-bold">{task.dueDate}</span>
-                  </CardDescription>
+                  <CardDescription className="text-xs font-medium text-muted-foreground">Next instance due: <span className="text-foreground font-bold">{task.dueDate}</span></CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase py-2 border-y border-dashed">
-                      <span className="text-muted-foreground">Assigned To</span>
-                      <span className="text-foreground">{task.assignedTo}</span>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded bg-muted/20 text-[10px] font-medium italic text-muted-foreground">
-                      <RefreshCcw className="h-3 w-3" /> This schedule will automatically renew upon completion.
-                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase py-2 border-y border-dashed"><span className="text-muted-foreground">Assigned To</span><span className="text-foreground">{task.assignedTo}</span></div>
+                    <div className="flex items-center gap-2 p-2 rounded bg-muted/20 text-[10px] font-medium italic text-muted-foreground"><RefreshCcw className="h-3 w-3" /> This schedule will automatically renew upon completion.</div>
                   </div>
                 </CardContent>
               </Card>
              ))}
-             {tasks.filter(t => t.frequency).length === 0 && (
-               <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50">
-                 <p className="text-sm font-bold">No recurring task schedules active.</p>
-               </div>
-             )}
+             {tasks.filter(t => t.frequency).length === 0 && <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50"><p className="text-sm font-bold">No recurring task schedules active.</p></div>}
           </div>
         </TabsContent>
       </Tabs>
@@ -435,16 +338,9 @@ export default function TasksPage() {
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               {operatives.map(user => (
-                <div 
-                  key={user.id} 
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleAssign(user.name)}
-                >
+                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleAssign(user.name)}>
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 border">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold">{user.name}</span>
                       <span className="text-[10px] text-muted-foreground">{user.team}</span>
@@ -453,9 +349,7 @@ export default function TasksPage() {
                   <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </div>
               ))}
-              {operatives.length === 0 && (
-                <p className="text-center text-xs text-muted-foreground py-4">No active operatives available.</p>
-              )}
+              {operatives.length === 0 && <p className="text-center text-xs text-muted-foreground py-4">No active operatives available.</p>}
             </div>
           </div>
         </DialogContent>
