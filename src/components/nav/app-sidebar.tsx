@@ -15,7 +15,8 @@ import {
   FolderArchive,
   UserX,
   PackagePlus,
-  Truck
+  Truck,
+  Map
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
   { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
+  { title: "Parks", icon: Map, href: "/parks" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
   { title: "Resolved Issues", icon: Archive, href: "/resolved-issues" },
@@ -87,14 +89,12 @@ export function AppSidebar() {
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
-                    asChild 
                     isActive={pathname === item.href}
                     tooltip={item.title}
+                    onClick={() => router.push(item.href)}
                   >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

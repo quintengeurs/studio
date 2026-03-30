@@ -57,7 +57,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { format } from "date-fns";
 
@@ -86,6 +86,10 @@ export default function AssetRegister() {
   }, [db]);
   const { data: allTasks = [] } = useCollection<Task>(tasksQuery);
 
+  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: registryConfig } = useDoc<any>(registryConfigRef);
+  const parks = registryConfig?.parks?.sort() ?? [];
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -101,8 +105,6 @@ export default function AssetRegister() {
     condition: 'Excellent' as const,
     setupInspection: false,
   });
-
-  const parks = useMemo(() => Array.from(new Set(assets.map(a => a.park))).sort(), [assets]);
 
   const filteredAssets = assets.filter(a => 
     a.name.toLowerCase().includes(search.toLowerCase()) || 

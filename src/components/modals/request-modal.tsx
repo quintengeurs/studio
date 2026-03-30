@@ -69,23 +69,32 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
       createdAt: new Date().toISOString(),
     };
 
-    addDoc(collection(db, "requests"), requestData);
-    
-    setFormData({
-      category: "Materials",
-      description: "",
-      depot: "",
-      imageUrl: "",
-    });
-    
-    if (onOpenChange) {
-      onOpenChange(false);
+    try {
+      await addDoc(collection(db, "requests"), requestData);
+      
+      setFormData({
+        category: "Materials",
+        description: "",
+        depot: "",
+        imageUrl: "",
+      });
+      
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+      
+      toast({
+        title: "Request Submitted",
+        description: "Your request has been sent to the stores management team.",
+      });
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your request. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    toast({
-      title: "Request Submitted",
-      description: "Your request has been sent to the stores management team.",
-    });
   };
 
   return (

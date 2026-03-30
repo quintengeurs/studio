@@ -64,7 +64,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, query, where, setDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, query, where, setDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
@@ -74,12 +74,11 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  // LIVE RECURRING CONFIGURATION
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig, loading: configLoading } = useDoc<any>(registryConfigRef);
 
-  const teams = registryConfig?.teams ?? [];
-  const trainingOptions = registryConfig?.trainingOptions ?? [];
+  const teams = registryConfig?.teams?.sort() ?? [];
+  const trainingOptions = registryConfig?.trainingOptions?.sort() ?? [];
 
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -101,10 +100,19 @@ export default function UserManagement() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management'>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Selection States
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
+  
+  const [configTeams, setConfigTeams] = useState<string[]>([]);
+  const [configTrainingOptions, setConfigTrainingOptions] = useState<string[]>([]);
   const [configNewTeam, setConfigNewTeam] = useState("");
   const [configNewTraining, setConfigNewTraining] = useState("");
+
+  useEffect(() => {
+    if (isConfigDialogOpen) {
+      setConfigTeams(teams);
+      setConfigTrainingOptions(trainingOptions);
+    }
+  }, [isConfigDialogOpen, teams, trainingOptions]);
 
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: '',
@@ -167,10 +175,9 @@ export default function UserManagement() {
     }
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!db || isSubmitting) return;
 
-    setIsSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
     const userToSave = {
         ...newUser,
@@ -181,33 +188,34 @@ export default function UserManagement() {
         createdAt: new Date().toISOString(),
     };
 
-    addDoc(collection(db, "users"), userToSave)
-        .then(() => {
-            toast({ title: "User Added", description: `${userToSave.name} has been added to the register.` });
-            setIsAddDialogOpen(false);
-            setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
-            setSelectedTrainings([]);
-        })
-        .catch(async (e) => {
-            toast({
-                title: "Error Creating User",
-                description: "There was a problem saving the user profile. Please try again.",
-                variant: "destructive",
-            });
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'users',
-                operation: 'create',
-                requestResourceData: userToSave,
-            }));
-        })
-        .finally(() => {
-            setIsSubmitting(false);
-        });
-};
+    setIsSubmitting(true);
 
-  const handleUpdateUser = () => {
+    try {
+        await addDoc(collection(db, "users"), userToSave);
+
+        toast({ title: "User Added", description: `${userToSave.name} has been added to the register.` });
+        setIsAddDialogOpen(false);
+        setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
+        setSelectedTrainings([]);
+    } catch (e) {
+        toast({
+            title: "Error Creating User",
+            description: "There was a problem saving the user profile. Please try again.",
+            variant: "destructive",
+        });
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'users',
+            operation: 'create',
+            requestResourceData: userToSave,
+        }));
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateUser = async () => {
     if (!db || !selectedUser || isSubmitting) return;
-    
+
     setIsSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
     const updatedData = {
@@ -215,72 +223,72 @@ export default function UserManagement() {
       training: trainingString
     };
 
-    updateDoc(doc(db, "users", selectedUser.id), updatedData)
-      .then(() => {
+    try {
+        await updateDoc(doc(db, "users", selectedUser.id), updatedData);
         setIsEditing(false);
-        setIsSubmitting(false);
         toast({ title: "Profile Updated", description: "Changes saved successfully." });
-      })
-      .catch(async (e) => {
-         setIsSubmitting(false);
+    } catch (e) {
          errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `users/${selectedUser.id}`,
           operation: 'update',
           requestResourceData: updatedData
         }));
-      });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
-  const handleArchiveUser = () => {
+  const handleArchiveUser = async () => {
     if (!db || !selectedUser || isSubmitting) return;
-    
+
     setIsSubmitting(true);
     const archiveData = { isArchived: true };
-    
-    updateDoc(doc(db, "users", selectedUser.id), archiveData)
-      .then(() => {
+
+    try {
+        await updateDoc(doc(db, "users", selectedUser.id), archiveData);
         setIsProfileDialogOpen(false);
         setSelectedUser(null);
-        setIsSubmitting(false);
         toast({ title: "User Archived", description: "Staff member moved to archives." });
-      })
-      .catch(async (e) => {
-        setIsSubmitting(false);
+    } catch (e) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `users/${selectedUser.id}`,
           operation: 'update',
           requestResourceData: archiveData
         }));
-      });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
-  const handleSaveConfig = (newTeams: string[], newTraining: string[]) => {
+  const handleUpdateRegistry = (field: 'teams' | 'trainingOptions', value: string, operation: 'add' | 'remove') => {
     if (!db || isSubmitting) return;
-    
     setIsSubmitting(true);
 
-    setDoc(doc(db, "settings", "registry"), {
-      teams: newTeams,
-      trainingOptions: newTraining
-    })
-      .then(() => {
-        toast({ title: "Configuration Updated", description: "Registry options have been saved." });
-      })
-      .catch((e) => {
-        toast({
-            title: "Error Saving Configuration",
-            description: "There was a problem saving the registry settings. Please try again.",
-            variant: "destructive",
+    const registryRef = doc(db, "settings", "registry");
+    const updatePayload = {
+        [field]: operation === 'add' ? arrayUnion(value) : arrayRemove(value)
+    };
+
+    setDoc(registryRef, updatePayload, { merge: true })
+        .catch((e) => {
+            toast({ title: "Error updating registry", description: "Your change could not be saved. Please try again.", variant: "destructive" });
+            // Revert optimistic UI update on failure
+            if (operation === 'add') {
+                if (field === 'teams') setConfigTeams(current => current.filter(t => t !== value));
+                else setConfigTrainingOptions(current => current.filter(t => t !== value));
+            } else { 
+                if (field === 'teams') setConfigTeams(current => [...current, value].sort());
+                else setConfigTrainingOptions(current => [...current, value].sort());
+            }
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'settings/registry',
+                operation: operation === 'add' ? 'array-union' : 'array-remove',
+                requestResourceData: updatePayload,
+            }));
+        })
+        .finally(() => {
+            setIsSubmitting(false);
         });
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: 'settings/registry',
-          operation: 'set',
-          requestResourceData: { teams: newTeams, trainingOptions: newTraining },
-        }));
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
   };
 
   const openUserProfile = (user: User) => {
@@ -300,7 +308,7 @@ export default function UserManagement() {
       description="Control system access and assign operative roles"
       actions={
         <div className="flex gap-2">
-          <Button variant="outline" className="font-bold" onClick={() => setIsConfigDialogOpen(true)}>
+          <Button variant="outline" className="font-bold" onClick={() => setIsConfigDialogOpen(true)} disabled={configLoading || isSubmitting}>
             <Settings2 className="mr-2 h-4 w-4" /> Configure Registry
           </Button>
           <Button className="font-headline font-bold" onClick={() => setIsAddDialogOpen(true)}>
@@ -452,17 +460,23 @@ export default function UserManagement() {
               <div className="flex gap-2">
                 <Input value={configNewTeam} onChange={e => setConfigNewTeam(e.target.value)} placeholder="New Team Name" />
                 <Button disabled={isSubmitting} onClick={() => {
-                  if (configNewTeam) {
-                    handleSaveConfig([...teams, configNewTeam], trainingOptions);
+                  if (configNewTeam && !configTeams.includes(configNewTeam)) {
+                    const newTeams = [...configTeams, configNewTeam].sort();
+                    setConfigTeams(newTeams);
+                    handleUpdateRegistry('teams', configNewTeam, 'add');
                     setConfigNewTeam("");
                   }
                 }}><Plus className="h-4 w-4" /></Button>
               </div>
               <ScrollArea className="h-[200px] border rounded-md p-2">
-                {teams.map(team => (
+                {configTeams.map(team => (
                   <div key={team} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
                     <span className="text-sm">{team}</span>
-                    <Button disabled={isSubmitting} variant="ghost" size="icon" onClick={() => handleSaveConfig(teams.filter(t => t !== team), trainingOptions)}>
+                    <Button disabled={isSubmitting} variant="ghost" size="icon" onClick={() => {
+                      const newTeams = configTeams.filter(t => t !== team);
+                      setConfigTeams(newTeams);
+                      handleUpdateRegistry('teams', team, 'remove');
+                    }}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -473,17 +487,23 @@ export default function UserManagement() {
               <div className="flex gap-2">
                 <Input value={configNewTraining} onChange={e => setConfigNewTraining(e.target.value)} placeholder="New Training Course" />
                 <Button disabled={isSubmitting} onClick={() => {
-                  if (configNewTraining) {
-                    handleSaveConfig(teams, [...trainingOptions, configNewTraining]);
+                  if (configNewTraining && !configTrainingOptions.includes(configNewTraining)) {
+                    const newTraining = [...configTrainingOptions, configNewTraining].sort();
+                    setConfigTrainingOptions(newTraining);
+                    handleUpdateRegistry('trainingOptions', configNewTraining, 'add');
                     setConfigNewTraining("");
                   }
                 }}><Plus className="h-4 w-4" /></Button>
               </div>
               <ScrollArea className="h-[200px] border rounded-md p-2">
-                {trainingOptions.map(opt => (
+                {configTrainingOptions.map(opt => (
                   <div key={opt} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
                     <span className="text-sm">{opt}</span>
-                    <Button disabled={isSubmitting} variant="ghost" size="icon" onClick={() => handleSaveConfig(teams, trainingOptions.filter(t => t !== opt))}>
+                    <Button disabled={isSubmitting} variant="ghost" size="icon" onClick={() => {
+                      const newTraining = configTrainingOptions.filter(t => t !== opt);
+                      setConfigTrainingOptions(newTraining);
+                      handleUpdateRegistry('trainingOptions', opt, 'remove');
+                    }}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>

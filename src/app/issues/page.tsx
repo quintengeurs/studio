@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/tooltip";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { Asset, User } from "@/lib/types";
 
@@ -65,11 +65,11 @@ export default function IssuesPage() {
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: users = [] } = useCollection<User>(usersQuery);
 
-  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets")) : null, [db]);
-  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
+  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: registryConfig } = useDoc<any>(registryConfigRef);
+  const parks = registryConfig?.parks?.sort() ?? [];
 
   const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
-  const parks = useMemo(() => Array.from(new Set(assets.map(a => a.park))).sort(), [assets]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -270,7 +270,7 @@ export default function IssuesPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {issues.map((issue) => (
             <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2 w-full">
-                <div className={`h-1.5 w-full shrink-0 ${issue.priority === 'Emergency' ? 'bg-destructive' : issue.priority === 'High' ? 'bg-orange-500' : issue.priority === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
+                <div className={`h-1.5 w-full shrink-0 ${issue.priority === 'Emergency' ? 'bg-destructive' : issue.priority === 'High' ? 'bg-yellow-500' : issue.priority === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
               
               {issue.imageUrl && (
                 <div className="relative w-full h-48 bg-muted shrink-0">

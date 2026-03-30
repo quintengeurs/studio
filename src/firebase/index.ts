@@ -39,5 +39,5 @@ export * from './firestore/use-doc';
 // Hook to help memoize Firebase queries/refs
 import { useMemo } from 'react';
 export function useMemoFirebase<T>(factory: () => T, deps: any[]): T {
-  return useMemo(factory, deps);
+  return useMemo(factory, deps || []);
 }
