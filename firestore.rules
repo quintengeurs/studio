@@ -6,6 +6,41 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Rules for user management
+    match /users/{userId} {
+      // Allow anyone to read and create users.
+      allow read, create: if true;
+      // Only authenticated users can update or delete.
+      allow update, delete: if isAuth();
+    }
+
+    // Rules for registry configuration
+    match /settings/registry {
+      // Allow anyone to read and write to the registry configuration.
+      allow read, write: if true;
+    }
+
+    // Rules for locations
+    match /locations/{locationId} {
+      allow read, write: if true;
+    }
+
+    // Rules for tasks
+    match /tasks/{taskId} {
+      allow read, write: if true;
+    }
+
+    // Rules for issues
+    match /issues/{issueId} {
+      allow read, write: if true;
+    }
+
+    // Rules for requests
+    match /requests/{requestId} {
+      allow read, write: if true;
+    }
+
+    // Catch-all rule: by default, require authentication for all other documents.
     match /{document=**} {
       allow read, write: if isAuth();
     }

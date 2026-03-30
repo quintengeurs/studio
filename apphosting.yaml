@@ -9,3 +9,18 @@ runConfig:
 # Specifies the command to run your application. For a Next.js app, this 
 # should be 'npm run start'
 command: ["npm", "run", "start"]
+
+# Add environment variables for Firebase configuration
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyAhlnmBT4uHArlWTCqHeiT7ljFP44dvatU"
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "studio-4537887383-23869.firebaseapp.com"
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "studio-4537887383-23869"
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "studio-4537887383-23869.appspot.com"
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "262002515917"
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:262002515917:web:7f4f1157c30d99acdc6e84"

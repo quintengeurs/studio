@@ -255,12 +255,32 @@ export default function UserManagement() {
   };
 
   const handleSaveConfig = (newTeams: string[], newTraining: string[]) => {
-    if (!db) return;
+    if (!db || isSubmitting) return;
+    
+    setIsSubmitting(true);
+
     setDoc(doc(db, "settings", "registry"), {
       teams: newTeams,
       trainingOptions: newTraining
-    });
-    toast({ title: "Configuration Updated", description: "Registry options have been saved." });
+    })
+      .then(() => {
+        toast({ title: "Configuration Updated", description: "Registry options have been saved." });
+      })
+      .catch((e) => {
+        toast({
+            title: "Error Saving Configuration",
+            description: "There was a problem saving the registry settings. Please try again.",
+            variant: "destructive",
+        });
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'settings/registry',
+          operation: 'set',
+          requestResourceData: { teams: newTeams, trainingOptions: newTraining },
+        }));
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const openUserProfile = (user: User) => {
@@ -431,7 +451,7 @@ export default function UserManagement() {
             <TabsContent value="teams" className="space-y-4 py-4">
               <div className="flex gap-2">
                 <Input value={configNewTeam} onChange={e => setConfigNewTeam(e.target.value)} placeholder="New Team Name" />
-                <Button onClick={() => {
+                <Button disabled={isSubmitting} onClick={() => {
                   if (configNewTeam) {
                     handleSaveConfig([...teams, configNewTeam], trainingOptions);
                     setConfigNewTeam("");
@@ -442,7 +462,7 @@ export default function UserManagement() {
                 {teams.map(team => (
                   <div key={team} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
                     <span className="text-sm">{team}</span>
-                    <Button variant="ghost" size="icon" onClick={() => handleSaveConfig(teams.filter(t => t !== team), trainingOptions)}>
+                    <Button disabled={isSubmitting} variant="ghost" size="icon" onClick={() => handleSaveConfig(teams.filter(t => t !== team), trainingOptions)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -452,7 +472,7 @@ export default function UserManagement() {
             <TabsContent value="training" className="space-y-4 py-4">
               <div className="flex gap-2">
                 <Input value={configNewTraining} onChange={e => setConfigNewTraining(e.target.value)} placeholder="New Training Course" />
-                <Button onClick={() => {
+                <Button disabled={isSubmitting} onClick={() => {
                   if (configNewTraining) {
                     handleSaveConfig(teams, [...trainingOptions, configNewTraining]);
                     setConfigNewTraining("");
@@ -463,7 +483,7 @@ export default function UserManagement() {
                 {trainingOptions.map(opt => (
                   <div key={opt} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
                     <span className="text-sm">{opt}</span>
-                    <Button variant="ghost" size="icon" onClick={() => handleSaveConfig(teams, trainingOptions.filter(t => t !== opt))}>
+                    <Button disabled={isSubmitting} variant="ghost" size="icon" onClick={() => handleSaveConfig(teams, trainingOptions.filter(t => t !== opt))}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>

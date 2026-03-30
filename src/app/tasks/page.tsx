@@ -64,7 +64,7 @@ export default function TasksPage() {
     if (!db) return null;
     return query(collection(db, "assets"), orderBy("name"));
   }, [db]);
-  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
+  const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery);
 
   // Live Users for assignment
   const usersQuery = useMemoFirebase(() => {
