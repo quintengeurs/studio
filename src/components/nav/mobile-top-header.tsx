@@ -3,7 +3,6 @@
 
 import { useState } from "react";
 import { Leaf, User, Clock, ChevronRight, LogOut } from "lucide-react";
-import { MOCK_TASKS } from "@/lib/mock-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
@@ -18,14 +17,27 @@ import Link from "next/link";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { collection, query, where, limit } from "firebase/firestore";
+import { db } from "@/firebase/config"; // Assuming db is exported from config
+import { Task } from "@/lib/types";
+
 
 export function MobileTopHeader() {
   const { user } = useUser();
   const auth = useAuth();
   const router = useRouter();
-  
-  // Logic for recent tasks (using mock for now or could be updated to query firestore)
-  const myTasks = MOCK_TASKS.filter(t => t.assignedTo === user?.displayName).slice(0, 5);
+
+  const tasksQuery = user
+  ? query(
+      collection(db, "tasks"),
+      where("assignedTo", "==", user.displayName),
+      limit(5)
+    )
+  : null;
+
+  const { data: myTasks, loading } = useCollection<Task>(tasksQuery);
+
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -48,7 +60,8 @@ export function MobileTopHeader() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              {myTasks.length > 0 ? (
+              {loading && <p>Loading tasks...</p>}
+              {!loading && myTasks.length > 0 ? (
                 myTasks.map((task) => (
                   <div key={task.id} className="group relative rounded-lg border p-4 hover:border-primary transition-colors">
                     <div className="flex justify-between items-start mb-2">
@@ -63,7 +76,7 @@ export function MobileTopHeader() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-center text-muted-foreground py-8">No recent tasks assigned.</p>
+                !loading && <p className="text-sm text-center text-muted-foreground py-8">No recent tasks assigned.</p>
               )}
               <Button asChild className="w-full mt-4" variant="outline">
                 <Link href="/tasks">View All Tasks <ChevronRight className="ml-2 h-4 w-4" /></Link>
