@@ -33,7 +33,8 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth, useUser } from "@/firebase";
+import { useUser } from "@/firebase/hooks";
+import { auth } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useState } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
@@ -56,7 +57,6 @@ const navItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const auth = useAuth();
   const { user } = useUser();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 

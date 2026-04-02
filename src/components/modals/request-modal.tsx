@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Camera, Package, X, Send } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { db } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
 import { collection, addDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -37,7 +38,6 @@ interface RequestModalProps {
 
 export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps) {
   const { toast } = useToast();
-  const db = useFirestore();
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
 

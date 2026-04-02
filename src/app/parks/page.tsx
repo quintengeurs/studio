@@ -39,7 +39,7 @@ export default function ParksPage() {
     if (isConfigDialogOpen) {
       setConfigParks(parks);
     }
-  }, [isConfigDialogOpen, parks]);
+  }, [isConfigDialogOpen]);
 
   const handleUpdateRegistry = async (field: 'parks', value: string, operation: 'add' | 'remove') => {
     if (!db || isSubmitting) return;

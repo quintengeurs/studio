@@ -14,7 +14,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useAuth, useUser } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
+import { auth } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useCollection } from "@/firebase/firestore/use-collection";
@@ -25,7 +26,6 @@ import { Task } from "@/lib/types";
 
 export function MobileTopHeader() {
   const { user } = useUser();
-  const auth = useAuth();
   const router = useRouter();
 
   const tasksQuery = user

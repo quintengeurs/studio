@@ -19,24 +19,24 @@ import {
   PieChart,
   Pie
 } from "recharts";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection } from "firebase/firestore";
 import { Asset, Issue, Task } from "@/lib/types";
 import Link from "next/link";
+import { db } from "@/firebase";
 
 export default function Dashboard() {
-  const db = useFirestore();
 
   const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(
-    useMemoFirebase(() => db ? collection(db, "assets") : null, [db])
+    useMemo(() => db ? collection(db, "assets") : null, [db])
   );
   
   const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(
-    useMemoFirebase(() => db ? collection(db, "issues") : null, [db])
+    useMemo(() => db ? collection(db, "issues") : null, [db])
   );
 
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(
-    useMemoFirebase(() => db ? collection(db, "tasks") : null, [db])
+    useMemo(() => db ? collection(db, "tasks") : null, [db])
   );
 
   const openIssues = issues.filter(i => i.status !== 'Closed').length;

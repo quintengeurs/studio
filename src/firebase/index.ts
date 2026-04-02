@@ -1,43 +1,41 @@
+
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
 import { firebaseConfig } from './config';
 
-/**
- * Initializes Firebase services.
- * In prototyping mode, we provide dummy instances if the config is missing,
- * but the SDK still requires a valid-looking structure to prevent crashes.
- */
-export function initializeFirebase() {
-  let app: FirebaseApp;
-  
-  if (getApps().length > 0) {
-    app = getApp();
-  } else {
-    // Basic validation to prevent immediate crash if apiKey is missing
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
+function initializeFirebase() {
+  if (getApps().length === 0) {
     const config = {
       ...firebaseConfig,
       apiKey: firebaseConfig.apiKey || "dummy-key"
     };
     app = initializeApp(config);
+  } else {
+    app = getApp();
   }
 
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-  
-  return { app, db, auth };
+db = getFirestore(app);
+auth = getAuth(app);
+
+if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
+    // Before any Firestore operations, connect to the emulator
+    connectFirestoreEmulator(db, process.env.NEXT_PUBLIC_EMULATOR_HOST, 8080);
+    connectAuthEmulator(auth, `http://${process.env.NEXT_PUBLIC_EMULATOR_HOST}:9099`);
 }
 
-export * from './provider';
-export * from './client-provider';
-export * from './auth/use-user';
-export * from './firestore/use-collection';
-export * from './firestore/use-doc';
-
-// Hook to help memoize Firebase queries/refs
-import { useMemo } from 'react';
-export function useMemoFirebase<T>(factory: () => T, deps: any[]): T {
-  return useMemo(factory, deps || []);
+return { app, db, auth };
 }
+
+// We need to make sure that we are only initializing once
+if (getApps().length === 0) {
+    initializeFirebase();
+}
+
+export { app, db, auth };
