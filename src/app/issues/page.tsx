@@ -47,7 +47,10 @@ import {
 } from "@/components/ui/tooltip";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { db } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { Asset, User } from "@/lib/types";
 
@@ -55,17 +58,16 @@ const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/W
 
 export default function IssuesPage() {
   const { toast } = useToast();
-  const db = useFirestore();
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const issuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues"), where("status", "!=", "Resolved"), orderBy("status"), orderBy("createdAt", "desc")) : null, [db]);
+  const issuesQuery = useMemo(() => query(collection(db, "issues"), where("status", "!=", "Resolved"), orderBy("status"), orderBy("createdAt", "desc")), []);
   const { data: issues = [], loading: issuesLoading } = useCollection(issuesQuery);
 
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const usersQuery = useMemo(() => query(collection(db, "users"), where("isArchived", "==", false)), []);
   const { data: users = [] } = useCollection<User>(usersQuery);
 
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const registryConfigRef = useMemo(() => doc(db, "settings", "registry"), []);
   const { data: registryConfig } = useDoc<any>(registryConfigRef);
   const parks = registryConfig?.parks?.sort() ?? [];
 
@@ -102,7 +104,7 @@ export default function IssuesPage() {
   };
 
   const handleCreateIssue = async () => {
-    if (!db || !user || isSubmitting) return;
+    if (!user || isSubmitting) return;
     setIsSubmitting(true);
     const issueData = {
       ...newIssue,
@@ -130,7 +132,7 @@ export default function IssuesPage() {
   };
 
   const handleAssign = async () => {
-    if (!db || !selectedIssueId || !assignment.operativeId || isSubmitting) return;
+    if (!selectedIssueId || !assignment.operativeId || isSubmitting) return;
     setIsSubmitting(true);
 
     const issue = issues.find(i => i.id === selectedIssueId);
@@ -167,7 +169,6 @@ export default function IssuesPage() {
   };
 
   const handleApproveResolution = async (id: string) => {
-    if (!db) return;
     try {
       await updateDoc(doc(db, "issues", id), { status: 'Resolved' });
       toast({ title: "Resolution Approved", description: "The issue has been archived." });
@@ -177,7 +178,6 @@ export default function IssuesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!db) return;
     try {
         await deleteDoc(doc(db, "issues", id));
         toast({ title: "Issue Deleted" });

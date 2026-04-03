@@ -1,41 +1,27 @@
 
-'use client';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
-import { firebaseConfig } from './config';
+const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-
-function initializeFirebase() {
-  if (getApps().length === 0) {
-    const config = {
-      ...firebaseConfig,
-      apiKey: firebaseConfig.apiKey || "dummy-key"
-    };
-    app = initializeApp(config);
-  } else {
-    app = getApp();
-  }
-
-db = getFirestore(app);
-auth = getAuth(app);
-
-if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
-    // Before any Firestore operations, connect to the emulator
-    connectFirestoreEmulator(db, process.env.NEXT_PUBLIC_EMULATOR_HOST, 8080);
-    connectAuthEmulator(auth, `http://${process.env.NEXT_PUBLIC_EMULATOR_HOST}:9099`);
-}
-
-return { app, db, auth };
-}
-
-// We need to make sure that we are only initializing once
-if (getApps().length === 0) {
-    initializeFirebase();
-}
+// Initialize Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+const auth = getAuth(app);
 
 export { app, db, auth };
+
+export { useCollection } from './hooks/use-collection';
+export { useDoc } from './hooks';
+export { useUser } from './auth/use-user';
+export { useAuth, useFirestore } from './provider';
+export { useMemoFirebase } from './hooks/use-memo-firebase';
+

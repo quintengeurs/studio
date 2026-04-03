@@ -63,33 +63,32 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { db } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, setDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function UserManagement() {
   const { toast } = useToast();
-  const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const registryConfigRef = useMemo(() => doc(db, "settings", "registry"), []);
   const { data: registryConfig, loading: configLoading } = useDoc<any>(registryConfigRef);
 
   const teams = registryConfig?.teams?.sort() ?? [];
   const trainingOptions = registryConfig?.trainingOptions?.sort() ?? [];
 
-  const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const usersQuery = useMemo(() => {
     return query(collection(db, "users"), where("isArchived", "==", false));
-  }, [db]);
+  }, []);
   const { data: users = [], loading: usersLoading } = useCollection<User>(usersQuery);
 
-  const tasksQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const tasksQuery = useMemo(() => {
     return collection(db, "tasks");
-  }, [db]);
+  }, []);
   const { data: allTasks = [] } = useCollection<Task>(tasksQuery);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -176,7 +175,7 @@ export default function UserManagement() {
   };
 
   const handleAddUser = async () => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
 
     const trainingString = getFinalTrainingString() || "None";
     const userToSave = {
@@ -214,7 +213,7 @@ export default function UserManagement() {
   };
 
   const handleUpdateUser = async () => {
-    if (!db || !selectedUser || isSubmitting) return;
+    if (!selectedUser || isSubmitting) return;
 
     setIsSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
@@ -239,7 +238,7 @@ export default function UserManagement() {
   };
 
   const handleArchiveUser = async () => {
-    if (!db || !selectedUser || isSubmitting) return;
+    if (!selectedUser || isSubmitting) return;
 
     setIsSubmitting(true);
     const archiveData = { isArchived: true };
@@ -261,7 +260,7 @@ export default function UserManagement() {
   };
 
   const handleUpdateRegistry = (field: 'teams' | 'trainingOptions', value: string, operation: 'add' | 'remove') => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     const registryRef = doc(db, "settings", "registry");
@@ -519,6 +518,7 @@ export default function UserManagement() {
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New System User</DialogTitle>
+            <DialogDescription>Fill in the details for the new staff member.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
              <div className="grid grid-cols-2 gap-4">
@@ -578,7 +578,7 @@ export default function UserManagement() {
       {/* User Profile / Edit Dialog */}
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          <div className="p-6 pb-0">
+          <DialogHeader className="p-6 pb-4 border-b">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
                  <Avatar className="h-16 w-16 border-2 border-primary/20">
@@ -587,15 +587,14 @@ export default function UserManagement() {
                 </Avatar>
                 <div>
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge className={getRoleColor(selectedUser?.role || '')} variant="outline">{selectedUser?.role}</Badge>
-                    <span className="text-xs font-medium text-muted-foreground">• {selectedUser?.team}</span>
-                  </div>
+                  <DialogDescription className="text-sm text-muted-foreground mt-1">
+                    {selectedUser?.email}
+                  </DialogDescription>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="font-bold text-destructive hover:bg-destructive/10" onClick={handleArchiveUser} disabled={isSubmitting}>
-                  <UserMinus className="mr-2 h-4 w-4" /> Archive Staff
+                  <UserMinus className="mr-2 h-4 w-4" /> Archive
                 </Button>
                 <Button variant={isEditing ? "outline" : "default"} size="sm" className="font-bold" onClick={() => setIsEditing(!isEditing)}>
                   {isEditing ? <X className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
@@ -603,9 +602,9 @@ export default function UserManagement() {
                 </Button>
               </div>
             </div>
-          </div>
+          </DialogHeader>
 
-          <Tabs defaultValue="overview" className="flex-1 overflow-hidden flex flex-col mt-4">
+          <Tabs defaultValue="overview" className="flex-1 overflow-hidden flex flex-col">
             <TabsList className="mx-6 justify-start h-10 bg-transparent border-b rounded-none p-0 gap-6">
               <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Overview</TabsTrigger>
               <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Tasks ({userTasks.length})</TabsTrigger>

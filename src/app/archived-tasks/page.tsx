@@ -25,8 +25,8 @@ import {
   ExternalLink,
   CheckCircle2
 } from "lucide-react";
-import { useFirestore, useCollection } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { useCollection, useMemoFirebase } from "@/firebase/hooks";
+import { getFirestore, collection, query, where, orderBy } from "firebase/firestore";
 import {
   Dialog,
   DialogContent,
@@ -38,18 +38,17 @@ import Image from "next/image";
 import { Task } from "@/lib/types";
 
 export default function ArchivedTasksPage() {
-  const db = useFirestore();
+  const db = getFirestore();
   const [search, setSearch] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const archivedTasksQuery = useMemo(() => {
-    if (!db) return null;
-    return query(
+  const archivedTasksQuery = useMemoFirebase(db => 
+    query(
       collection(db, "tasks"),
       where("status", "==", "Completed"),
       orderBy("dueDate", "desc")
-    );
-  }, [db]);
+    )
+  );
 
   const { data: tasks = [], loading, error } = useCollection(archivedTasksQuery);
 

@@ -15,12 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useUser } from "@/firebase/auth/use-user";
-import { auth } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, query, where, limit } from "firebase/firestore";
-import { db } from "@/firebase/config"; // Assuming db is exported from config
 import { Task } from "@/lib/types";
 
 

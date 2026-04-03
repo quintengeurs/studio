@@ -1,30 +1,55 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useAuth, useFirestore } from '../provider';
+import { useDoc } from '../firestore/use-doc';
+import { useEffect, useState, useMemo } from 'react';
+import { User } from '@/lib/types';
+import { doc } from 'firebase/firestore';
 
-/**
- * MOCKED useUser hook for prototyping.
- * Returns a consistent user object with string defaults to prevent 
- * property access errors during development.
- */
 export function useUser() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+    const { user: authUser, loading: authLoading } = useAuth();
+    const db = useFirestore();
 
-  useEffect(() => {
-    // Simulate a brief loading state then "log in" the master user
-    const timer = setTimeout(() => {
-      setUser({
-        uid: 'quinten-master-mock-id',
-        email: 'quinten.geurs@gmail.com',
-        displayName: 'Quinten Geurs',
-        photoURL: 'https://picsum.photos/seed/quinten/40/40',
-        role: 'master', // Master role for full system access
-      });
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    const docRef = useMemo(() => {
+        if (authUser) {
+            return doc(db, 'users', authUser.uid);
+        }
+        return null;
+    }, [authUser, db]);
 
-  return { user, loading };
+    const { data: firestoreUser, loading: firestoreLoading, error: firestoreError } = useDoc<User>(docRef);
+
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
+
+    useEffect(() => {
+        const combinedLoading = authLoading || firestoreLoading;
+        setLoading(combinedLoading);
+
+        if (firestoreError) {
+            setError(firestoreError);
+            console.error("Firestore error in useUser:", firestoreError);
+        }
+
+        if (!combinedLoading) {
+            if (authUser) {
+                const baseUser: User = { 
+                    uid: authUser.uid, 
+                    email: authUser.email, 
+                    displayName: authUser.displayName 
+                };
+
+                if (firestoreUser) {
+                    setUser({ ...baseUser, ...firestoreUser });
+                } else {
+                    setUser(baseUser);
+                }
+            } else {
+                setUser(null);
+            }
+        }
+    }, [authUser, firestoreUser, authLoading, firestoreLoading, firestoreError]);
+
+    return { user, loading, error };
 }

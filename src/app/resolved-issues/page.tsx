@@ -25,7 +25,8 @@ import {
   ExternalLink,
   ImageIcon
 } from "lucide-react";
-import { useFirestore, useCollection } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { db } from "@/firebase";
 import { collection, query, where, orderBy } from "firebase/firestore";
 import {
   Dialog,
@@ -38,18 +39,16 @@ import Image from "next/image";
 import { Issue } from "@/lib/types";
 
 export default function ResolvedIssuesPage() {
-  const db = useFirestore();
   const [search, setSearch] = useState("");
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
   const resolvedIssuesQuery = useMemo(() => {
-    if (!db) return null;
     return query(
       collection(db, "issues"),
       where("status", "==", "Resolved"),
       orderBy("createdAt", "desc")
     );
-  }, [db]);
+  }, []);
 
   const { data: issues = [], loading, error } = useCollection(resolvedIssuesQuery);
 

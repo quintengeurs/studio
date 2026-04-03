@@ -30,7 +30,14 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.75rem;
+
+    --sidebar-background: 132 20% 96%;
+    --sidebar-foreground: 126 30% 10%;
+    --sidebar-muted: 132 10% 90%;
+    --sidebar-muted-foreground: 126 10% 40%;
+    --sidebar-border: 126 20% 88%;
   }
+
   .dark {
     --background: 126 30% 5%;
     --foreground: 132 20% 98%;
@@ -51,6 +58,12 @@
     --border: 126 30% 15%;
     --input: 126 30% 15%;
     --ring: 126 43% 52%;
+
+    --sidebar-background: 126 30% 8%;
+    --sidebar-foreground: 132 20% 98%;
+    --sidebar-muted: 126 30% 15%;
+    --sidebar-muted-foreground: 126 10% 65%;
+    --sidebar-border: 126 30% 15%;
   }
 }
 

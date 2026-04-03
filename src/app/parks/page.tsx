@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Plus, Trash2, Settings2, Leaf } from "lucide-react";
-import { useFirestore, useDoc } from "@/firebase";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { db } from "@/firebase";
 import { doc, setDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -23,9 +24,8 @@ import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function ParksPage() {
   const { toast } = useToast();
-  const db = useFirestore();
 
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const registryConfigRef = useMemo(() => doc(db, "settings", "registry"), []);
   const { data: registryConfig, loading: configLoading } = useDoc<any>(registryConfigRef);
 
   const parks = registryConfig?.parks?.sort() ?? [];
@@ -39,10 +39,10 @@ export default function ParksPage() {
     if (isConfigDialogOpen) {
       setConfigParks(parks);
     }
-  }, [isConfigDialogOpen]);
+  }, [isConfigDialogOpen, parks]);
 
   const handleUpdateRegistry = async (field: 'parks', value: string, operation: 'add' | 'remove') => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
     const originalParks = [...configParks];

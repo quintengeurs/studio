@@ -33,33 +33,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { db } from "@/firebase";
 import { collection, updateDoc, doc, query, where } from "firebase/firestore";
 import { User as UserType } from "@/lib/types";
 
 export default function MyTasksPage() {
   const { toast } = useToast();
-  const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Static current user for prototype session
   const currentUserName = "Sarah Smith";
 
   // Fetch all users to find colleagues
-  const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const usersQuery = useMemo(() => {
     return query(collection(db, "users"), where("isArchived", "==", false));
-  }, [db]);
+  }, []);
   const { data: allUsers = [] } = useCollection<UserType>(usersQuery);
 
   // Find current user profile to get team
   const currentUserProfile = allUsers.find(u => u.name === currentUserName);
   const colleagues = allUsers.filter(u => u.team === currentUserProfile?.team && u.name !== currentUserName);
 
-  const tasksQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const tasksQuery = useMemo(() => {
     return query(collection(db, "tasks"), where("assignedTo", "==", currentUserName));
-  }, [db]);
+  }, [currentUserName]);
   const { data: tasks = [], loading } = useCollection(tasksQuery);
 
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
@@ -72,7 +70,6 @@ export default function MyTasksPage() {
   });
 
   const handleStatusUpdate = (taskId: string, newStatus: string) => {
-    if (!db) return;
     if (newStatus === 'Pending Approval') {
       setSelectedTaskId(taskId);
       setCompletionData({ note: "", imageUrl: "" });
@@ -98,7 +95,7 @@ export default function MyTasksPage() {
   };
 
   const handleCompleteTask = async () => {
-    if (!db || !selectedTaskId) return;
+    if (!selectedTaskId) return;
 
     const task = tasks.find(t => t.id === selectedTaskId);
     if (!task) return;

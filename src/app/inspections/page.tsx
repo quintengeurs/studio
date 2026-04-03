@@ -16,7 +16,9 @@ import {
   RefreshCcw,
   AlertCircle
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { db } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, orderBy } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -93,13 +95,12 @@ const InspectionCard = ({ inspection, onStart }: { inspection: Inspection, onSta
 
 export default function InspectionsPage() {
   const { toast } = useToast();
-  const db = useFirestore();
   const { user } = useUser();
   
-  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
+  const assetsQuery = useMemo(() => query(collection(db, "assets"), orderBy("name")), []);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery);
 
-  const inspectionsQuery = useMemoFirebase(() => db ? query(collection(db, "inspections"), orderBy("dueDate", "desc")) : null, [db]);
+  const inspectionsQuery = useMemo(() => query(collection(db, "inspections"), orderBy("dueDate", "desc")), []);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -116,7 +117,7 @@ export default function InspectionsPage() {
   const [inspectionResults, setInspectionResults] = useState<{item: string, passed: boolean, notes: string}[]>([]);
 
   const handleScheduleInspection = async () => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
     const asset = assets.find(a => a.id === newInspection.assetId);
     if (!asset) {
@@ -171,7 +172,7 @@ export default function InspectionsPage() {
   };
 
   const handleFinishInspection = async () => {
-    if (!db || !selectedInspection || !user || isSubmitting) return;
+    if (!selectedInspection || !user || isSubmitting) return;
     setIsSubmitting(true);
 
     try {

@@ -57,36 +57,31 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { db } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { format } from "date-fns";
 
 export default function AssetRegister() {
   const { toast } = useToast();
-  const db = useFirestore();
   
-  // Live Assets
-  const assetsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const assetsQuery = useMemo(() => {
     return query(collection(db, "assets"), orderBy("name"));
-  }, [db]);
+  }, []);
   const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery);
 
-  // Live All Inspections (for history)
-  const inspectionsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const inspectionsQuery = useMemo(() => {
     return query(collection(db, "inspections"), orderBy("dueDate", "desc"));
-  }, [db]);
+  }, []);
   const { data: allInspections = [] } = useCollection<Inspection>(inspectionsQuery);
 
-  // Live All Tasks (for history)
-  const tasksQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const tasksQuery = useMemo(() => {
     return query(collection(db, "tasks"), orderBy("dueDate", "desc"));
-  }, [db]);
+  }, []);
   const { data: allTasks = [] } = useCollection<Task>(tasksQuery);
 
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const registryConfigRef = useMemo(() => doc(db, "settings", "registry"), []);
   const { data: registryConfig } = useDoc<any>(registryConfigRef);
   const parks = registryConfig?.parks?.sort() ?? [];
 
@@ -124,7 +119,7 @@ export default function AssetRegister() {
   };
 
   const handleAddAsset = async () => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
     const assetData = {
       name: newAsset.name,
@@ -158,7 +153,7 @@ export default function AssetRegister() {
   };
 
   const handleUpdateAsset = async () => {
-    if (!db || !selectedAsset || isSubmitting) return;
+    if (!selectedAsset || isSubmitting) return;
     setIsSubmitting(true);
     try {
       await updateDoc(doc(db, "assets", selectedAsset.id), selectedAsset);

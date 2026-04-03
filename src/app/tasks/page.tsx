@@ -43,7 +43,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { db } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
 import { User, Task, Frequency, Asset } from "@/lib/types";
@@ -51,16 +52,15 @@ import { addDays, addMonths, format } from "date-fns";
 
 export default function TasksPage() {
   const { toast } = useToast();
-  const db = useFirestore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const tasksQuery = useMemoFirebase(() => db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")) : null, [db]);
+  const tasksQuery = useMemo(() => query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")), []);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery);
 
-  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
+  const assetsQuery = useMemo(() => query(collection(db, "assets"), orderBy("name")), []);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery);
 
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const usersQuery = useMemo(() => query(collection(db, "users"), where("isArchived", "==", false)), []);
   const { data: users = [] } = useCollection<User>(usersQuery);
 
   const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
@@ -89,7 +89,7 @@ export default function TasksPage() {
   };
 
   const handleCreateTask = async () => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
     const taskData = {
         title: newTask.title,
@@ -131,7 +131,7 @@ export default function TasksPage() {
   };
 
   const handleAssign = async (operativeName: string) => {
-    if (!db || !selectedTaskId || isSubmitting) return;
+    if (!selectedTaskId || isSubmitting) return;
     setIsSubmitting(true);
     try {
         await updateDoc(doc(db, "tasks", selectedTaskId), { assignedTo: operativeName });
@@ -146,7 +146,7 @@ export default function TasksPage() {
   };
 
   const handleApproveTask = async (taskId: string) => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
     const task = tasks.find(t => t.id === taskId);
     if (!task) {

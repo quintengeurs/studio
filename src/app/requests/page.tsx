@@ -16,7 +16,8 @@ import {
   Info,
   Truck
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { db } from "@/firebase";
 import { collection, query, where, orderBy, doc, updateDoc } from "firebase/firestore";
 import Image from "next/image";
 import { MaterialRequest } from "@/lib/types";
@@ -24,22 +25,19 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function RequestsManagementPage() {
   const { toast } = useToast();
-  const db = useFirestore();
 
-  const requestsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const requestsQuery = useMemo(() => {
     return query(
       collection(db, "requests"),
       where("status", "!=", "Archived"),
       orderBy("status"),
       orderBy("createdAt", "desc")
     );
-  }, [db]);
+  }, []);
 
   const { data: requests = [], loading } = useCollection<MaterialRequest>(requestsQuery);
 
   const handleUpdateStatus = (id: string, newStatus: string) => {
-    if (!db) return;
     updateDoc(doc(db, "requests", id), { status: newStatus });
     
     if (newStatus === 'Available') {

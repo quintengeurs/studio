@@ -25,15 +25,14 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarSeparator
+  SidebarMenuGroup,
+  SidebarMenuLabel,
+  SidebarMenuSeparator
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUser } from "@/firebase/hooks";
+import { useUser } from "@/firebase/auth/use-user";
 import { auth } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useState } from "react";
@@ -80,61 +79,54 @@ export function AppSidebar() {
           </div>
         </SidebarHeader>
         
-        <SidebarSeparator />
+        <SidebarMenuSeparator />
         
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Management</SidebarGroupLabel>
+          <SidebarMenuGroup>
+            <SidebarMenuLabel className="group-data-[collapsible=icon]:hidden">Management</SidebarMenuLabel>
             <SidebarMenu>
               {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    isActive={pathname === item.href}
-                    tooltip={item.title}
-                    onClick={() => router.push(item.href)}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarMenuButton 
+                  key={item.title}
+                  isActive={pathname === item.href}
+                  tooltip={item.title}
+                  onClick={() => router.push(item.href)}
+                >
+                  <item.icon />
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
               ))}
               
-              <SidebarSeparator className="my-2" />
+              <SidebarMenuSeparator className="my-2" />
               
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  tooltip="Quick Request" 
-                  onClick={() => setIsRequestOpen(true)}
-                  className="text-primary hover:text-primary font-bold"
-                >
-                  <PackagePlus className="h-4 w-4" />
-                  <span>New Staff Request</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <SidebarMenuButton 
+                tooltip="Quick Request" 
+                onClick={() => setIsRequestOpen(true)}
+                className="text-primary hover:text-primary font-bold"
+              >
+                <PackagePlus className="h-4 w-4" />
+                <span>New Staff Request</span>
+              </SidebarMenuButton>
             </SidebarMenu>
-          </SidebarGroup>
+          </SidebarMenuGroup>
         </SidebarContent>
 
         <SidebarFooter className="p-4">
           <SidebarMenu>
-            <SidebarMenuItem>
-              <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
-                <Avatar className="h-9 w-9 border-2 border-primary/20">
-                  <AvatarImage src={user?.photoURL || undefined} />
-                  <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
-                  <span className="text-sm font-semibold truncate">{user?.displayName || 'User'}</span>
-                  <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
-                </div>
+            <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+              <Avatar className="h-9 w-9 border-2 border-primary/20">
+                <AvatarImage src={user?.photoURL || undefined} />
+                <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
+                <span className="text-sm font-semibold truncate">{user?.displayName || 'User'}</span>
+                <span className="text-[10px] text-muted-foreground truncate">{user?.email}</span>
               </div>
-            </SidebarMenuItem>
-            <SidebarMenuItem className="mt-4">
-              <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            </div>
+            <SidebarMenuButton tooltip="Logout" onClick={handleLogout} className="mt-4">
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>

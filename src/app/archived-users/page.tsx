@@ -25,7 +25,7 @@ import {
   Shield,
   Briefcase
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, query, where, doc, updateDoc } from "firebase/firestore";
 import {
   Dialog,
@@ -37,18 +37,17 @@ import {
 } from "@/components/ui/dialog";
 import { User } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { db } from "@/firebase";
 
 export default function ArchivedUsersPage() {
   const { toast } = useToast();
-  const db = useFirestore();
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const archivedUsersQuery = useMemoFirebase(() => {
-    if (!db) return null;
+  const archivedUsersQuery = useMemo(() => {
     return query(collection(db, "users"), where("isArchived", "==", true));
-  }, [db]);
+  }, []);
 
   const { data: users = [], loading, error } = useCollection<User>(archivedUsersQuery);
 
@@ -59,7 +58,7 @@ export default function ArchivedUsersPage() {
   );
 
   const handleRestoreUser = async (user: User) => {
-    if (!db || isSubmitting) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
         await updateDoc(doc(db, "users", user.id), { isArchived: false });
