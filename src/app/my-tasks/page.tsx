@@ -65,8 +65,14 @@ export default function MyTasksPage() {
   }, [db, currentUserName]);
   const { data: tasks = [], loading } = useCollection<any>(tasksQuery);
 
-  const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
+  const issuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues")) : null, [db]);
+  const { data: allIssues = [] } = useCollection<any>(issuesQuery);
+
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const selectedTask = tasks.find(t => t.id === selectedTaskId);
+  const linkedIssue = allIssues.find(i => i.id === selectedTask?.linkedIssueId);
+
   const [showColleagueSelection, setShowColleagueSelection] = useState(false);
   const [selectedColleagues, setSelectedColleagues] = useState<string[]>([]);
   const [completionData, setCompletionData] = useState({
@@ -104,9 +110,6 @@ export default function MyTasksPage() {
   const handleCompleteTask = async () => {
     if (!db || !selectedTaskId) return;
 
-    const task = tasks.find(t => t.id === selectedTaskId);
-    if (!task) return;
-
     // 1. Update Task to Pending Approval
     await updateDoc(doc(db, "tasks", selectedTaskId), { 
       status: 'Pending Approval',
@@ -116,14 +119,14 @@ export default function MyTasksPage() {
     });
 
     // 2. Set Issue to Pending Approval if linked
-    if (task.linkedIssueId) {
-      await updateDoc(doc(db, "issues", task.linkedIssueId), { 
+    if (selectedTask?.linkedIssueId) {
+      await updateDoc(doc(db, "issues", selectedTask.linkedIssueId), { 
         status: 'Pending Approval',
         collaborators: selectedColleagues
       });
     }
 
-    setIsCompletionDialogOpen(false);
+    setIsDetailDialogOpen(false);
     setSelectedTaskId(null);
     toast({ 
       title: "Task Submitted", 
@@ -167,7 +170,14 @@ export default function MyTasksPage() {
           ) : activeTasks.length > 0 ? (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {activeTasks.map((task) => (
-                <Card key={task.id} className="border-2 hover:border-primary/40 transition-all group flex flex-col">
+                <Card 
+                  key={task.id} 
+                  className="border-2 hover:border-primary/40 transition-all group flex flex-col cursor-pointer"
+                  onClick={() => {
+                    setSelectedTaskId(task.id);
+                    setIsDetailDialogOpen(true);
+                  }}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
@@ -201,7 +211,10 @@ export default function MyTasksPage() {
                       <Button 
                         variant="ghost" 
                         className="flex-1 rounded-none h-12 text-xs font-bold hover:bg-accent/10"
-                        onClick={() => handleStatusUpdate(task.id, 'Doing')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusUpdate(task.id, 'Doing');
+                        }}
                       >
                         <PlayCircle className="mr-2 h-4 w-4" /> Start Task
                       </Button>
@@ -209,18 +222,19 @@ export default function MyTasksPage() {
                       <Button 
                         variant="ghost" 
                         className="flex-1 rounded-none h-12 text-xs font-bold text-primary hover:bg-primary/5"
-                        onClick={() => handleStatusUpdate(task.id, 'Pending Approval')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTaskId(task.id);
+                          setIsDetailDialogOpen(true);
+                        }}
                       >
                         <CheckCircle2 className="mr-2 h-4 w-4" /> Submit Proof
                       </Button>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center h-12 text-[10px] font-bold text-muted-foreground uppercase bg-muted/20">
-                        Awaiting Review
+                      <div className="flex-1 flex items-center justify-center h-12 text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 w-full rounded-b-lg">
+                        Reviewing Details
                       </div>
                     )}
-                    <Button variant="ghost" className="px-4 rounded-none h-12 border-l">
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </Button>
                   </CardFooter>
                 </Card>
               ))}
@@ -265,92 +279,150 @@ export default function MyTasksPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={isCompletionDialogOpen} onOpenChange={setIsCompletionDialogOpen}>
-        <DialogContent className="sm:max-w-[450px]">
-          <DialogHeader>
-            <DialogTitle className="font-headline">Submit Completion Proof</DialogTitle>
-            <DialogDescription>Submit your work for supervisor approval.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="space-y-2">
-              <Label>Work Note</Label>
-              <Textarea 
-                placeholder="Briefly describe what was done..." 
-                value={completionData.note}
-                onChange={e => setCompletionData({...completionData, note: e.target.value})}
-              />
-            </div>
-
-            <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  <Label className="font-bold">Add Colleagues</Label>
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+          {selectedTask && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 text-primary text-[10px] font-bold uppercase tracking-widest mb-1">
+                  <MapPin className="h-3 w-3" /> {selectedTask.park}
                 </div>
-                <Checkbox 
-                  id="add-colleagues" 
-                  checked={showColleagueSelection} 
-                  onCheckedChange={(v) => setShowColleagueSelection(!!v)}
-                />
-              </div>
-              
-              {showColleagueSelection && (
-                <div className="space-y-2 pt-2 border-t">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Colleagues in {currentUserProfile?.team}</p>
-                  <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto pr-2">
-                    {colleagues.map(colleague => (
-                      <div 
-                        key={colleague.id} 
-                        className="flex items-center justify-between p-2 rounded hover:bg-white transition-colors cursor-pointer"
-                        onClick={() => toggleColleague(colleague.name)}
-                      >
-                        <span className="text-xs font-medium">{colleague.name}</span>
-                        <Checkbox 
-                          checked={selectedColleagues.includes(colleague.name)} 
-                          onCheckedChange={() => toggleColleague(colleague.name)}
-                        />
+                <div className="flex justify-between items-start">
+                  <DialogTitle className="text-2xl font-headline font-bold text-primary">{selectedTask.title}</DialogTitle>
+                  {getStatusBadge(selectedTask.status)}
+                </div>
+                <DialogDescription className="text-sm font-medium text-foreground pb-2">
+                  Due {selectedTask.dueDate}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-6 py-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Objective & Requirements</Label>
+                  <p className="text-sm leading-relaxed bg-muted/30 p-4 rounded-lg border italic">
+                    "{selectedTask.objective}"
+                  </p>
+                </div>
+
+                {linkedIssue && (
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Contextual Reference (From Original Issue)</Label>
+                    <div className="rounded-lg border overflow-hidden bg-muted/10">
+                      {linkedIssue.imageUrl ? (
+                        <div className="relative aspect-video w-full">
+                          <Image src={linkedIssue.imageUrl} alt="Issue Reference" fill className="object-cover" />
+                        </div>
+                      ) : (
+                        <div className="p-4 flex items-center gap-2 text-xs italic text-muted-foreground">
+                          <AlertCircle className="h-4 w-4" /> No original image provided.
+                        </div>
+                      )}
+                      <div className="p-3 bg-white border-t">
+                        <p className="text-xs font-bold text-primary">{linkedIssue.title}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{linkedIssue.description}</p>
                       </div>
-                    ))}
-                    {colleagues.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic text-center py-2">No colleagues found in your team.</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedTask.status === 'Todo' ? (
+                  <Button className="w-full h-12 font-bold bg-accent hover:bg-accent/90" onClick={() => handleStatusUpdate(selectedTask.id, 'Doing')}>
+                    <PlayCircle className="mr-2 h-5 w-5" /> START THIS TASK NOW
+                  </Button>
+                ) : (selectedTask.status === 'Doing' || selectedTask.status === 'Pending Approval') && (
+                  <div className="space-y-6 pt-2 border-t">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Completion Note & Proof</Label>
+                      <Textarea 
+                        placeholder="Describe the completed work..." 
+                        value={completionData.note}
+                        onChange={e => setCompletionData({...completionData, note: e.target.value})}
+                        disabled={selectedTask.status === 'Pending Approval'}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Photo Evidence</Label>
+                      <div className="flex flex-col gap-2">
+                        {completionData.imageUrl ? (
+                          <div className="relative w-full aspect-video rounded-md overflow-hidden border">
+                            <Image src={completionData.imageUrl} alt="Evidence" fill className="object-cover" />
+                            {selectedTask.status !== 'Pending Approval' && (
+                              <Button 
+                                size="icon" variant="destructive" 
+                                className="absolute top-2 right-2 h-7 w-7 rounded-full"
+                                onClick={() => setCompletionData({...completionData, imageUrl: ""})}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ) : selectedTask.status !== 'Pending Approval' && (
+                          <Button 
+                            variant="outline" 
+                            className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Camera className="h-6 w-6 text-muted-foreground" />
+                            <span className="text-xs font-bold text-muted-foreground uppercase">Upload Proof Image</span>
+                          </Button>
+                        )}
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleImageUpload} />
+                      </div>
+                    </div>
+
+                    {selectedTask.status !== 'Pending Approval' && (
+                      <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-primary" />
+                            <Label className="font-bold">Add Collaborating Colleagues</Label>
+                          </div>
+                          <Checkbox 
+                            id="add-colleagues" 
+                            checked={showColleagueSelection} 
+                            onCheckedChange={(v) => setShowColleagueSelection(!!v)}
+                          />
+                        </div>
+                        
+                        {showColleagueSelection && (
+                          <div className="space-y-2 pt-2 border-t">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Colleagues in {currentUserProfile?.team || 'General Staff'}</p>
+                            <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto pr-2">
+                              {colleagues.map(colleague => (
+                                <div 
+                                  key={colleague.id} 
+                                  className="flex items-center justify-between p-2 rounded hover:bg-white transition-colors cursor-pointer"
+                                  onClick={() => toggleColleague(colleague.name)}
+                                >
+                                  <span className="text-xs font-medium">{colleague.name}</span>
+                                  <Checkbox 
+                                    checked={selectedColleagues.includes(colleague.name)} 
+                                    onCheckedChange={() => toggleColleague(colleague.name)}
+                                  />
+                                </div>
+                              ))}
+                              {colleagues.length === 0 && (
+                                <p className="text-xs text-muted-foreground italic text-center py-2">No colleagues found in your team.</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Photo Evidence</Label>
-              <div className="flex flex-col gap-2">
-                {completionData.imageUrl ? (
-                  <div className="relative w-full aspect-video rounded-md overflow-hidden border">
-                    <Image src={completionData.imageUrl} alt="Evidence" fill className="object-cover" />
-                    <Button 
-                      size="icon" variant="destructive" 
-                      className="absolute top-2 right-2 h-7 w-7 rounded-full"
-                      onClick={() => setCompletionData({...completionData, imageUrl: ""})}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    className="w-full h-24 border-dashed border-2"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera className="h-6 w-6 mr-2" /> Capture Proof
-                  </Button>
                 )}
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleImageUpload} />
               </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button className="w-full font-bold" onClick={handleCompleteTask}>
-              <Send className="mr-2 h-4 w-4" /> Submit for Approval
-            </Button>
-          </DialogFooter>
+
+              {selectedTask.status === 'Doing' && (
+                <DialogFooter>
+                  <Button className="w-full h-12 font-bold text-accent-foreground" onClick={handleCompleteTask}>
+                    <Send className="mr-2 h-4 w-4" /> SUBMIT WORK FOR APPROVAL
+                  </Button>
+                </DialogFooter>
+              )}
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardShell>
