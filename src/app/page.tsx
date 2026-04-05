@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { RequestModal } from "@/components/modals/request-modal";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { format } from "date-fns";
 
 export default function Dashboard() {
   const db = useFirestore();
@@ -53,19 +54,27 @@ export default function Dashboard() {
 
   // Setup role context
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery);
+  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isManagement = currentUserData ? MANAGEMENT_ROLES.includes(currentUserData.role as Role) : false;
 
   const userEffectiveName = currentUserData?.name || user?.displayName || user?.email || "";
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const groupIdentity = useMemo(() => {
+    if (!currentUserData?.role || !currentUserData?.depot) return null;
+    return `Group: ${currentUserData.role} @ ${currentUserData.depot}`;
+  }, [currentUserData]);
+
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
     if (!db) return null;
     if (isManagement) return query(collection(db, "tasks"));
-    if (userEffectiveName) return query(collection(db, "tasks"), where("assignedTo", "==", userEffectiveName));
-    return null;
-  }, [db, userEffectiveName, isManagement]);
+    
+    const identities = [userEffectiveName];
+    if (groupIdentity) identities.push(groupIdentity);
+    return query(collection(db, "tasks"), where("assignedTo", "in", identities));
+  }, [db, userEffectiveName, isManagement, groupIdentity]);
 
   const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
 
@@ -88,8 +97,8 @@ export default function Dashboard() {
   const { data: myRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
 
   // Computed Values
-  const activeMyTasks = myTasks.filter(t => t.status !== 'Completed');
-  const openMyIssues = myIssues.filter(i => i.status !== 'Closed');
+  const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && (isManagement ? true : t.dueDate <= today));
+  const openMyIssues = myIssues.filter(i => i.status !== 'Closed' && i.status !== 'Resolved');
   const readyRequests = myRequests.filter(r => r.status === 'Available');
   const pendingRequests = myRequests.filter(r => r.status === 'Open' || r.status === 'In Progress');
 

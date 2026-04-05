@@ -37,6 +37,7 @@ import Image from "next/image";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, updateDoc, doc, query, where } from "firebase/firestore";
 import { User as UserType } from "@/lib/types";
+import { format } from "date-fns";
 
 export default function MyTasksPage() {
   const { toast } = useToast();
@@ -177,8 +178,9 @@ export default function MyTasksPage() {
     }
   };
 
-  const activeTasks = tasks.filter(t => t.status !== 'Completed');
-  const archivedTasks = tasks.filter(t => t.status === 'Completed');
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const activeTasks = tasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
+  const archivedTasks = tasks.filter(t => t.status === 'Completed' && t.dueDate === today);
 
   return (
     <DashboardShell 
@@ -194,6 +196,7 @@ export default function MyTasksPage() {
            <span>QUERY_NAME: {currentUserName}</span>
            <span>GROUP: {groupIdentity || 'NONE'}</span>
            <span>TASKS_LOADED: {tasks.length}</span>
+           <span>VISIBLE: {activeTasks.length + archivedTasks.length}</span>
            {!currentUserProfile && <span className="text-destructive font-bold">MISSING DB RECORD</span>}
         </div>
       )}
