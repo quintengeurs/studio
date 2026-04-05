@@ -1,0 +1,34 @@
+import type {Metadata} from 'next';
+import './globals.css';
+import {SidebarProvider} from '@/components/ui/sidebar';
+import {Toaster} from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase';
+
+export const metadata: Metadata = {
+  title: 'Parks and Green Spaces | Hackney Parks Management',
+  description: 'Asset tracking, issue reporting, and task management for park operatives.',
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="font-body antialiased">
+        <FirebaseClientProvider>
+          <SidebarProvider defaultOpen={true}>
+            {children}
+          </SidebarProvider>
+        </FirebaseClientProvider>
+        <Toaster />
+      </body>
+    </html>
+  );
+}

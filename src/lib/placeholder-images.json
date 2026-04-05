@@ -1,0 +1,34 @@
+{
+  "placeholderImages": [
+    {
+      "id": "play-area-1",
+      "url": "https://images.unsplash.com/photo-1541480601022-2308c0f02487?q=80\u0026w=2070\u0026auto=format\u0026fit=crop",
+      "alt": "Modern playground equipment with wood and steel elements",
+      "category": "Playground"
+    },
+    {
+      "id": "park-bench-1",
+      "url": "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80\u0026w=2070\u0026auto=format\u0026fit=crop",
+      "alt": "Traditional wooden park bench in a green setting",
+      "category": "Furniture"
+    },
+    {
+      "id": "solar-lighting-1",
+      "url": "https://images.unsplash.com/photo-1542601906990-b4d3fb773b09?q=80\u0026w=2013\u0026auto=format\u0026fit=crop",
+      "alt": "Energy efficient solar powered park lighting column",
+      "category": "Lighting"
+    },
+    {
+      "id": "waste-bin-1",
+      "url": "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?q=80\u0026w=2070\u0026auto=format\u0026fit=crop",
+      "alt": "Renewable material waste and recycling bin",
+      "category": "Waste Management"
+    },
+    {
+      "id": "wildlife-pond-1",
+      "url": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80\u0026w=2071\u0026auto=format\u0026fit=crop",
+      "alt": "Managed wildlife area with native flora",
+      "category": "Wildlife"
+    }
+  ]
+}

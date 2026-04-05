@@ -1,0 +1,119 @@
+
+"use client";
+
+import { useState } from "react";
+import { Leaf, User, Clock, ChevronRight, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useAuth, useUser, useFirestore } from "@/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { collection, query, where, limit } from "firebase/firestore";
+import { db } from "@/firebase/config"; // Assuming db is exported from config
+import { Task } from "@/lib/types";
+
+
+export function MobileTopHeader() {
+  const { user } = useUser();
+  const auth = useAuth();
+  const db = useFirestore();
+  const router = useRouter();
+
+  const tasksQuery = (user && db)
+  ? query(
+      collection(db, "tasks"),
+      where("assignedTo", "==", user.displayName),
+      limit(5)
+    )
+  : null;
+
+  const { data: myTasks, loading } = useCollection<Task>(tasksQuery as any);
+
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
+
+  return (
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <Link href="/" className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+          <Leaf className="h-6 w-6" />
+        </Link>
+        
+        <div className="flex flex-col">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Welcome back</span>
+          <span className="text-sm font-bold text-foreground leading-none truncate max-w-[150px]">
+            {user?.displayName || user?.email?.split('@')[0] || 'User'}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-headline text-xl flex items-center gap-2 text-primary">
+                <Clock className="h-5 w-5" /> Recent Tasks For You
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {loading && <p>Loading tasks...</p>}
+              {!loading && myTasks.length > 0 ? (
+                myTasks.map((task) => (
+                  <div key={task.id} className="group relative rounded-lg border p-4 hover:border-primary transition-colors">
+                    <div className="flex justify-between items-start mb-2">
+                      <Badge variant="outline" className="text-[10px] font-bold text-primary">{task.park}</Badge>
+                      <span className="text-[10px] text-muted-foreground font-medium">{task.dueDate}</span>
+                    </div>
+                    <h4 className="font-headline font-bold text-sm">{task.title}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{task.objective}</p>
+                    <Link href="/tasks" className="absolute inset-0 z-10">
+                      <span className="sr-only">View task</span>
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                !loading && <p className="text-sm text-center text-muted-foreground py-8">No recent tasks assigned.</p>
+              )}
+              <Button asChild className="w-full mt-4" variant="outline">
+                <Link href="/tasks">View All Tasks <ChevronRight className="ml-2 h-4 w-4" /></Link>
+              </Button>
+              <Button variant="destructive" className="w-full" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" /> Logout
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        
+        <div className="flex flex-col">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Welcome back</span>
+          <span className="text-sm font-bold text-foreground leading-none truncate max-w-[150px]">
+            {user?.displayName || user?.email?.split('@')[0] || 'User'}
+          </span>
+        </div>
+      </div>
+
+      <Avatar className="h-9 w-9 border-2 border-primary/20">
+        <AvatarImage src={user?.photoURL || undefined} />
+        <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
+      </Avatar>
+    </header>
+  );
+}

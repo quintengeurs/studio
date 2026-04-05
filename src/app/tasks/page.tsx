@@ -1,0 +1,359 @@
+
+"use client";
+
+import { useState, useMemo } from "react";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Plus, 
+  MoreVertical,
+  ChevronRight,
+  Clock,
+  RotateCcw,
+  ListTodo,
+  UserPlus,
+  ThumbsUp,
+  AlertCircle,
+  MapPin,
+  User as UserIcon,
+  RefreshCcw,
+  Users
+} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
+import Image from "next/image";
+import { User, Task, Frequency, Asset } from "@/lib/types";
+import { addDays, addMonths, format } from "date-fns";
+
+export default function TasksPage() {
+  const { toast } = useToast();
+  const db = useFirestore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const tasksQuery = useMemoFirebase(() => db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")) : null, [db]);
+  const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery);
+
+  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
+  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
+
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const { data: users = [] } = useCollection<User>(usersQuery);
+
+  const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
+  const parks = useMemo(() => Array.from(new Set(assets.map(a => a.park))).sort(), [assets]);
+
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  
+  const [newTask, setNewTask] = useState({
+    title: "",
+    objective: "",
+    park: "",
+    assignedTo: "",
+    dueDate: format(new Date(), 'yyyy-MM-dd'),
+    frequency: "One-off" as Frequency
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Todo': return 'bg-muted text-muted-foreground';
+      case 'Doing': return 'bg-accent text-accent-foreground';
+      case 'Pending Approval': return 'bg-yellow-500/20 text-yellow-700 border-yellow-200 animate-pulse';
+      default: return '';
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
+    const taskData = {
+        title: newTask.title,
+        objective: newTask.objective,
+        park: newTask.park,
+        assignedTo: newTask.assignedTo,
+        dueDate: newTask.dueDate,
+        frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
+        status: 'Todo' as const,
+    };
+
+    try {
+        await addDoc(collection(db, "tasks"), taskData);
+        toast({ title: "Task Created", description: "The new task has been added to the queue." });
+        setIsTaskDialogOpen(false);
+        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), frequency: "One-off" });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+};
+
+  const calculateNextDueDate = (currentDate: string, frequency: Frequency) => {
+    const date = new Date(currentDate);
+    switch (frequency) {
+      case 'Daily': return format(addDays(date, 1), 'yyyy-MM-dd');
+      case 'Weekly': return format(addDays(date, 7), 'yyyy-MM-dd');
+      case 'Monthly': return format(addMonths(date, 1), 'yyyy-MM-dd');
+      case 'Six Monthly': return format(addMonths(date, 6), 'yyyy-MM-dd');
+      case 'Yearly': return format(addMonths(date, 12), 'yyyy-MM-dd');
+      default: return null;
+    }
+  };
+
+  const handleOpenAssignDialog = (id: string) => {
+    setSelectedTaskId(id);
+    setIsAssignDialogOpen(true);
+  };
+
+  const handleAssign = async (operativeName: string) => {
+    if (!db || !selectedTaskId || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+        await updateDoc(doc(db, "tasks", selectedTaskId), { assignedTo: operativeName });
+        setIsAssignDialogOpen(false);
+        setSelectedTaskId(null);
+        toast({ title: "Task Reassigned", description: `Task has been assigned to ${operativeName}.` });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to reassign task.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleApproveTask = async (taskId: string) => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) {
+        toast({ title: "Error", description: "Task not found.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+
+    try {
+        await updateDoc(doc(db, "tasks", taskId), { status: 'Completed' });
+
+        if (task.frequency && task.frequency !== 'One-off') {
+            const nextDate = calculateNextDueDate(task.dueDate, task.frequency);
+            if (nextDate) {
+                await addDoc(collection(db, "tasks"), {
+                    title: task.title,
+                    objective: task.objective,
+                    park: task.park,
+                    assignedTo: task.assignedTo,
+                    dueDate: nextDate,
+                    frequency: task.frequency,
+                    status: 'Todo'
+                });
+            }
+        }
+
+        if (task.linkedIssueId) {
+            await updateDoc(doc(db, "issues", task.linkedIssueId), { status: 'Resolved' });
+        }
+
+        toast({ title: "Task Approved", description: "Work verified and moved to archives." });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to approve task.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <DashboardShell 
+      title="Tasks Management" 
+      description="Operational tasking and progress monitoring"
+      actions={
+        <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="font-headline font-bold w-full md:w-auto">
+              <Plus className="mr-2 h-4 w-4" /> Create Task
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="font-headline">Create New Task</DialogTitle>
+              <DialogDescription>Assign a new operational task to the team.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <Input placeholder="Task Title e.g. Mow North Lawn" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} />
+                <Textarea placeholder="Objective: What needs to be achieved?" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
+                    <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
+                    <SelectContent>
+                        {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
+                    <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
+                    <SelectContent>
+                        {operatives.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
+                <Select value={newTask.frequency} onValueChange={(v: Frequency) => setNewTask({...newTask, frequency: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="One-off">One-off</SelectItem>
+                        <SelectItem value="Daily">Daily</SelectItem>
+                        <SelectItem value="Weekly">Weekly</SelectItem>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                        <SelectItem value="Yearly">Yearly</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || !newTask.park || !newTask.assignedTo || isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Task"}
+                </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      }
+    >
+      <Tabs defaultValue="active" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="active" className="flex items-center gap-2"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
+          <TabsTrigger value="recurring" className="flex items-center gap-2"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active">
+          {tasksLoading ? (
+            <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+          ) : tasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
+               <ListTodo className="h-12 w-12 mb-4" />
+               <p className="font-bold">No active tasks</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {tasks.map((task) => (
+                <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
+                  <CardHeader className="pb-3 px-4 sm:px-6">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" />{task.dueDate}</div>
+                    </div>
+                    <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">{task.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-4 px-4 sm:px-6 flex-1">
+                    <p className="text-sm font-medium text-foreground/80 mb-4 line-clamp-2">{task.objective}</p>
+                    <div className="space-y-4">
+                      {task.status === 'Pending Approval' && (
+                        <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 flex flex-col gap-2">
+                          <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-yellow-600" /><span className="text-[10px] font-bold text-yellow-700 uppercase">Work Pending Approval</span></div>
+                          {task.collaborators && task.collaborators.length > 0 && <div className="flex items-center gap-1.5 mb-1"><Users className="h-3 w-3 text-muted-foreground" /><span className="text-[10px] font-bold text-muted-foreground">Assisted by: {task.collaborators.join(', ')}</span></div>}
+                          {task.completionImageUrl && <div className="relative aspect-video w-full rounded border overflow-hidden"><Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" /></div>}
+                          {task.completionNote && <p className="text-[10px] italic text-muted-foreground">"{task.completionNote}"</p>}
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] font-bold mb-1.5"><span className="uppercase text-muted-foreground">Progress</span><span className="text-primary">{task.status === 'Pending Approval' ? '100%' : task.status === 'Doing' ? '45%' : '0%'}</span></div>
+                        <Progress value={task.status === 'Pending Approval' ? 100 : task.status === 'Doing' ? 45 : 0} className="h-2" />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors" onClick={() => handleOpenAssignDialog(task.id)}>
+                          <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
+                          <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
+                        </div>
+                        <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm shrink-0`}>{task.status.toUpperCase()}</Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="p-0 mt-auto border-t">
+                    {task.status === 'Pending Approval' ? (
+                      <Button variant="default" className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}><ThumbsUp className="mr-2 h-4 w-4" /> {isSubmitting ? "Approving..." : "Approve & Archive"}</Button>
+                    ) : (
+                      <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm">Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="recurring">
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+             {tasks.filter(t => t.frequency).map((task) => (
+                <Card key={task.id} className="border-2 hover:border-accent transition-colors shadow-sm">
+                <CardHeader>
+                  <div className="flex justify-between items-center mb-2">
+                    <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">{task.frequency}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-bold">{task.park}</Badge>
+                  </div>
+                  <CardTitle className="text-lg font-headline">{task.title}</CardTitle>
+                  <CardDescription className="text-xs font-medium text-muted-foreground">Next instance due: <span className="text-foreground font-bold">{task.dueDate}</span></CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase py-2 border-y border-dashed"><span className="text-muted-foreground">Assigned To</span><span className="text-foreground">{task.assignedTo}</span></div>
+                    <div className="flex items-center gap-2 p-2 rounded bg-muted/20 text-[10px] font-medium italic text-muted-foreground"><RefreshCcw className="h-3 w-3" /> This schedule will automatically renew upon completion.</div>
+                  </div>
+                </CardContent>
+              </Card>
+             ))}
+             {tasks.filter(t => t.frequency).length === 0 && <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50"><p className="text-sm font-bold">No recurring task schedules active.</p></div>}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Reassign Task</DialogTitle>
+            <DialogDescription>Select a new operative for this task.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              {operatives.map(user => (
+                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleAssign(user.name)}>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold">{user.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{user.team}</span>
+                    </div>
+                  </div>
+                  <UserPlus className="h-4 w-4 text-muted-foreground" />
+                </div>
+              ))}
+              {operatives.length === 0 && <p className="text-center text-xs text-muted-foreground py-4">No active operatives available.</p>}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </DashboardShell>
+  );
+}
