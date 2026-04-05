@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
+import { compressImage } from "@/lib/image-compress";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
   Table, 
@@ -53,7 +54,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { User, Role, Task, RegistryConfig } from "@/lib/types";
+import { User, Role, Task, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -120,7 +121,7 @@ export default function UserManagement() {
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: '',
     email: '',
-    role: 'operative',
+    role: 'Gardener',
     team: '',
     training: '',
     isDriver: false,
@@ -132,8 +133,8 @@ export default function UserManagement() {
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       if (roleFilter === 'all') return true;
-      if (roleFilter === 'operative') return user.role === 'operative';
-      if (roleFilter === 'management') return user.role !== 'operative';
+      if (roleFilter === 'operative') return OPERATIVE_ROLES.includes(user.role as Role);
+      if (roleFilter === 'management') return MANAGEMENT_ROLES.includes(user.role as Role);
       return true;
     });
   }, [users, roleFilter]);
@@ -155,26 +156,24 @@ export default function UserManagement() {
   };
 
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'master': return 'bg-purple-500/10 text-purple-600 border-purple-200';
-      case 'supervisor': return 'bg-primary/10 text-primary border-primary/20';
-      case 'operative': return 'bg-accent text-accent-foreground';
-      default: return '';
-    }
+    if (OPERATIVE_ROLES.includes(role as Role)) return 'bg-accent text-accent-foreground border-accent';
+    if (MANAGEMENT_ROLES.includes(role as Role)) return 'bg-primary/10 text-primary border-primary/20';
+    return '';
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      try {
+        const compressedDataUrl = await compressImage(file, 400, 400, 0.8);
         if (isEdit && selectedUser) {
-          setSelectedUser({ ...selectedUser, avatar: reader.result as string });
+          setSelectedUser({ ...selectedUser, avatar: compressedDataUrl });
         } else {
-          setNewUser(prev => ({ ...prev, avatar: reader.result as string }));
+          setNewUser(prev => ({ ...prev, avatar: compressedDataUrl }));
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        toast({ title: "Image Error", description: "Failed to process profile picture.", variant: "destructive" });
+      }
     }
   };
 
@@ -192,7 +191,7 @@ export default function UserManagement() {
         email: userEmail,
         training: trainingString,
         isArchived: false,
-        role: newUser.role || 'operative',
+        role: newUser.role || 'Gardener',
         createdAt: new Date().toISOString(),
     };
 
@@ -211,7 +210,7 @@ export default function UserManagement() {
 
         toast({ title: "User Added", description: `${userToSave.name} has been added.` });
         setIsAddDialogOpen(false);
-        setNewUser({ name: '', email: '', role: 'operative', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
+        setNewUser({ name: '', email: '', role: 'Gardener', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
         setSelectedTrainings([]);
     } catch (e: any) {
         console.error("[UserManagement] Error creating user:", e);
@@ -356,7 +355,7 @@ export default function UserManagement() {
               <Briefcase className={cn("h-4 w-4", roleFilter === 'operative' ? "text-accent-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
-              {users.filter(u => u.role === 'operative').length}
+              {users.filter(u => OPERATIVE_ROLES.includes(u.role as Role)).length}
             </div>
           </div>
         </Card>
@@ -374,7 +373,7 @@ export default function UserManagement() {
               <Shield className={cn("h-4 w-4", roleFilter === 'management' ? "text-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
-              {users.filter(u => u.role !== 'operative').length}
+              {users.filter(u => MANAGEMENT_ROLES.includes(u.role as Role)).length}
             </div>
           </div>
         </Card>
@@ -548,9 +547,13 @@ export default function UserManagement() {
                 <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="operative">Field Operative</SelectItem>
-                    <SelectItem value="supervisor">Supervisor</SelectItem>
-                    <SelectItem value="master">System Master</SelectItem>
+                    <SelectItem value="Gardener">Gardener</SelectItem>
+                    <SelectItem value="Keeper">Keeper</SelectItem>
+                    <SelectItem value="Litter Picker">Litter Picker</SelectItem>
+                    <SelectItem value="Bin Run">Bin Run</SelectItem>
+                    <SelectItem value="Area Manager">Area Manager</SelectItem>
+                    <SelectItem value="Operations Manager">Operations Manager</SelectItem>
+                    <SelectItem value="Admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -641,9 +644,13 @@ export default function UserManagement() {
                         <Select value={selectedUser?.role} onValueChange={(v: Role) => selectedUser && setSelectedUser({...selectedUser, role: v})}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="operative">Operative</SelectItem>
-                            <SelectItem value="supervisor">Supervisor</SelectItem>
-                            <SelectItem value="master">Master</SelectItem>
+                            <SelectItem value="Gardener">Gardener</SelectItem>
+                            <SelectItem value="Keeper">Keeper</SelectItem>
+                            <SelectItem value="Litter Picker">Litter Picker</SelectItem>
+                            <SelectItem value="Bin Run">Bin Run</SelectItem>
+                            <SelectItem value="Area Manager">Area Manager</SelectItem>
+                            <SelectItem value="Operations Manager">Operations Manager</SelectItem>
+                            <SelectItem value="Admin">Admin</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

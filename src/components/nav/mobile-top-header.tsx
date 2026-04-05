@@ -101,13 +101,6 @@ export function MobileTopHeader() {
             </div>
           </DialogContent>
         </Dialog>
-        
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Welcome back</span>
-          <span className="text-sm font-bold text-foreground leading-none truncate max-w-[150px]">
-            {user?.displayName || user?.email?.split('@')[0] || 'User'}
-          </span>
-        </div>
       </div>
 
       <Avatar className="h-9 w-9 border-2 border-primary/20">

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
+import { compressImage } from "@/lib/image-compress";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,14 +87,15 @@ export default function MyTasksPage() {
     toast({ title: "Task Updated", description: `Status set to ${newStatus}.` });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCompletionData(prev => ({ ...prev, imageUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedDataUrl = await compressImage(file, 800, 800, 0.7);
+        setCompletionData(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+      } catch (error) {
+        toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
+      }
     }
   };
 

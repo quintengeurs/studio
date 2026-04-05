@@ -1,7 +1,7 @@
 
 "use client";
-
 import { useState, useRef } from "react";
+import { compressImage } from "@/lib/image-compress";
 import {
   Dialog,
   DialogContent,
@@ -48,14 +48,15 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
     imageUrl: "",
   });
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({ ...prev, imageUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedDataUrl = await compressImage(file);
+        setFormData((prev) => ({ ...prev, imageUrl: compressedDataUrl }));
+      } catch (error) {
+        toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
+      }
     }
   };
 

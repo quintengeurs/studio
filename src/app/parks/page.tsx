@@ -29,8 +29,7 @@ export default function ParksPage() {
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef);
 
-
-  const parks = registryConfig?.parks?.sort() ?? [];
+  const parks = useMemo(() => registryConfig?.parks ? [...registryConfig.parks].sort() : [], [registryConfig?.parks]);
 
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [configNewPark, setConfigNewPark] = useState("");

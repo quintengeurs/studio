@@ -38,17 +38,25 @@ export default function RequestsManagementPage() {
 
   const { data: requests = [], loading } = useCollection<MaterialRequest>(requestsQuery);
 
-  const handleUpdateStatus = (id: string, newStatus: string) => {
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
     if (!db) return;
-    updateDoc(doc(db, "requests", id), { status: newStatus });
-    
-    if (newStatus === 'Available') {
+    try {
+      await updateDoc(doc(db, "requests", id), { status: newStatus });
+      
+      if (newStatus === 'Available') {
+        toast({ 
+          title: "Status Updated", 
+          description: "Staff member has been notified that items are ready for collection." 
+        });
+      } else {
+        toast({ title: "Request Archived", description: "Request moved to historical records." });
+      }
+    } catch (e: any) {
       toast({ 
-        title: "Status Updated", 
-        description: "Staff member has been notified that items are ready for collection." 
+        title: "Permission Denied", 
+        description: "Your account does not have authorization to modify requests on the live database. Setup your Firestore rules to allow this.", 
+        variant: "destructive" 
       });
-    } else {
-      toast({ title: "Request Archived", description: "Request moved to historical records." });
     }
   };
 
@@ -71,7 +79,11 @@ export default function RequestsManagementPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {requests.map((request) => (
             <Card key={request.id} className="flex flex-col border-2 hover:border-primary/40 transition-all">
-              <div className={`h-1.5 w-full shrink-0 ${request.status === 'Available' ? 'bg-green-500' : 'bg-primary'}`} />
+              <div className={`h-1.5 w-full shrink-0 ${
+                request.status === 'Collected' ? 'bg-blue-500' : 
+                request.status === 'Available' ? 'bg-green-500' : 
+                'bg-primary'
+              }`} />
               
               {request.imageUrl && (
                 <div className="relative w-full h-48 bg-muted shrink-0">
@@ -90,9 +102,11 @@ export default function RequestsManagementPage() {
                     {request.category}
                   </Badge>
                   <Badge className={`${
-                    request.status === 'Available' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-primary/10 text-primary border-primary/20'
+                    request.status === 'Collected' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                    request.status === 'Available' ? 'bg-green-50 text-green-700 border-green-200' : 
+                    'bg-primary/10 text-primary border-primary/20'
                   } font-bold text-[9px] uppercase`}>
-                    {request.status === 'Available' ? 'READY FOR PICKUP' : 'OPEN'}
+                    {request.status === 'Collected' ? 'COLLECTED' : request.status === 'Available' ? 'READY FOR PICKUP' : 'OPEN'}
                   </Badge>
                 </div>
                 <CardTitle className="font-headline text-lg line-clamp-1">
@@ -135,12 +149,12 @@ export default function RequestsManagementPage() {
               <CardFooter className="p-0 border-t flex divide-x mt-auto">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 rounded-none h-12 text-[10px] font-bold uppercase hover:bg-green-50 hover:text-green-700"
+                  className={`flex-1 rounded-none h-12 text-[10px] font-bold uppercase ${request.status === 'Collected' ? 'text-blue-700 opacity-60' : 'hover:bg-green-50 hover:text-green-700'}`}
                   onClick={() => handleUpdateStatus(request.id, 'Available')}
-                  disabled={request.status === 'Available'}
+                  disabled={request.status === 'Available' || request.status === 'Collected'}
                 >
                   <Truck className="mr-2 h-4 w-4" /> 
-                  {request.status === 'Available' ? 'Staff Notified' : 'Item Available'}
+                  {request.status === 'Collected' ? 'Collected' : request.status === 'Available' ? 'Staff Notified' : 'Item Available'}
                 </Button>
                 <Button 
                   variant="ghost" 

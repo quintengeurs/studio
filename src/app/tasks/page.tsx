@@ -43,10 +43,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
-import { User, Task, Frequency, Asset } from "@/lib/types";
+import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig } from "@/lib/types";
 import { addDays, addMonths, format } from "date-fns";
 
 export default function TasksPage() {
@@ -63,8 +63,11 @@ export default function TasksPage() {
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: users = [] } = useCollection<User>(usersQuery);
 
-  const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
-  const parks = useMemo(() => Array.from(new Set(assets.map(a => a.park))).sort(), [assets]);
+  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef);
+  
+  const assignableUsers = users;
+  const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -214,7 +217,7 @@ export default function TasksPage() {
                 <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
                     <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
                     <SelectContent>
-                        {operatives.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                        {assignableUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
               </div>
@@ -337,7 +340,7 @@ export default function TasksPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              {operatives.map(user => (
+              {assignableUsers.map(user => (
                 <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleAssign(user.name)}>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
@@ -349,7 +352,7 @@ export default function TasksPage() {
                   <UserPlus className="h-4 w-4 text-muted-foreground" />
                 </div>
               ))}
-              {operatives.length === 0 && <p className="text-center text-xs text-muted-foreground py-4">No active operatives available.</p>}
+              {assignableUsers.length === 0 && <p className="text-center text-xs text-muted-foreground py-4">No active staff assignable.</p>}
             </div>
           </div>
         </DialogContent>

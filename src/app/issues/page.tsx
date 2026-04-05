@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
+import { compressImage } from "@/lib/image-compress";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,7 @@ import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
-import { Asset, User, RegistryConfig } from "@/lib/types";
+import { Asset, User, RegistryConfig, OPERATIVE_ROLES, Role } from "@/lib/types";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
 
@@ -69,7 +70,7 @@ export default function IssuesPage() {
   const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef);
   const parks = registryConfig?.parks?.sort() ?? [];
 
-  const operatives = users.filter(u => u.role === 'operative' || u.role === 'supervisor');
+  const operatives = users.filter(u => OPERATIVE_ROLES.includes(u.role as Role) || (u.role as string) === 'operative');
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -87,12 +88,15 @@ export default function IssuesPage() {
     imageUrl: ""
   });
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setNewIssue(prev => ({ ...prev, imageUrl: reader.result as string }));
-      reader.readAsDataURL(file);
+      try {
+        const compressedDataUrl = await compressImage(file, 800, 800, 0.7);
+        setNewIssue(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+      } catch (error) {
+        toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
+      }
     }
   };
 

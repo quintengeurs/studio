@@ -6,5 +6,9 @@
       "**/.*",
       "**/node_modules/**"
     ]
+  },
+  "firestore": {
+    "database": "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0",
+    "rules": "firestore.rules"
   }
 }

@@ -1,4 +1,7 @@
-export type Role = 'operative' | 'supervisor' | 'master';
+export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Admin';
+
+export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run'];
+export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Admin'];
 
 export interface User {
   id: string;
@@ -93,3 +96,13 @@ export interface RegistryConfig {
 
 export type RequestCategory = 'Materials' | 'Tools' | 'Equipment' | 'PPE' | 'Other';
 
+export interface MaterialRequest {
+  id: string;
+  category: RequestCategory;
+  description: string;
+  depot: string;
+  imageUrl?: string;
+  requestedBy: string;
+  status: 'Open' | 'In Progress' | 'Available' | 'Collected' | 'Archived';
+  createdAt: string;
+}
