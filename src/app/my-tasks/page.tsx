@@ -66,13 +66,30 @@ export default function MyTasksPage() {
     currentUserProfile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
   [currentUserProfile, user?.email]);
 
-  const colleagues = allUsers.filter(u => u.team === currentUserProfile?.team && u.name !== currentUserName && !u.isArchived);
+  const groupIdentity = useMemo(() => {
+
+    if (!currentUserProfile?.role || !currentUserProfile?.depot) return null;
+    return `Group: ${currentUserProfile.role} @ ${currentUserProfile.depot}`;
+  }, [currentUserProfile]);
+
+  const colleagues = useMemo(() => {
+    if (!currentUserProfile) return [];
+    return allUsers.filter(u => 
+      u.team === currentUserProfile.team && 
+      u.depot === currentUserProfile.depot && 
+      u.name !== currentUserName && 
+      !u.isArchived
+    );
+  }, [allUsers, currentUserProfile, currentUserName]);
 
 
   const tasksQuery = useMemoFirebase(() => {
     if (!db || !currentUserName) return null;
-    return query(collection(db, "tasks"), where("assignedTo", "==", currentUserName));
-  }, [db, currentUserName]);
+    const identities = [currentUserName];
+    if (groupIdentity) identities.push(groupIdentity);
+    return query(collection(db, "tasks"), where("assignedTo", "in", identities));
+  }, [db, currentUserName, groupIdentity]);
+
   const { data: tasks = [], loading } = useCollection<any>(tasksQuery);
 
   const issuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues")) : null, [db]);
@@ -175,6 +192,7 @@ export default function MyTasksPage() {
            <span>EMAIL: {user?.email}</span>
            <span>PROF_NAME: {currentUserProfile?.name || 'NOT FOUND'}</span>
            <span>QUERY_NAME: {currentUserName}</span>
+           <span>GROUP: {groupIdentity || 'NONE'}</span>
            <span>TASKS_LOADED: {tasks.length}</span>
            {!currentUserProfile && <span className="text-destructive font-bold">MISSING DB RECORD</span>}
         </div>

@@ -82,6 +82,9 @@ export default function UserManagement() {
   const trainingOptions = useMemo(() => 
     registryConfig?.trainingOptions ? [...registryConfig.trainingOptions].sort() : [], 
   [registryConfig?.trainingOptions]);
+  const parks = useMemo(() => 
+    registryConfig?.parks ? [...registryConfig.parks].sort() : [], 
+  [registryConfig?.parks]);
 
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -123,6 +126,7 @@ export default function UserManagement() {
     email: '',
     role: 'Gardener',
     team: '',
+    depot: '',
     training: '',
     isDriver: false,
     isRoSPATrained: false,
@@ -210,7 +214,7 @@ export default function UserManagement() {
 
         toast({ title: "User Added", description: `${userToSave.name} has been added.` });
         setIsAddDialogOpen(false);
-        setNewUser({ name: '', email: '', role: 'Gardener', team: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
+        setNewUser({ name: '', email: '', role: 'Gardener', team: '', depot: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
         setSelectedTrainings([]);
     } catch (e: any) {
         console.error("[UserManagement] Error creating user:", e);
@@ -541,8 +545,8 @@ export default function UserManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2 text-left">
                 <Label>Role</Label>
                 <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -557,12 +561,21 @@ export default function UserManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
+              <div className="grid gap-2 text-left">
                 <Label>Team / Department</Label>
                 <Select value={newUser.team} onValueChange={v => setNewUser({...newUser, team: v})}>
                   <SelectTrigger><SelectValue placeholder="Select Team" /></SelectTrigger>
                   <SelectContent>
                     {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2 text-left">
+                <Label>Depot / Location</Label>
+                <Select value={newUser.depot} onValueChange={v => setNewUser({...newUser, depot: v})}>
+                  <SelectTrigger><SelectValue placeholder="Select Depot" /></SelectTrigger>
+                  <SelectContent>
+                    {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

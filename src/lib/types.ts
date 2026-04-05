@@ -9,6 +9,8 @@ export interface User {
   email: string;
   role: Role;
   team: string;
+  depot: string;
+
   avatar?: string;
   training?: string;
   isDriver?: boolean;

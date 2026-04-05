@@ -46,6 +46,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
+import { Switch } from "@/components/ui/switch";
 import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig } from "@/lib/types";
 import { addDays, addMonths, format } from "date-fns";
 
@@ -55,16 +56,16 @@ export default function TasksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tasksQuery = useMemoFirebase(() => db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")) : null, [db]);
-  const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery);
+  const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
 
   const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
-  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
+  const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: users = [] } = useCollection<User>(usersQuery);
+  const { data: users = [] } = useCollection<User>(usersQuery as any);
 
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef);
+  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
   
   const assignableUsers = users;
   const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();
@@ -72,6 +73,11 @@ export default function TasksPage() {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  
+  const [isGroupAssign, setIsGroupAssign] = useState(false);
+  const [groupRole, setGroupRole] = useState<Role>("Keeper");
+  const [groupPark, setGroupPark] = useState("");
+
   
   const [newTask, setNewTask] = useState({
     title: "",
@@ -98,7 +104,7 @@ export default function TasksPage() {
         title: newTask.title,
         objective: newTask.objective,
         park: newTask.park,
-        assignedTo: newTask.assignedTo,
+        assignedTo: isGroupAssign ? `Group: ${groupRole} @ ${groupPark}` : newTask.assignedTo,
         dueDate: newTask.dueDate,
         frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
         status: 'Todo' as const,
@@ -106,9 +112,10 @@ export default function TasksPage() {
 
     try {
         await addDoc(collection(db, "tasks"), taskData);
-        toast({ title: "Task Created", description: "The new task has been added to the queue." });
+        toast({ title: "Task Created", description: `Task assigned to ${taskData.assignedTo}.` });
         setIsTaskDialogOpen(false);
         setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), frequency: "One-off" });
+        setIsGroupAssign(false);
     } catch (error) {
         toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
     } finally {
@@ -207,19 +214,55 @@ export default function TasksPage() {
             <div className="grid gap-4 py-4">
                 <Input placeholder="Task Title e.g. Mow North Lawn" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} />
                 <Textarea placeholder="Objective: What needs to be achieved?" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} />
-              <div className="grid grid-cols-2 gap-4">
-                <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
-                    <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
-                    <SelectContent>
-                        {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-                <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
-                    <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
-                    <SelectContent>
-                        {assignableUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+              <div className="space-y-4 pt-2 border-t mt-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Group Assignment</Label>
+                    <p className="text-[10px] text-muted-foreground italic">Allocate to a whole team at a park</p>
+                  </div>
+                  <Switch checked={isGroupAssign} onCheckedChange={setIsGroupAssign} />
+                </div>
+
+                {isGroupAssign ? (
+                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="grid gap-2">
+                      <Label className="text-xs">Team / Role</Label>
+                      <Select value={groupRole} onValueChange={(v: Role) => setGroupRole(v)}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Keeper">Keepers</SelectItem>
+                          <SelectItem value="Gardener">Gardeners</SelectItem>
+                          <SelectItem value="Litter Picker">Litter Pickers</SelectItem>
+                          <SelectItem value="Bin Run">Bin Run Team</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-xs">Location / Depot</Label>
+                      <Select value={groupPark} onValueChange={v => setGroupPark(v)}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select Depot" /></SelectTrigger>
+                        <SelectContent>
+                          {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
+                        <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
+                        <SelectContent>
+                            {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
+                        <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
+                        <SelectContent>
+                            {assignableUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
@@ -237,7 +280,7 @@ export default function TasksPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || !newTask.park || !newTask.assignedTo || isSubmitting}>
+              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || (!isGroupAssign && (!newTask.park || !newTask.assignedTo)) || (isGroupAssign && (!groupRole || !groupPark)) || isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Task"}
                 </Button>
             </DialogFooter>
