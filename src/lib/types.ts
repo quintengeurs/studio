@@ -106,3 +106,13 @@ export interface MaterialRequest {
   status: 'Open' | 'In Progress' | 'Available' | 'Collected' | 'Archived';
   createdAt: string;
 }
+
+export interface ParkDetail {
+  id: string;
+  name: string;
+  headGardener?: string;
+  areaManager?: string;
+  depot?: string;
+  parkOfficer?: string;
+  features?: string[];
+}
