@@ -57,31 +57,33 @@ export default function Dashboard() {
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isManagement = currentUserData ? MANAGEMENT_ROLES.includes(currentUserData.role as Role) : false;
 
+  const userEffectiveName = currentUserData?.name || user?.displayName || user?.email || "";
+
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
     if (!db) return null;
     if (isManagement) return query(collection(db, "tasks"));
-    if (userDisplayName) return query(collection(db, "tasks"), where("assignedTo", "==", userDisplayName));
+    if (userEffectiveName) return query(collection(db, "tasks"), where("assignedTo", "==", userEffectiveName));
     return null;
-  }, [db, userDisplayName, isManagement]);
+  }, [db, userEffectiveName, isManagement]);
 
-  const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery);
+  const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
 
   const myIssuesQuery = useMemoFirebase(() => {
     if (!db) return null;
     if (isManagement) return query(collection(db, "issues"));
-    if (userDisplayName) return query(collection(db, "issues"), where("reportedBy", "==", userDisplayName));
+    if (userEffectiveName) return query(collection(db, "issues"), where("reportedBy", "==", userEffectiveName));
     return null;
-  }, [db, userDisplayName, isManagement]);
+  }, [db, userEffectiveName, isManagement]);
 
-  const { data: myIssues = [], loading: issuesLoading } = useCollection<Issue>(myIssuesQuery);
+  const { data: myIssues = [], loading: issuesLoading } = useCollection<Issue>(myIssuesQuery as any);
 
   const myRequestsQuery = useMemoFirebase(() => {
     if (!db) return null;
     if (isManagement) return query(collection(db, "requests"));
-    if (userDisplayName) return query(collection(db, "requests"), where("requestedBy", "==", userDisplayName));
+    if (userEffectiveName) return query(collection(db, "requests"), where("requestedBy", "==", userEffectiveName));
     return null;
-  }, [db, userDisplayName, isManagement]);
+  }, [db, userEffectiveName, isManagement]);
 
   const { data: myRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
 

@@ -34,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, updateDoc, doc, query, where } from "firebase/firestore";
 import { User as UserType } from "@/lib/types";
 
@@ -42,26 +42,28 @@ export default function MyTasksPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useUser();
   
-  // Static current user for prototype session
-  const currentUserName = "Sarah Smith";
-
-  // Fetch all users to find colleagues
+  // Fetch all users to find colleagues and current profile
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "users"), where("isArchived", "==", false));
   }, [db]);
-  const { data: allUsers = [] } = useCollection<UserType>(usersQuery);
+  const { data: allUsers = [] } = useCollection<UserType>(usersQuery as any);
 
-  // Find current user profile to get team
-  const currentUserProfile = allUsers.find(u => u.name === currentUserName);
+  // Dynamic current user profile
+  const currentUserProfile = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
+  
+  const currentUserName = currentUserProfile?.name || user?.displayName || "";
   const colleagues = allUsers.filter(u => u.team === currentUserProfile?.team && u.name !== currentUserName);
 
   const tasksQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !currentUserName) return null;
     return query(collection(db, "tasks"), where("assignedTo", "==", currentUserName));
-  }, [db]);
-  const { data: tasks = [], loading } = useCollection(tasksQuery);
+  }, [db, currentUserName]);
+  const { data: tasks = [], loading } = useCollection<any>(tasksQuery);
 
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
