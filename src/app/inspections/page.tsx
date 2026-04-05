@@ -34,7 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Frequency, Inspection, Asset } from "@/lib/types";
-import { addDays, addMonths, format } from "date-fns";
+import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 const InspectionCard = ({ inspection, onStart }: { inspection: Inspection, onStart: (inspection: Inspection) => void }) => {
   const getStatusBadge = (status: string) => {
@@ -97,10 +97,10 @@ export default function InspectionsPage() {
   const { user } = useUser();
   
   const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
-  const { data: assets = [] } = useCollection<Asset>(assetsQuery);
+  const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
   const inspectionsQuery = useMemoFirebase(() => db ? query(collection(db, "inspections"), orderBy("dueDate", "desc")) : null, [db]);
-  const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery);
+  const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
@@ -211,6 +211,37 @@ export default function InspectionsPage() {
     }
   };
 
+  const today = new Date();
+  const todayStr = format(today, 'yyyy-MM-dd');
+
+  const isWithinWindow = (inspection: Inspection) => {
+    if (inspection.status === 'Completed') return true;
+    
+    // Manual/Overdue check
+    const dueDateStr = inspection.dueDate;
+    if (dueDateStr <= todayStr) return true;
+
+    if (inspection.frequency === 'Weekly') {
+      const dDateNum = parseISO(dueDateStr);
+      return isWithinInterval(dDateNum, { 
+        start: startOfWeek(today, { weekStartsOn: 1 }), 
+        end: endOfWeek(today, { weekStartsOn: 1 }) 
+      });
+    }
+
+    if (inspection.frequency === 'Monthly') {
+      const dDateNum = parseISO(dueDateStr);
+      return isWithinInterval(dDateNum, { 
+        start: startOfMonth(today), 
+        end: endOfMonth(today) 
+      });
+    }
+
+    return false;
+  };
+
+  const pendingInspections = inspections.filter(i => i.status === 'Pending' && isWithinWindow(i));
+
   return (
     <DashboardShell 
       title="Asset Inspections" 
@@ -296,8 +327,8 @@ export default function InspectionsPage() {
             </TabsContent>
             <TabsContent value="pending" className="mt-0">
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {inspections.filter(i => i.status === 'Pending').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
-                {inspections.filter(i => i.status === 'Pending').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No pending inspections.</div>}
+                {pendingInspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
+                {pendingInspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No pending inspections for this timeframe.</div>}
               </div>
             </TabsContent>
             <TabsContent value="completed" className="mt-0">
