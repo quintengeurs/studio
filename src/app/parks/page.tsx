@@ -61,7 +61,7 @@ export default function ParksPage() {
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery);
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
-  const isAdmin = currentUserData?.role === 'Admin';
+  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
 
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery);
@@ -258,7 +258,16 @@ export default function ParksPage() {
                </div>
                <div>
                   <DialogTitle className="text-2xl font-headline font-bold text-primary">{selectedParkName}</DialogTitle>
-                  <p className="text-sm text-primary/60 font-medium">Park Information & Registry Details</p>
+                  <p className="text-sm text-primary/60 font-medium tracking-tight">Park Information & Registry Details</p>
+                  
+                  {/* Diagnostic Debug Info - Only visible for admin troubleshooting */}
+                  {(user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || isAdmin) && (
+                    <div className="mt-2 py-1 px-2 bg-black/5 rounded text-[9px] font-mono text-primary/40 flex gap-3">
+                      <span>EMAIL: {user?.email}</span>
+                      <span>ROLE: {currentUserData?.role || 'NOT FOUND'}</span>
+                      <span>PERM: {isAdmin ? 'ADMIN_BYPASS' : 'STANDARD'}</span>
+                    </div>
+                  )}
                </div>
             </div>
             {isAdmin && !isEditing && (
