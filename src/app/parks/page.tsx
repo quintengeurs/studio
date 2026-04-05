@@ -60,7 +60,7 @@ export default function ParksPage() {
   // Firestore Queries
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery);
-  const currentUserData = allUsers.find(u => u.email === user?.email);
+  const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isAdmin = currentUserData?.role === 'Admin';
 
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);

@@ -54,7 +54,7 @@ export default function Dashboard() {
   // Setup role context
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery);
-  const currentUserData = allUsers.find(u => u.email === user?.email);
+  const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isManagement = currentUserData ? MANAGEMENT_ROLES.includes(currentUserData.role as Role) : false;
 
   // Personalized Queries
