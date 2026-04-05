@@ -47,7 +47,7 @@ export default function MyTasksPage() {
   // Fetch all users to find colleagues and current profile
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "users"), where("isArchived", "==", false));
+    return query(collection(db, "users"));
   }, [db]);
   const { data: allUsers = [] } = useCollection<UserType>(usersQuery as any);
 
@@ -56,8 +56,18 @@ export default function MyTasksPage() {
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
   
-  const currentUserName = currentUserProfile?.name || user?.displayName || "";
-  const colleagues = allUsers.filter(u => u.team === currentUserProfile?.team && u.name !== currentUserName);
+  const currentUserName = useMemo(() => {
+    if (currentUserProfile?.name) return currentUserProfile.name;
+    if (user?.email?.toLowerCase() === 'quinten.geurs@gmail.com') return "Quinten (Admin)";
+    return user?.displayName || user?.email || "";
+  }, [currentUserProfile, user]);
+
+  const isAdmin = useMemo(() => 
+    currentUserProfile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
+  [currentUserProfile, user?.email]);
+
+  const colleagues = allUsers.filter(u => u.team === currentUserProfile?.team && u.name !== currentUserName && !u.isArchived);
+
 
   const tasksQuery = useMemoFirebase(() => {
     if (!db || !currentUserName) return null;
@@ -87,7 +97,7 @@ export default function MyTasksPage() {
       setCompletionData({ note: "", imageUrl: "" });
       setSelectedColleagues([]);
       setShowColleagueSelection(false);
-      setIsCompletionDialogOpen(true);
+      setIsDetailDialogOpen(true);
       return;
     }
 
@@ -158,6 +168,18 @@ export default function MyTasksPage() {
       title="My Daily Tasks" 
       description={`Personal work queue for ${currentUserName}`}
     >
+      {/* Diagnostic Debug - Visible for troubleshooting */}
+      {isAdmin && (
+        <div className="mb-4 py-1 px-3 bg-black/5 rounded text-[10px] font-mono text-primary/40 flex flex-wrap gap-4 items-center">
+           <span className="font-bold text-accent-foreground uppercase tracking-tight">Diagnostic Mode:</span>
+           <span>EMAIL: {user?.email}</span>
+           <span>PROF_NAME: {currentUserProfile?.name || 'NOT FOUND'}</span>
+           <span>QUERY_NAME: {currentUserName}</span>
+           <span>TASKS_LOADED: {tasks.length}</span>
+           {!currentUserProfile && <span className="text-destructive font-bold">MISSING DB RECORD</span>}
+        </div>
+      )}
+
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
