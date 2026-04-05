@@ -14,10 +14,11 @@ import {
   Plus,
   Filter,
   RefreshCcw,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -33,10 +34,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Frequency, Inspection, Asset } from "@/lib/types";
+import { User, Frequency, Inspection, Asset } from "@/lib/types";
 import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
-const InspectionCard = ({ inspection, onStart }: { inspection: Inspection, onStart: (inspection: Inspection) => void }) => {
+const InspectionCard = ({ inspection, onStart, onDelete, isAdmin }: { inspection: Inspection, onStart: (inspection: Inspection) => void, onDelete: (id: string) => void, isAdmin: boolean }) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Pending': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 font-bold uppercase text-[10px]">Pending</Badge>;
@@ -59,7 +60,14 @@ const InspectionCard = ({ inspection, onStart }: { inspection: Inspection, onSta
               </div>
             )}
           </div>
-          {getStatusBadge(inspection.status)}
+          <div className="flex items-center gap-1">
+            {getStatusBadge(inspection.status)}
+            {isAdmin && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => onDelete(inspection.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
         <CardTitle className="text-lg font-headline group-hover:text-primary transition-colors">{inspection.assetName}</CardTitle>
         <CardDescription className="flex items-center gap-1.5 text-xs font-medium">
@@ -101,6 +109,12 @@ export default function InspectionsPage() {
 
   const inspectionsQuery = useMemoFirebase(() => db ? query(collection(db, "inspections"), orderBy("dueDate", "desc")) : null, [db]);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
+
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const { data: users = [] } = useCollection<User>(usersQuery as any);
+  
+  const currentUserData = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
@@ -204,10 +218,18 @@ export default function InspectionsPage() {
             title: "Inspection Logged", 
             description: `Check results for ${selectedInspection.assetName} have been permanently recorded.` 
         });
-    } catch (error) {
-        toast({ title: "Error", description: "Could not log inspection. Please try again.", variant: "destructive" });
     } finally {
         setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteInspection = async (id: string) => {
+    if (!db || !isAdmin) return;
+    try {
+        await deleteDoc(doc(db, "inspections", id));
+        toast({ title: "Inspection Deleted" });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to delete inspection.", variant: "destructive" });
     }
   };
 
@@ -321,19 +343,19 @@ export default function InspectionsPage() {
           <>
             <TabsContent value="all" className="mt-0">
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {inspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
+                {inspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
                 {inspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No inspection records found.</div>}
               </div>
             </TabsContent>
             <TabsContent value="pending" className="mt-0">
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {pendingInspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
+                {pendingInspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
                 {pendingInspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No pending inspections for this timeframe.</div>}
               </div>
             </TabsContent>
             <TabsContent value="completed" className="mt-0">
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {inspections.filter(i => i.status === 'Completed').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} />)}
+                {inspections.filter(i => i.status === 'Completed').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
                 {inspections.filter(i => i.status === 'Completed').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}
               </div>
             </TabsContent>

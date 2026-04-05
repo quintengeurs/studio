@@ -19,6 +19,7 @@ import {
   MapPin,
   User as UserIcon,
   RefreshCcw,
+  Trash2,
   Users
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -43,8 +44,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, query, where, orderBy } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig } from "@/lib/types";
@@ -53,6 +54,7 @@ import { addDays, addMonths, format } from "date-fns";
 export default function TasksPage() {
   const { toast } = useToast();
   const db = useFirestore();
+  const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tasksQuery = useMemoFirebase(() => db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")) : null, [db]);
@@ -67,6 +69,9 @@ export default function TasksPage() {
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
   
+  const currentUserData = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+
   const assignableUsers = users;
   const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();
 
@@ -124,6 +129,16 @@ export default function TasksPage() {
         setIsSubmitting(false);
     }
 };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!db || !isAdmin) return;
+    try {
+        await deleteDoc(doc(db, "tasks", taskId));
+        toast({ title: "Task Deleted" });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to delete task.", variant: "destructive" });
+    }
+  };
 
   const calculateNextDueDate = (currentDate: string, frequency: Frequency) => {
     const date = new Date(currentDate);
@@ -330,12 +345,19 @@ export default function TasksPage() {
                         <div className="flex items-center justify-between text-[10px] font-bold mb-1.5"><span className="uppercase text-muted-foreground">Progress</span><span className="text-primary">{task.status === 'Pending Approval' ? '100%' : task.status === 'Doing' ? '45%' : '0%'}</span></div>
                         <Progress value={task.status === 'Pending Approval' ? 100 : task.status === 'Doing' ? 45 : 0} className="h-2" />
                       </div>
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
                         <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors" onClick={() => handleOpenAssignDialog(task.id)}>
                           <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
                           <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
                         </div>
-                        <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm shrink-0`}>{task.status.toUpperCase()}</Badge>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm`}>{task.status.toUpperCase()}</Badge>
+                          {isAdmin && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -359,7 +381,14 @@ export default function TasksPage() {
                 <CardHeader>
                   <div className="flex justify-between items-center mb-2">
                     <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">{task.frequency}</Badge>
-                    <Badge variant="outline" className="text-[10px] font-bold">{task.park}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] font-bold">{task.park}</Badge>
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteTask(task.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <CardTitle className="text-lg font-headline">{task.title}</CardTitle>
                   <CardDescription className="text-xs font-medium text-muted-foreground">Next instance due: <span className="text-foreground font-bold">{task.dueDate}</span></CardDescription>
