@@ -79,6 +79,8 @@ export default function TasksPage() {
   const [groupPark, setGroupPark] = useState("");
 
   
+  const today = format(new Date(), 'yyyy-MM-dd');
+  
   const [newTask, setNewTask] = useState({
     title: "",
     objective: "",
@@ -297,14 +299,14 @@ export default function TasksPage() {
         <TabsContent value="active">
           {tasksLoading ? (
             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-          ) : tasks.length === 0 ? (
+          ) : tasks.filter(t => t.dueDate <= today).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
                <ListTodo className="h-12 w-12 mb-4" />
-               <p className="font-bold">No active tasks</p>
+               <p className="font-bold">No active tasks for today</p>
             </div>
           ) : (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-              {tasks.map((task) => (
+              {tasks.filter(t => t.dueDate <= today).map((task) => (
                 <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
                   <CardHeader className="pb-3 px-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">

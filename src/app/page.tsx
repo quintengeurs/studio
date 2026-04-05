@@ -97,8 +97,8 @@ export default function Dashboard() {
   const { data: myRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
 
   // Computed Values
-  const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && (isManagement ? true : t.dueDate <= today));
-  const openMyIssues = myIssues.filter(i => i.status !== 'Closed' && i.status !== 'Resolved');
+  const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
+  const openMyIssues = myIssues.filter(i => i.status !== 'Resolved');
   const readyRequests = myRequests.filter(r => r.status === 'Available');
   const pendingRequests = myRequests.filter(r => r.status === 'Open' || r.status === 'In Progress');
 
