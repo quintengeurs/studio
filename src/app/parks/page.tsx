@@ -56,6 +56,8 @@ export default function ParksPage() {
   const [selectedParkName, setSelectedParkName] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [newFeature, setNewFeature] = useState("");
+
 
   // Firestore Queries
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
@@ -331,13 +333,52 @@ export default function ParksPage() {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Key Features (comma separated)</Label>
-                  <Textarea 
-                    placeholder="Playground, Drinking Fountains, Animal Enclosure..." 
-                    value={editForm.features?.join(", ") || ""} 
-                    onChange={e => setEditForm({...editForm, features: e.target.value.split(",").map(s => s.trim()).filter(Boolean)})} 
-                  />
+                <div className="space-y-4">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Key Features & Amenities</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="e.g. Playground" 
+                      value={newFeature} 
+                      onChange={e => setNewFeature(e.target.value)} 
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newFeature) {
+                          e.preventDefault();
+                          setEditForm({...editForm, features: [...(editForm.features || []), newFeature]});
+                          setNewFeature("");
+                        }
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => {
+                        if (newFeature) {
+                          setEditForm({...editForm, features: [...(editForm.features || []), newFeature]});
+                          setNewFeature("");
+                        }
+                      }}
+                      disabled={!newFeature}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {editForm.features && editForm.features.length > 0 ? (
+                      editForm.features.map((feature, i) => (
+                        <Badge key={i} variant="secondary" className="pl-3 pr-1 py-1 font-bold text-[10px] group border-primary/20">
+                          {feature}
+                          <button 
+                            className="ml-2 h-5 w-5 rounded-full hover:bg-primary/20 flex items-center justify-center transition-colors"
+                            onClick={() => setEditForm({...editForm, features: editForm.features?.filter((_, index) => index !== i)})}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground italic">No features added yet</p>
+                    )}
+                  </div>
                 </div>
                 <Button className="w-full font-bold h-12 text-lg" onClick={handleSaveParkDetail} disabled={isSubmitting}>
                   <Save className="mr-2 h-5 w-5" /> {isSubmitting ? "Saving Changes..." : "Save Park Details"}
