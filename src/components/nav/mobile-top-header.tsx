@@ -67,54 +67,23 @@ export function MobileTopHeader() {
       </div>
 
       <div className="flex items-center gap-2">
-        {!isOperative && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="font-headline text-xl flex items-center gap-2 text-primary">
-                  <Clock className="h-5 w-5" /> Recent Tasks For You
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {loading && <p>Loading tasks...</p>}
-                {!loading && myTasks.length > 0 ? (
-                  myTasks.map((task) => (
-                    <div key={task.id} className="group relative rounded-lg border p-4 hover:border-primary transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <Badge variant="outline" className="text-[10px] font-bold text-primary">{task.park}</Badge>
-                        <span className="text-[10px] text-muted-foreground font-medium">{task.dueDate}</span>
-                      </div>
-                      <h4 className="font-headline font-bold text-sm">{task.title}</h4>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{task.objective}</p>
-                      <Link href="/tasks" className="absolute inset-0 z-10">
-                        <span className="sr-only">View task</span>
-                      </Link>
-                    </div>
-                  ))
-                ) : (
-                  !loading && <p className="text-sm text-center text-muted-foreground py-8">No recent tasks assigned.</p>
-                )}
-                <Button asChild className="w-full mt-4" variant="outline">
-                  <Link href="/tasks">View All Tasks <ChevronRight className="ml-2 h-4 w-4" /></Link>
-                </Button>
-                <Button variant="destructive" className="w-full" onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" /> Logout
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="h-10 px-2 flex items-center gap-2 hover:bg-destructive/5 text-muted-foreground hover:text-destructive transition-colors group"
+          onClick={handleLogout}
+        >
+          <div className="flex flex-col items-end mr-1 hidden sm:flex">
+             <span className="text-[10px] font-bold uppercase tracking-widest leading-none">Log Out</span>
+          </div>
+          <Avatar className="h-8 w-8 border-2 border-primary/20 group-hover:border-destructive/30 transition-colors">
+            <AvatarImage src={user?.photoURL || undefined} />
+            <AvatarFallback className="text-[10px] font-bold bg-primary/5 text-primary group-hover:bg-destructive/5 group-hover:text-destructive">
+              {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
       </div>
-
-      <Avatar className="h-9 w-9 border-2 border-primary/20">
-        <AvatarImage src={user?.photoURL || undefined} />
-        <AvatarFallback>{user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
-      </Avatar>
     </header>
   );
 }
