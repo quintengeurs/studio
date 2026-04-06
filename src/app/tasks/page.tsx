@@ -72,6 +72,27 @@ export default function TasksPage() {
   
   const currentUserData = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const isOperational = useMemo(() => 
+    currentUserData?.role && OPERATIVE_ROLES.includes(currentUserData.role),
+  [currentUserData]);
+
+  const currentUserName = useMemo(() => {
+    if (currentUserData?.name) return currentUserData.name;
+    if (user?.email?.toLowerCase() === 'quinten.geurs@gmail.com') return "Quinten (Admin)";
+    return user?.displayName || user?.email || "";
+  }, [currentUserData, user]);
+
+  const groupIdentity = useMemo(() => {
+    if (!currentUserData?.role || !currentUserData?.depot) return null;
+    return `Group: ${currentUserData.role} @ ${currentUserData.depot}`;
+  }, [currentUserData]);
+
+  const filteredTasksForUser = useMemo(() => {
+    if (!isOperational) return tasks;
+    const identities = [currentUserName];
+    if (groupIdentity) identities.push(groupIdentity);
+    return tasks.filter(t => identities.includes(t.assignedTo));
+  }, [tasks, isOperational, currentUserName, groupIdentity]);
 
   const assignableUsers = users;
   const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();
@@ -215,9 +236,9 @@ export default function TasksPage() {
 
   return (
     <DashboardShell 
-      title="Tasks Management" 
-      description="Operational tasking and progress monitoring"
-      actions={
+      title={isOperational ? "Active Tasks" : "Tasks Management"} 
+      description={isOperational ? "Operational work queue" : "Operational tasking and progress monitoring"}
+      actions={!isOperational && (
         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
           <DialogTrigger asChild>
             <Button className="font-headline font-bold w-full md:w-auto">
@@ -304,184 +325,221 @@ export default function TasksPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      }
+      )}
     >
-      <Tabs defaultValue="active" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="active" className="flex items-center gap-2"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
-          <TabsTrigger value="approvals" className="flex items-center gap-2 relative">
-            <Inbox className="h-4 w-4" /> Work Logs
-            {tasks.filter(t => t.status === 'Pending Approval').length > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">
-                {tasks.filter(t => t.status === 'Pending Approval').length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="recurring" className="flex items-center gap-2"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
-        </TabsList>
+      {!isOperational ? (
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="active" className="flex items-center gap-2"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
+            <TabsTrigger value="approvals" className="flex items-center gap-2 relative">
+              <Inbox className="h-4 w-4" /> Work Logs
+              {tasks.filter(t => t.status === 'Pending Approval').length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">
+                  {tasks.filter(t => t.status === 'Pending Approval').length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="recurring" className="flex items-center gap-2"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="active">
-          {tasksLoading ? (
-            <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-          ) : tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
-               <ListTodo className="h-12 w-12 mb-4" />
-               <p className="font-bold">No active tasks for today</p>
-            </div>
-          ) : (
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-              {tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).map((task) => (
-                <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
-                  <CardHeader className="pb-3 px-4 sm:px-6">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" />{task.dueDate}</div>
-                    </div>
-                    <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">{task.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-4 px-4 sm:px-6 flex-1">
-                    <p className="text-sm font-medium text-foreground/80 mb-4 line-clamp-2">{task.objective}</p>
-                    <div className="space-y-4">
-                      {task.status === 'Pending Approval' && (
-                        <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 flex flex-col gap-2">
-                          <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-yellow-600" /><span className="text-[10px] font-bold text-yellow-700 uppercase">Work Pending Approval</span></div>
-                          {task.collaborators && task.collaborators.length > 0 && <div className="flex items-center gap-1.5 mb-1"><Users className="h-3 w-3 text-muted-foreground" /><span className="text-[10px] font-bold text-muted-foreground">Assisted by: {task.collaborators.join(', ')}</span></div>}
-                          {task.completionImageUrl && <div className="relative aspect-video w-full rounded border overflow-hidden"><Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" /></div>}
-                          {task.completionNote && <p className="text-[10px] italic text-muted-foreground">"{task.completionNote}"</p>}
-                        </div>
-                      )}
-                      <div>
-                        <div className="flex items-center justify-between text-[10px] font-bold mb-1.5"><span className="uppercase text-muted-foreground">Progress</span><span className="text-primary">{task.status === 'Pending Approval' ? '100%' : task.status === 'Doing' ? '45%' : '0%'}</span></div>
-                        <Progress value={task.status === 'Pending Approval' ? 100 : task.status === 'Doing' ? 45 : 0} className="h-2" />
+          <TabsContent value="active">
+            {tasksLoading ? (
+              <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+            ) : tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
+                 <ListTodo className="h-12 w-12 mb-4" />
+                 <p className="font-bold">No active tasks for today</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                {tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).map((task) => (
+                  <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
+                    <CardHeader className="pb-3 px-4 sm:px-6">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" />{task.dueDate}</div>
                       </div>
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
-                        <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors" onClick={() => handleOpenAssignDialog(task.id)}>
-                          <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
-                          <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
+                      <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">{task.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4 px-4 sm:px-6 flex-1">
+                      <p className="text-sm font-medium text-foreground/80 mb-4 line-clamp-2">{task.objective}</p>
+                      <div className="space-y-4">
+                        {task.status === 'Pending Approval' && (
+                          <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 flex flex-col gap-2">
+                            <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-yellow-600" /><span className="text-[10px] font-bold text-yellow-700 uppercase">Work Pending Approval</span></div>
+                            {task.collaborators && task.collaborators.length > 0 && <div className="flex items-center gap-1.5 mb-1"><Users className="h-3 w-3 text-muted-foreground" /><span className="text-[10px] font-bold text-muted-foreground">Assisted by: {task.collaborators.join(', ')}</span></div>}
+                            {task.completionImageUrl && <div className="relative aspect-video w-full rounded border overflow-hidden"><Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" /></div>}
+                            {task.completionNote && <p className="text-[10px] italic text-muted-foreground">"{task.completionNote}"</p>}
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center justify-between text-[10px] font-bold mb-1.5"><span className="uppercase text-muted-foreground">Progress</span><span className="text-primary">{task.status === 'Pending Approval' ? '100%' : task.status === 'Doing' ? '45%' : '0%'}</span></div>
+                          <Progress value={task.status === 'Pending Approval' ? 100 : task.status === 'Doing' ? 45 : 0} className="h-2" />
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm`}>{task.status.toUpperCase()}</Badge>
-                          {isAdmin && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
+                          <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors" onClick={() => handleOpenAssignDialog(task.id)}>
+                            <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
+                            <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm`}>{task.status.toUpperCase()}</Badge>
+                            {isAdmin && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-0 mt-auto border-t">
+                      {task.status === 'Pending Approval' ? (
+                        <Button variant="default" className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}><ThumbsUp className="mr-2 h-4 w-4" /> {isSubmitting ? "Approving..." : "Approve & Archive"}</Button>
+                      ) : (
+                        <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm">Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="approvals">
+            {tasks.filter(t => t.status === 'Pending Approval').length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
+                 <Inbox className="h-12 w-12 mb-4" />
+                 <p className="font-bold">No work logs pending approval</p>
+                 <p className="text-xs text-muted-foreground mt-1 text-center">Operational reports from the field will appear here.</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                {tasks.filter(t => t.status === 'Pending Approval').map((task) => (
+                  <Card key={task.id} className="group relative overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all shadow-md flex flex-col bg-accent/5">
+                    <div className="absolute top-0 right-0 p-2">
+                      {task.isLog ? (
+                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[9px] uppercase font-bold tracking-widest shadow-sm">Ad-hoc Log</Badge>
+                      ) : (
+                        <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-200 text-[9px] uppercase font-bold tracking-widest shadow-sm">Allocated Task</Badge>
+                      )}
+                    </div>
+                    <CardHeader className="pb-3 px-4 sm:px-6 pr-20">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" /> Submitted {task.dueDate}</div>
+                      </div>
+                      <CardTitle className="font-headline text-lg sm:text-xl text-foreground break-words flex-1 min-w-0">{task.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4 px-4 sm:px-6 flex-1">
+                      <div className="space-y-4">
+                        <div className="p-3 rounded-lg bg-card border shadow-sm flex flex-col gap-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                              <UserIcon className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none tracking-tight">Reported By</span>
+                              <span className="text-sm font-bold text-foreground">{task.assignedTo}</span>
+                            </div>
+                          </div>
+                          
+                          {task.collaborators && task.collaborators.length > 0 && (
+                            <div className="pt-2 border-t flex flex-wrap gap-1.5">
+                               <div className="w-full text-[9px] font-bold uppercase text-muted-foreground mb-1 leading-none">Collaborators</div>
+                               {task.collaborators.map(c => <Badge key={c} variant="secondary" className="text-[9px] px-2 py-0.5 font-bold uppercase bg-muted/50 border-muted-foreground/10">{c}</Badge>)}
+                            </div>
+                          )}
+                          
+                          <div className="pt-3 border-t">
+                            <p className="text-xs font-medium text-foreground leading-relaxed italic">"{task.completionNote || task.objective}"</p>
+                          </div>
+                          
+                          {task.completionImageUrl && (
+                            <div className="relative aspect-video w-full rounded-xl border border-primary/10 overflow-hidden bg-muted/20 mt-1 ring-4 ring-white shadow-inner">
+                              <Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" />
+                            </div>
                           )}
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-0 mt-auto border-t">
-                    {task.status === 'Pending Approval' ? (
-                      <Button variant="default" className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}><ThumbsUp className="mr-2 h-4 w-4" /> {isSubmitting ? "Approving..." : "Approve & Archive"}</Button>
-                    ) : (
-                      <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm">Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
-                    )}
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                    </CardContent>
+                    <CardFooter className="p-0 mt-auto border-t">
+                      <Button variant="default" className="w-full rounded-none h-14 font-bold bg-primary hover:bg-primary/90 text-sm tracking-widest shadow-inner shadow-white/10" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}>
+                        <ThumbsUp className="mr-2 h-5 w-5" /> {isSubmitting ? "Approving..." : "Approve & Archive"}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-        <TabsContent value="approvals">
-          {tasks.filter(t => t.status === 'Pending Approval').length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
-               <Inbox className="h-12 w-12 mb-4" />
-               <p className="font-bold">No work logs pending approval</p>
-               <p className="text-xs text-muted-foreground mt-1 text-center">Operational reports from the field will appear here.</p>
-            </div>
-          ) : (
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-              {tasks.filter(t => t.status === 'Pending Approval').map((task) => (
-                <Card key={task.id} className="group relative overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all shadow-md flex flex-col bg-accent/5">
-                  <div className="absolute top-0 right-0 p-2">
-                    {task.isLog ? (
-                      <Badge className="bg-primary/20 text-primary border-primary/30 text-[9px] uppercase font-bold tracking-widest shadow-sm">Ad-hoc Log</Badge>
-                    ) : (
-                      <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-200 text-[9px] uppercase font-bold tracking-widest shadow-sm">Allocated Task</Badge>
-                    )}
-                  </div>
-                  <CardHeader className="pb-3 px-4 sm:px-6 pr-20">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" /> Submitted {task.dueDate}</div>
-                    </div>
-                    <CardTitle className="font-headline text-lg sm:text-xl text-foreground break-words flex-1 min-w-0">{task.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-4 px-4 sm:px-6 flex-1">
-                    <div className="space-y-4">
-                      <div className="p-3 rounded-lg bg-card border shadow-sm flex flex-col gap-3">
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
-                            <UserIcon className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none tracking-tight">Reported By</span>
-                            <span className="text-sm font-bold text-foreground">{task.assignedTo}</span>
-                          </div>
-                        </div>
-                        
-                        {task.collaborators && task.collaborators.length > 0 && (
-                          <div className="pt-2 border-t flex flex-wrap gap-1.5">
-                             <div className="w-full text-[9px] font-bold uppercase text-muted-foreground mb-1 leading-none">Collaborators</div>
-                             {task.collaborators.map(c => <Badge key={c} variant="secondary" className="text-[9px] px-2 py-0.5 font-bold uppercase bg-muted/50 border-muted-foreground/10">{c}</Badge>)}
-                          </div>
-                        )}
-                        
-                        <div className="pt-3 border-t">
-                          <p className="text-xs font-medium text-foreground leading-relaxed italic">"{task.completionNote || task.objective}"</p>
-                        </div>
-                        
-                        {task.completionImageUrl && (
-                          <div className="relative aspect-video w-full rounded-xl border border-primary/10 overflow-hidden bg-muted/20 mt-1 ring-4 ring-white shadow-inner">
-                            <Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" />
-                          </div>
+          <TabsContent value="recurring">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+               {tasks.filter(t => t.frequency).map((task) => (
+                  <Card key={task.id} className="border-2 hover:border-accent transition-colors shadow-sm">
+                  <CardHeader>
+                    <div className="flex justify-between items-center mb-2">
+                      <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">{task.frequency}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] font-bold">{task.park}</Badge>
+                        {isAdmin && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteTask(task.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </div>
+                    <CardTitle className="text-lg font-headline">{task.title}</CardTitle>
+                    <CardDescription className="text-xs font-medium text-muted-foreground">Next instance due: <span className="text-foreground font-bold">{task.dueDate}</span></CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase py-2 border-y border-dashed"><span className="text-muted-foreground">Assigned To</span><span className="text-foreground">{task.assignedTo}</span></div>
+                      <div className="flex items-center gap-2 p-2 rounded bg-muted/20 text-[10px] font-medium italic text-muted-foreground"><RefreshCcw className="h-3 w-3" /> This schedule will automatically renew upon completion.</div>
+                    </div>
                   </CardContent>
-                  <CardFooter className="p-0 mt-auto border-t">
-                    <Button variant="default" className="w-full rounded-none h-14 font-bold bg-primary hover:bg-primary/90 text-sm tracking-widest shadow-inner shadow-white/10" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}>
-                      <ThumbsUp className="mr-2 h-5 w-5" /> {isSubmitting ? "Approving..." : "Approve & Archive"}
-                    </Button>
+                </Card>
+               ))}
+               {tasks.filter(t => t.frequency).length === 0 && <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50"><p className="text-sm font-bold">No recurring task schedules active.</p></div>}
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-6">
+          {tasksLoading ? (
+             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+          ) : filteredTasksForUser.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50 bg-muted/10">
+               <ListTodo className="h-12 w-12 mb-4" />
+               <p className="font-bold">No tasks allocated to you or your team</p>
+               <p className="text-xs text-muted-foreground">Contact your manager if you're expecting work.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {filteredTasksForUser.map((task) => (
+                <Card key={task.id} className="relative overflow-hidden border-2 hover:border-primary/40 transition-all flex flex-col">
+                  <CardHeader className="pb-3 px-4">
+                    <div className="flex justify-between items-center mb-2">
+                       <Badge variant="outline" className="text-[10px] font-bold text-primary uppercase">{task.park}</Badge>
+                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground"><Clock className="h-3 w-3" />{task.dueDate}</div>
+                    </div>
+                    <CardTitle className="font-headline text-lg group-hover:text-primary">{task.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-4 px-4 flex-1">
+                    <p className="text-sm font-medium text-foreground/80 line-clamp-3">{task.objective}</p>
+                  </CardContent>
+                  <CardFooter className="p-0 border-t mt-auto">
+                    <div className="flex-1 flex items-center justify-center h-12 text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 w-full rounded-b-lg">
+                      {task.status === 'Pending Approval' ? 'Under Review' : task.status === 'Doing' ? 'In Progress' : 'Not Started'}
+                    </div>
                   </CardFooter>
                 </Card>
               ))}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="recurring">
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-             {tasks.filter(t => t.frequency).map((task) => (
-                <Card key={task.id} className="border-2 hover:border-accent transition-colors shadow-sm">
-                <CardHeader>
-                  <div className="flex justify-between items-center mb-2">
-                    <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">{task.frequency}</Badge>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] font-bold">{task.park}</Badge>
-                      {isAdmin && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteTask(task.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <CardTitle className="text-lg font-headline">{task.title}</CardTitle>
-                  <CardDescription className="text-xs font-medium text-muted-foreground">Next instance due: <span className="text-foreground font-bold">{task.dueDate}</span></CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase py-2 border-y border-dashed"><span className="text-muted-foreground">Assigned To</span><span className="text-foreground">{task.assignedTo}</span></div>
-                    <div className="flex items-center gap-2 p-2 rounded bg-muted/20 text-[10px] font-medium italic text-muted-foreground"><RefreshCcw className="h-3 w-3" /> This schedule will automatically renew upon completion.</div>
-                  </div>
-                </CardContent>
-              </Card>
-             ))}
-             {tasks.filter(t => t.frequency).length === 0 && <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50"><p className="text-sm font-bold">No recurring task schedules active.</p></div>}
-          </div>
-        </TabsContent>
-      </Tabs>
 
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">

@@ -66,7 +66,7 @@ export default function IssuesPage() {
   const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
   const { data: profile } = useDoc<User>(userProfileRef as any);
   
-  const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
+  const isOperative = profile?.role && OPERATIVE_ROLES.includes(profile.role);
 
   const issuesQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -346,26 +346,28 @@ export default function IssuesPage() {
               <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                   {(issue.status as string) === 'Pending Approval' ? (
-                    <Button variant="default" size="sm" className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
+                    !isOperative && <Button variant="default" size="sm" className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
                   ) : issue.assignedTo ? (
                     <div className="flex items-center gap-2 min-w-0">
                         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><UserPlus className="h-3.5 w-3.5 text-primary" /></div>
                         <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2" onClick={() => handleOpenAssignDialog(issue.id)}><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign</Button>
+                    !isOperative && <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2" onClick={() => handleOpenAssignDialog(issue.id)}><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign</Button>
                   )}
                 </div>
-                <div className="flex gap-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDelete(issue.id)}><Trash2 className="h-4 w-4" /></Button>
-                      </TooltipTrigger>
-                      <TooltipContent><p>Delete Issue</p></TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                {!isOperative && (
+                  <div className="flex gap-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDelete(issue.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Delete Issue</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
               </CardFooter>
             </Card>
           ))}
