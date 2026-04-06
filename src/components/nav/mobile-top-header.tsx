@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, query, where, limit, doc } from "firebase/firestore";
 import { db } from "@/firebase/config"; // Assuming db is exported from config
-import { Task, User as UserProfile } from "@/lib/types";
+import { Task, User as UserProfile, OPERATIVE_ROLES } from "@/lib/types";
 import { useDoc } from "@/firebase/firestore/use-doc";
 
 
@@ -43,7 +43,7 @@ export function MobileTopHeader() {
   const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
   const { data: profile } = useDoc<UserProfile>(userProfileRef as any);
   
-  const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
+  const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 
 
   const handleLogout = async () => {

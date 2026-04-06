@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck, PackagePlus } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck, PackagePlus, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
@@ -14,6 +14,7 @@ import { User as UserProfile } from "@/lib/types";
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
   { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
+  { title: "All Tasks", icon: ClipboardList, href: "/tasks" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
   { title: "Assets", icon: MapPin, href: "/assets" },
@@ -32,7 +33,7 @@ export function MobileBottomNav() {
 
   const filteredItems = isOperative 
     ? items.filter(item => ["Dashboard", "Inspections", "Issues"].includes(item.title))
-    : items;
+    : items.filter(item => ["Dashboard", "All Tasks", "Inspections", "Issues", "Assets"].includes(item.title));
 
   return (
     <>

@@ -57,6 +57,7 @@ export default function Dashboard() {
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isManagement = currentUserData ? MANAGEMENT_ROLES.includes(currentUserData.role as Role) : false;
+  const isAdmin = currentUserData?.role === 'Admin' || user?.email === 'quinten.geurs@gmail.com';
 
   const userEffectiveName = currentUserData?.name || user?.displayName || user?.email || "";
 
@@ -69,12 +70,12 @@ export default function Dashboard() {
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
     if (!db) return null;
-    if (isManagement) return query(collection(db, "tasks"));
     
+    // Management still focus on their own tasks on the dashboard
     const identities = [userEffectiveName];
     if (groupIdentity) identities.push(groupIdentity);
     return query(collection(db, "tasks"), where("assignedTo", "in", identities));
-  }, [db, userEffectiveName, isManagement, groupIdentity]);
+  }, [db, userEffectiveName, groupIdentity]);
 
   const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
 
@@ -161,6 +162,33 @@ export default function Dashboard() {
 
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
 
+          {/* Admin Quick Actions */}
+          {isAdmin && (
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">System Management</span>
+              <div className="grid grid-cols-3 gap-3">
+                <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                  <Link href="/assets">
+                    <MapPin className="h-6 w-6 text-primary" />
+                    <span className="text-[10px] font-bold uppercase truncate w-full px-1">Add Asset</span>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                  <Link href="/assets">
+                    <PlusCircle className="h-6 w-6 text-green-600" />
+                    <span className="text-[10px] font-bold uppercase truncate w-full px-1">Park Facility</span>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                  <Link href="/users">
+                    <Users className="h-6 w-6 text-accent-foreground" />
+                    <span className="text-[10px] font-bold uppercase truncate w-full px-1">Add Training</span>
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Notifications: Ready for Collection */}
           {readyRequests.length > 0 && (
             <Card className="border-l-4 border-l-green-500 shadow-md bg-green-50/50 dark:bg-green-950/20 max-h-60 overflow-y-auto">
@@ -188,8 +216,8 @@ export default function Dashboard() {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-headline">{isManagement ? "Allocated Tasks" : "Allocated To Me"}</CardTitle>
-                <CardDescription className="text-xs">{isManagement ? "Tasks assigned to the team" : "Tasks currently assigned to you"}</CardDescription>
+                <CardTitle className="text-lg font-headline">Allocated To Me</CardTitle>
+                <CardDescription className="text-xs">Tasks currently assigned to you or your team</CardDescription>
               </div>
               <Badge variant="secondary" className="font-bold">{activeMyTasks.length}</Badge>
             </CardHeader>

@@ -1,7 +1,7 @@
-export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Admin';
+export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Admin';
 
 export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run'];
-export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Admin'];
+export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Head Gardener', 'Parks Development Officer', 'Admin'];
 
 export interface User {
   id: string;
