@@ -34,7 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { User, Frequency, Inspection, Asset } from "@/lib/types";
+import { User, Frequency, Inspection, Asset, OPERATIVE_ROLES } from "@/lib/types";
 import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 const InspectionCard = ({ inspection, onStart, onDelete, isAdmin }: { inspection: Inspection, onStart: (inspection: Inspection) => void, onDelete: (id: string) => void, isAdmin: boolean }) => {
@@ -115,6 +115,9 @@ export default function InspectionsPage() {
   
   const currentUserData = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const isOperational = useMemo(() => 
+    currentUserData?.role && OPERATIVE_ROLES.includes(currentUserData.role),
+  [currentUserData]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
@@ -266,9 +269,9 @@ export default function InspectionsPage() {
 
   return (
     <DashboardShell 
-      title="Asset Inspections" 
-      description="Systematic condition and safety checks for all park infrastructure"
-      actions={
+      title={isOperational ? "Daily Inspections" : "Asset Inspections"} 
+      description={isOperational ? "Safety and condition checks for today" : "Systematic condition and safety checks for all park infrastructure"}
+      actions={!isOperational && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="font-headline font-bold">
@@ -323,45 +326,75 @@ export default function InspectionsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      }
+      )}
     >
-      <Tabs defaultValue="all" className="w-full">
-        <div className="flex items-center justify-between mb-6">
-          <TabsList className="bg-muted/50 border">
-            <TabsTrigger value="all">All Logs</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="completed">Completed History</TabsTrigger>
-          </TabsList>
-          <Button variant="outline" size="sm" className="hidden md:flex">
-            <Filter className="mr-2 h-4 w-4" /> Filter Assets
-          </Button>
-        </div>
+      {!isOperational ? (
+        <Tabs defaultValue="all" className="w-full">
+          <div className="flex items-center justify-between mb-6">
+            <TabsList className="bg-muted/50 border">
+              <TabsTrigger value="all">All Logs</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="completed">Completed History</TabsTrigger>
+            </TabsList>
+            <Button variant="outline" size="sm" className="hidden md:flex">
+              <Filter className="mr-2 h-4 w-4" /> Filter Assets
+            </Button>
+          </div>
 
-        {loading ? (
-          <div className="flex justify-center py-12"><Clock className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : (
-          <>
-            <TabsContent value="all" className="mt-0">
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {inspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
-                {inspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No inspection records found.</div>}
-              </div>
-            </TabsContent>
-            <TabsContent value="pending" className="mt-0">
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {pendingInspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
-                {pendingInspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No pending inspections for this timeframe.</div>}
-              </div>
-            </TabsContent>
-            <TabsContent value="completed" className="mt-0">
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {inspections.filter(i => i.status === 'Completed').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
-                {inspections.filter(i => i.status === 'Completed').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}
-              </div>
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+          {loading ? (
+            <div className="flex justify-center py-12"><Clock className="h-8 w-8 animate-spin text-primary" /></div>
+          ) : (
+            <>
+              <TabsContent value="all" className="mt-0">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {inspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
+                  {inspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No inspection records found.</div>}
+                </div>
+              </TabsContent>
+              <TabsContent value="pending" className="mt-0">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {pendingInspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
+                  {pendingInspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No pending inspections for this timeframe.</div>}
+                </div>
+              </TabsContent>
+              <TabsContent value="completed" className="mt-0">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {inspections.filter(i => i.status === 'Completed').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
+                  {inspections.filter(i => i.status === 'Completed').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}
+                </div>
+              </TabsContent>
+            </>
+          )}
+        </Tabs>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between py-2 border-b">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Pending Safety Checks</h3>
+            <Badge variant="secondary" className="font-bold">{pendingInspections.filter(i => i.dueDate <= todayStr).length} DUE TODAY</Badge>
+          </div>
+          {loading ? (
+             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {pendingInspections.filter(i => i.dueDate <= todayStr).map((inspection) => (
+                <InspectionCard 
+                  key={inspection.id} 
+                  inspection={inspection} 
+                  onStart={openCompleteDialog} 
+                  isAdmin={isAdmin} 
+                  onDelete={handleDeleteInspection} 
+                />
+              ))}
+              {pendingInspections.filter(i => i.dueDate <= todayStr).length === 0 && (
+                <div className="col-span-full py-20 text-center text-muted-foreground border-2 border-dashed rounded-xl flex flex-col items-center gap-3">
+                  <CheckCircle2 className="h-10 w-10 opacity-20" />
+                  <p className="font-bold">No inspections due today.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
