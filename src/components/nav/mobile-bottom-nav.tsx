@@ -7,6 +7,9 @@ import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck, Packa
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
+import { useUser, useFirestore, useDoc } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { User as UserProfile } from "@/lib/types";
 
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -18,12 +21,23 @@ const items = [
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
+
+  const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
+  const { data: profile } = useDoc<UserProfile>(userProfileRef as any);
+  
+  const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
+
+  const filteredItems = isOperative 
+    ? items.filter(item => ["Dashboard", "Inspections", "Issues"].includes(item.title))
+    : items;
 
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t bg-card px-1 pb-safe shadow-lg overflow-x-auto">
-        {items.map((item) => {
+        {filteredItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -40,13 +54,15 @@ export function MobileBottomNav() {
           );
         })}
         
-        <button
-          onClick={() => setIsRequestOpen(true)}
-          className="flex flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-primary min-w-[60px]"
-        >
-          <PackagePlus className="h-5 w-5 stroke-[2.5px]" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Request</span>
-        </button>
+        {!isOperative && (
+          <button
+            onClick={() => setIsRequestOpen(true)}
+            className="flex flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-primary min-w-[60px]"
+          >
+            <PackagePlus className="h-5 w-5 stroke-[2.5px]" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Request</span>
+          </button>
+        )}
       </nav>
       
       <RequestModal open={isRequestOpen} onOpenChange={setIsRequestOpen} />

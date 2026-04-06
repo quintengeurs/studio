@@ -155,7 +155,7 @@ export default function Dashboard() {
               onClick={() => setRequestModalOpen(true)}
             >
               <Package className="h-6 w-6 text-primary" />
-              <span className="text-xs font-bold uppercase tracking-wider">Request Material</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Request Something</span>
             </Button>
           </div>
 
@@ -211,6 +211,36 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* My Open Issues */}
+          {!isManagement && (
+            <Card>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-headline">My Open Issues</CardTitle>
+                  <CardDescription className="text-xs">Status of your reported issues</CardDescription>
+                </div>
+                <Badge variant="destructive" className="font-bold">{openMyIssues.length}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {openMyIssues.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No open issues reported.</p>
+                ) : (
+                  openMyIssues.slice(0, 3).map(issue => (
+                    <Link href="/issues" key={issue.id} className="block group">
+                      <div className="flex flex-col gap-1 rounded bg-muted/30 p-3 hover:bg-muted/50 transition-colors border">
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-sm tracking-tight">{issue.title}</span>
+                          <Badge variant="outline" className="text-[10px] tracking-widest">{issue.status.toUpperCase()}</Badge>
+                        </div>
+                        <span className="text-xs text-muted-foreground truncate">{issue.park} • {issue.category}</span>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DashboardShell>
     );

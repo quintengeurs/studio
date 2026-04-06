@@ -50,7 +50,7 @@ import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
-import { Asset, User, RegistryConfig, OPERATIVE_ROLES, Role } from "@/lib/types";
+import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role } from "@/lib/types";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
 
@@ -60,14 +60,30 @@ export default function IssuesPage() {
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const issuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues"), where("status", "!=", "Resolved"), orderBy("status"), orderBy("createdAt", "desc")) : null, [db]);
-  const { data: issues = [], loading: issuesLoading } = useCollection(issuesQuery);
+  const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
+  const { data: profile } = useDoc<User>(userProfileRef as any);
+  
+  const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
+
+  const issuesQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    const baseQuery = query(collection(db, "issues"), where("status", "!=", "Resolved"));
+    
+    if (isOperative) {
+      const userIdent = user?.displayName || user?.email || "";
+      return query(baseQuery, where("reportedBy", "==", userIdent), orderBy("status"), orderBy("createdAt", "desc"));
+    }
+    
+    return query(baseQuery, orderBy("status"), orderBy("createdAt", "desc"));
+  }, [db, isOperative, user]);
+
+  const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
 
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: users = [] } = useCollection<User>(usersQuery);
+  const { data: users = [] } = useCollection<User>(usersQuery as any);
 
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef);
+  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
   const parks = registryConfig?.parks?.sort() ?? [];
 
   const operatives = users.filter(u => OPERATIVE_ROLES.includes(u.role as Role) || (u.role as string) === 'operative');
@@ -82,7 +98,7 @@ export default function IssuesPage() {
   const [newIssue, setNewIssue] = useState({
     title: "",
     description: "",
-    priority: "Medium" as const,
+    priority: "Medium" as Issue['priority'],
     category: "General",
     park: "",
     imageUrl: ""
@@ -225,7 +241,7 @@ export default function IssuesPage() {
               </div>
               <div className="grid gap-2">
                 <Label>Priority</Label>
-                <Select value={newIssue.priority} onValueChange={(val: "Low" | "Medium" | "High" | "Emergency") => setNewIssue({...newIssue, priority: val})}>
+                <Select value={newIssue.priority} onValueChange={(val: Issue['priority']) => setNewIssue({...newIssue, priority: val})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Low">Low</SelectItem>
@@ -274,7 +290,7 @@ export default function IssuesPage() {
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {issues.map((issue) => (
             <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2 w-full">
-                <div className={`h-1.5 w-full shrink-0 ${issue.priority === 'Emergency' ? 'bg-destructive' : issue.priority === 'High' ? 'bg-yellow-500' : issue.priority === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
+                <div className={`h-1.5 w-full shrink-0 ${(issue.priority as string) === 'Emergency' ? 'bg-destructive' : (issue.priority as string) === 'High' ? 'bg-yellow-500' : (issue.priority as string) === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
               
               {issue.imageUrl && (
                 <div className="relative w-full h-48 bg-muted shrink-0">
@@ -288,7 +304,7 @@ export default function IssuesPage() {
                     <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground shrink-0">{issue.category}</Badge>
                     <div className="flex items-center gap-1 text-[9px] text-primary font-bold shrink-0"><MapPin className="h-3 w-3" />{issue.park}</div>
                   </div>
-                  <Badge className={`${issue.status === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' : issue.status === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' : issue.status === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse shadow-[0_0_10px_rgba(var(--accent),0.5)]' : 'bg-green-500/10 text-green-600 border-green-200'} font-bold text-[9px] shrink-0 uppercase tracking-tighter`}>{issue.status}</Badge>
+                  <Badge className={`${(issue.status as string) === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' : (issue.status as string) === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' : (issue.status as string) === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse' : 'bg-green-500/10 text-green-600 border-green-200'} font-bold text-[9px] shrink-0 uppercase tracking-tighter`}>{issue.status}</Badge>
                 </div>
                 <CardTitle className="font-headline text-lg sm:text-xl break-words">{issue.title}</CardTitle>
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
@@ -298,7 +314,7 @@ export default function IssuesPage() {
               </CardHeader>
               <CardContent className="flex-1 pb-4 px-4 sm:px-6">
                 <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">{issue.description}</p>
-                {issue.status === 'Pending Approval' && (
+                {(issue.status as string) === 'Pending Approval' && (
                   <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
                     <div>
@@ -310,7 +326,7 @@ export default function IssuesPage() {
               </CardContent>
               <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  {issue.status === 'Pending Approval' ? (
+                  {(issue.status as string) === 'Pending Approval' ? (
                     <Button variant="default" size="sm" className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
                   ) : issue.assignedTo ? (
                     <div className="flex items-center gap-2 min-w-0">

@@ -33,8 +33,8 @@ export interface Issue {
   id: string;
   title: string;
   description: string;
-  status: 'Open' | 'In Progress' | 'Resolved';
-  priority: 'Low' | 'Medium' | 'High';
+  status: 'Open' | 'In Progress' | 'Pending Approval' | 'Resolved';
+  priority: 'Low' | 'Medium' | 'High' | 'Emergency';
   category: string;
   park: string;
   reportedBy: string;
