@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useAuth, useUser, useFirestore } from "@/firebase";
+import { useAuth, useUser, useFirestore, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useCollection } from "@/firebase/firestore/use-collection";
@@ -30,20 +30,25 @@ export function MobileTopHeader() {
   const db = useFirestore();
   const router = useRouter();
 
-  const tasksQuery = (user && db)
-  ? query(
-      collection(db, "tasks"),
-      where("assignedTo", "==", user.displayName),
-      limit(5)
-    )
-  : null;
-
-  const { data: myTasks, loading } = useCollection<Task>(tasksQuery as any);
-
-  const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
-  const { data: profile } = useDoc<UserProfile>(userProfileRef as any);
+  const usersQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "users"));
+  }, [db]);
+  const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
+  const profile = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
+
+  const tasksQuery = useMemoFirebase(() => {
+    if (!user || !db) return null;
+    return query(
+      collection(db, "tasks"),
+      where("assignedTo", "==", user.displayName || user.email || ""),
+      limit(5)
+    );
+  }, [user, db]);
+
+  const { data: myTasks, loading } = useCollection<Task>(tasksQuery as any);
 
 
   const handleLogout = async () => {

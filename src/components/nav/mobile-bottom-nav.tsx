@@ -7,8 +7,8 @@ import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck, Packa
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
-import { useUser, useFirestore, useDoc } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
+import { collection, query } from "firebase/firestore";
 import { User as UserProfile } from "@/lib/types";
 
 const items = [
@@ -26,8 +26,12 @@ export function MobileBottomNav() {
   const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
-  const { data: profile } = useDoc<UserProfile>(userProfileRef as any);
+  const usersQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "users"));
+  }, [db]);
+  const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
+  const profile = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   
   const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
 
