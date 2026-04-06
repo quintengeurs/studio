@@ -62,6 +62,7 @@ export interface Task {
   completionImageUrl?: string;
   collaborators?: string[];
   linkedIssueId?: string;
+  isLog?: boolean;
 }
 
 export interface RecurringSchedule {

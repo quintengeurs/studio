@@ -24,11 +24,12 @@ import {
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, query, where, doc, updateDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Issue, Task, User, MANAGEMENT_ROLES, Role } from "@/lib/types";
+import { Issue, Task, User, MANAGEMENT_ROLES, OPERATIVE_ROLES, Role } from "@/lib/types";
 import Link from "next/link";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { RequestModal } from "@/components/modals/request-modal";
+import { LogWorkModal } from "@/components/modals/log-work-modal";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const { user } = useUser();
   const isMobile = useIsMobile();
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [logWorkModalOpen, setLogWorkModalOpen] = useState(false);
 
   const userDisplayName = user?.displayName || user?.email || "";
   const { toast } = useToast();
@@ -57,6 +59,7 @@ export default function Dashboard() {
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isManagement = currentUserData ? MANAGEMENT_ROLES.includes(currentUserData.role as Role) : false;
+  const isOperative = currentUserData ? (OPERATIVE_ROLES as any).includes(currentUserData.role as Role) : false;
   const isAdmin = currentUserData?.role === 'Admin' || user?.email === 'quinten.geurs@gmail.com';
 
   const userEffectiveName = currentUserData?.name || user?.displayName || user?.email || "";
@@ -144,12 +147,23 @@ export default function Dashboard() {
                 <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-              <Link href="/tasks">
+            {isOperative ? (
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                onClick={() => setLogWorkModalOpen(true)}
+              >
                 <ClipboardList className="h-6 w-6 text-accent-foreground" />
-                <span className="text-xs font-bold uppercase tracking-wider">Log Task</span>
-              </Link>
-            </Button>
+                <span className="text-xs font-bold uppercase tracking-wider">Log Work</span>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                <Link href="/tasks">
+                  <ClipboardList className="h-6 w-6 text-accent-foreground" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Create Task</span>
+                </Link>
+              </Button>
+            )}
             <Button 
               variant="outline" 
               className="h-20 flex flex-col gap-2 justify-center col-span-2 border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
@@ -161,6 +175,7 @@ export default function Dashboard() {
           </div>
 
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
+          <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
 
           {/* Admin Quick Actions */}
           {isAdmin && (

@@ -20,7 +20,8 @@ import {
   User as UserIcon,
   RefreshCcw,
   Trash2,
-  Users
+  Users,
+  Inbox
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -308,20 +309,28 @@ export default function TasksPage() {
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="active" className="flex items-center gap-2"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
+          <TabsTrigger value="approvals" className="flex items-center gap-2 relative">
+            <Inbox className="h-4 w-4" /> Work Logs
+            {tasks.filter(t => t.status === 'Pending Approval').length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">
+                {tasks.filter(t => t.status === 'Pending Approval').length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="recurring" className="flex items-center gap-2"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active">
           {tasksLoading ? (
             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-          ) : tasks.filter(t => t.dueDate <= today).length === 0 ? (
+          ) : tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
                <ListTodo className="h-12 w-12 mb-4" />
                <p className="font-bold">No active tasks for today</p>
             </div>
           ) : (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-              {tasks.filter(t => t.dueDate <= today).map((task) => (
+              {tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).map((task) => (
                 <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
                   <CardHeader className="pb-3 px-4 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -367,6 +376,74 @@ export default function TasksPage() {
                     ) : (
                       <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm">Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
                     )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="approvals">
+          {tasks.filter(t => t.status === 'Pending Approval').length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
+               <Inbox className="h-12 w-12 mb-4" />
+               <p className="font-bold">No work logs pending approval</p>
+               <p className="text-xs text-muted-foreground mt-1 text-center">Operational reports from the field will appear here.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {tasks.filter(t => t.status === 'Pending Approval').map((task) => (
+                <Card key={task.id} className="group relative overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all shadow-md flex flex-col bg-accent/5">
+                  <div className="absolute top-0 right-0 p-2">
+                    {task.isLog ? (
+                      <Badge className="bg-primary/20 text-primary border-primary/30 text-[9px] uppercase font-bold tracking-widest shadow-sm">Ad-hoc Log</Badge>
+                    ) : (
+                      <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-200 text-[9px] uppercase font-bold tracking-widest shadow-sm">Allocated Task</Badge>
+                    )}
+                  </div>
+                  <CardHeader className="pb-3 px-4 sm:px-6 pr-20">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" /> Submitted {task.dueDate}</div>
+                    </div>
+                    <CardTitle className="font-headline text-lg sm:text-xl text-foreground break-words flex-1 min-w-0">{task.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-4 px-4 sm:px-6 flex-1">
+                    <div className="space-y-4">
+                      <div className="p-3 rounded-lg bg-card border shadow-sm flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                            <UserIcon className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none tracking-tight">Reported By</span>
+                            <span className="text-sm font-bold text-foreground">{task.assignedTo}</span>
+                          </div>
+                        </div>
+                        
+                        {task.collaborators && task.collaborators.length > 0 && (
+                          <div className="pt-2 border-t flex flex-wrap gap-1.5">
+                             <div className="w-full text-[9px] font-bold uppercase text-muted-foreground mb-1 leading-none">Collaborators</div>
+                             {task.collaborators.map(c => <Badge key={c} variant="secondary" className="text-[9px] px-2 py-0.5 font-bold uppercase bg-muted/50 border-muted-foreground/10">{c}</Badge>)}
+                          </div>
+                        )}
+                        
+                        <div className="pt-3 border-t">
+                          <p className="text-xs font-medium text-foreground leading-relaxed italic">"{task.completionNote || task.objective}"</p>
+                        </div>
+                        
+                        {task.completionImageUrl && (
+                          <div className="relative aspect-video w-full rounded-xl border border-primary/10 overflow-hidden bg-muted/20 mt-1 ring-4 ring-white shadow-inner">
+                            <Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="p-0 mt-auto border-t">
+                    <Button variant="default" className="w-full rounded-none h-14 font-bold bg-primary hover:bg-primary/90 text-sm tracking-widest shadow-inner shadow-white/10" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}>
+                      <ThumbsUp className="mr-2 h-5 w-5" /> {isSubmitting ? "Approving..." : "Approve & Archive"}
+                    </Button>
                   </CardFooter>
                 </Card>
               ))}
