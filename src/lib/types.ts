@@ -13,6 +13,7 @@ export interface User {
 
   avatar?: string;
   training?: string;
+  password?: string;
   isDriver?: boolean;
   isRoSPATrained?: boolean;
   isArchived?: boolean;

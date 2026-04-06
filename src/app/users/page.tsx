@@ -131,7 +131,8 @@ export default function UserManagement() {
     isDriver: false,
     isRoSPATrained: false,
     avatar: '',
-    isArchived: false
+    isArchived: false,
+    password: ''
   });
 
   const filteredUsers = useMemo(() => {
@@ -214,7 +215,7 @@ export default function UserManagement() {
 
         toast({ title: "User Added", description: `${userToSave.name} has been added.` });
         setIsAddDialogOpen(false);
-        setNewUser({ name: '', email: '', role: 'Gardener', team: '', depot: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false });
+        setNewUser({ name: '', email: '', role: 'Gardener', team: '', depot: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false, password: '' });
         setSelectedTrainings([]);
     } catch (e: any) {
         console.error("[UserManagement] Error creating user:", e);
@@ -543,6 +544,10 @@ export default function UserManagement() {
                 <Label>Email Address</Label>
                 <Input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="david.jones@hackney.gov.uk" />
               </div>
+              <div className="grid gap-2">
+                <Label>Password</Label>
+                <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Set initial password" />
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -649,6 +654,10 @@ export default function UserManagement() {
                       <div className="grid gap-2">
                         <Label>Email</Label>
                         <Input value={selectedUser?.email} onChange={e => selectedUser && setSelectedUser({...selectedUser, email: e.target.value})} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Password</Label>
+                        <Input type="password" value={selectedUser?.password || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, password: e.target.value})} placeholder="Update password" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
