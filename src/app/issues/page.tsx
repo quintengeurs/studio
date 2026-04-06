@@ -319,6 +319,7 @@ export default function IssuesPage() {
               </CardHeader>
               <CardContent className="flex-1 pb-4 px-4 sm:px-6">
                 <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">{issue.description}</p>
+                {(issue.status as string) === 'Pending Approval' && (
                   <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex flex-col gap-3">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
@@ -340,6 +341,7 @@ export default function IssuesPage() {
                       <Eye className="mr-1.5 h-3.5 w-3.5" /> View Proof
                     </Button>
                   </div>
+                )}
               </CardContent>
               <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
                 <div className="flex items-center gap-2 min-w-0">
