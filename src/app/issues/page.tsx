@@ -21,8 +21,11 @@ import {
   MapPin,
   ClipboardList,
   AlertCircle,
-  ThumbsUp
+  ThumbsUp,
+  Eye,
+  AlertTriangle
 } from "lucide-react";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -94,6 +97,8 @@ export default function IssuesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [assignment, setAssignment] = useState({ operativeId: "", instructions: "" });
+  const [isProofDialogOpen, setIsProofDialogOpen] = useState(false);
+  const [selectedIssueForProof, setSelectedIssueForProof] = useState<Issue | null>(null);
 
   const [newIssue, setNewIssue] = useState({
     title: "",
@@ -314,15 +319,27 @@ export default function IssuesPage() {
               </CardHeader>
               <CardContent className="flex-1 pb-4 px-4 sm:px-6">
                 <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">{issue.description}</p>
-                {(issue.status as string) === 'Pending Approval' && (
-                  <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-accent-foreground">Work Completed</p>
-                      <p className="text-[10px] text-muted-foreground">Operative has submitted completion proof. Please review and approve.</p>
+                  <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-bold text-accent-foreground">Work Completed</p>
+                        <p className="text-[10px] text-muted-foreground">Operative has submitted completion proof. Please review and approve.</p>
+                      </div>
                     </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-[10px] font-bold h-8 uppercase border-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedIssueForProof(issue);
+                        setIsProofDialogOpen(true);
+                      }}
+                    >
+                      <Eye className="mr-1.5 h-3.5 w-3.5" /> View Proof
+                    </Button>
                   </div>
-                )}
               </CardContent>
               <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
                 <div className="flex items-center gap-2 min-w-0">
@@ -386,6 +403,83 @@ export default function IssuesPage() {
           <DialogFooter>
             <Button className="w-full font-bold" onClick={handleAssign} disabled={!assignment.operativeId || isSubmitting}>
               {isSubmitting ? "Assigning..." : "Confirm Assignment"}
+            </Button>
+      </Dialog>
+
+      <Dialog open={isProofDialogOpen} onOpenChange={setIsProofDialogOpen}>
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-2xl text-accent-foreground flex items-center gap-2">
+              <CheckCircle2 className="h-6 w-6" /> Resolution Proof
+            </DialogTitle>
+            <DialogDescription>
+              Verification for: {selectedIssueForProof?.title}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {selectedIssueForProof?.resolutionImageUrl && (
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden border-4 border-muted shadow-inner bg-muted">
+                <Image 
+                  src={selectedIssueForProof.resolutionImageUrl} 
+                  alt="Resolution proof" 
+                  fill 
+                  className="object-cover" 
+                />
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div className="rounded-xl bg-accent/5 p-4 border border-accent/10">
+                <h4 className="text-xs font-bold text-accent-foreground uppercase tracking-wider mb-2">Completion Note</h4>
+                <p className="text-sm leading-relaxed italic text-foreground">
+                  "{selectedIssueForProof?.resolutionNote || 'No note provided.'}"
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 rounded-lg bg-muted/50 border">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Submitted On</h4>
+                  <p className="text-sm font-medium">
+                    {selectedIssueForProof?.resolutionDate ? format(new Date(selectedIssueForProof.resolutionDate), 'PPP p') : 'Pending'}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 border">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Assigned To</h4>
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary border border-primary/20">
+                      {selectedIssueForProof?.assignedTo?.charAt(0)}
+                    </div>
+                    <p className="text-sm font-medium">{selectedIssueForProof?.assignedTo}</p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedIssueForProof?.collaborators && (selectedIssueForProof.collaborators as any).length > 0 && (
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <h4 className="text-[10px] font-bold text-primary uppercase mb-2">Team Collaboration</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(selectedIssueForProof.collaborators as any).map((name: string) => (
+                      <Badge key={name} variant="secondary" className="bg-white text-primary border-primary/20 text-[10px] font-bold uppercase">{name}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter className="flex sm:justify-between items-center gap-4 border-t pt-4">
+            <Button variant="ghost" onClick={() => setIsProofDialogOpen(false)} className="text-xs font-bold uppercase">Close</Button>
+            <Button 
+                className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold uppercase tracking-wider px-6"
+                onClick={() => {
+                  if (selectedIssueForProof) {
+                    handleApproveResolution(selectedIssueForProof.id);
+                    setIsProofDialogOpen(false);
+                  }
+                }}
+            >
+                Approve & Resolve
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -150,7 +150,10 @@ export default function MyTasksPage() {
     if (selectedTask?.linkedIssueId) {
       await updateDoc(doc(db, "issues", selectedTask.linkedIssueId), { 
         status: 'Pending Approval',
-        collaborators: selectedColleagues
+        collaborators: selectedColleagues,
+        resolutionNote: completionData.note,
+        resolutionImageUrl: completionData.imageUrl,
+        resolutionDate: new Date().toISOString()
       });
     }
 

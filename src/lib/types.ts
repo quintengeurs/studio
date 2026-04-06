@@ -42,6 +42,9 @@ export interface Issue {
   createdAt: string;
   assetId?: string;
   imageUrl?: string;
+  resolutionNote?: string;
+  resolutionImageUrl?: string;
+  resolutionDate?: string;
 }
 
 export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthly' | 'Yearly';
