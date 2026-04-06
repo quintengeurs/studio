@@ -36,7 +36,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, updateDoc, doc, query, where } from "firebase/firestore";
-import { User as UserType } from "@/lib/types";
+import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
 import { format } from "date-fns";
 
 export default function MyTasksPage() {
@@ -66,6 +66,10 @@ export default function MyTasksPage() {
   const isAdmin = useMemo(() => 
     currentUserProfile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
   [currentUserProfile, user?.email]);
+  
+  const isOperational = useMemo(() => 
+    currentUserProfile?.role && OPERATIVE_ROLES.includes(currentUserProfile.role),
+  [currentUserProfile]);
 
   const groupIdentity = useMemo(() => {
 
@@ -172,6 +176,15 @@ export default function MyTasksPage() {
   };
 
   const getStatusBadge = (status: string) => {
+    if (isOperational) {
+      switch (status) {
+        case 'Todo': return <Badge variant="outline" className="bg-muted text-muted-foreground font-bold text-[10px] uppercase tracking-wider px-2">Not yet started</Badge>;
+        case 'Doing': return <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase tracking-wider px-2">In Progress</Badge>;
+        case 'Pending Approval': return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-200 font-bold text-[10px] uppercase tracking-wider px-2 animate-pulse">Under Review</Badge>;
+        default: return null;
+      }
+    }
+
     switch (status) {
       case 'Todo': return <Badge variant="outline" className="bg-muted text-muted-foreground font-bold text-[10px] uppercase">To Do</Badge>;
       case 'Doing': return <Badge className="bg-accent text-accent-foreground font-bold text-[10px] uppercase">In Progress</Badge>;
@@ -187,8 +200,8 @@ export default function MyTasksPage() {
 
   return (
     <DashboardShell 
-      title="My Daily Tasks" 
-      description={`Personal work queue for ${currentUserName}`}
+      title={isOperational ? "Your Tasks" : "My Daily Tasks"} 
+      description={isOperational ? "Active work queue" : `Personal work queue for ${currentUserName}`}
     >
       {/* Diagnostic Debug - Visible for troubleshooting */}
       {isAdmin && (
@@ -207,7 +220,7 @@ export default function MyTasksPage() {
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
-          <TabsTrigger value="archived">Archived ({archivedTasks.length})</TabsTrigger>
+          {!isOperational && <TabsTrigger value="archived">Archived ({archivedTasks.length})</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="active">
@@ -245,11 +258,20 @@ export default function MyTasksPage() {
                           <span className="text-[10px] font-bold text-yellow-700 uppercase">Linked to Issue</span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
-                        <span>{task.status === 'Doing' ? '45%' : task.status === 'Pending Approval' ? '100%' : '0%'}</span>
-                      </div>
-                      <Progress value={task.status === 'Doing' ? 45 : task.status === 'Pending Approval' ? 100 : 0} className="h-2" />
+                      {!isOperational && (
+                        <>
+                          <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
+                            <span>{task.status === 'Doing' ? '45%' : task.status === 'Pending Approval' ? '100%' : '0%'}</span>
+                          </div>
+                          <Progress value={task.status === 'Doing' ? 45 : task.status === 'Pending Approval' ? 100 : 0} className="h-2" />
+                        </>
+                      )}
+                      {isOperational && (
+                         <div className="flex items-center text-[10px] font-bold text-muted-foreground">
+                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
+                         </div>
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter className="p-0 border-t flex divide-x mt-auto">

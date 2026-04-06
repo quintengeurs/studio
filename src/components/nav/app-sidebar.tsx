@@ -33,10 +33,12 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
+import { collection, query } from "firebase/firestore";
+import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -58,7 +60,31 @@ export function AppSidebar() {
   const router = useRouter();
   const auth = useAuth();
   const { user } = useUser();
+  const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
+
+  // Fetch all users to find current profile
+  const usersQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "users"));
+  }, [db]);
+  const { data: allUsers = [] } = useCollection<UserType>(usersQuery as any);
+
+  const currentUserProfile = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
+
+  const isOperational = useMemo(() => 
+    currentUserProfile?.role && OPERATIVE_ROLES.includes(currentUserProfile.role),
+  [currentUserProfile]);
+
+  const filteredNavItems = useMemo(() => {
+    if (!isOperational) return navItems;
+    
+    // Hide management items for operational staff
+    const hiddenHrefs = ["/tasks", "/archived-tasks", "/users", "/archived-users", "/resolved-issues"];
+    return navItems.filter(item => !hiddenHrefs.includes(item.href));
+  }, [isOperational]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -86,7 +112,7 @@ export function AppSidebar() {
           <SidebarGroup>
             <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Management</SidebarGroupLabel>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     isActive={pathname === item.href}
