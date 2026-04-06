@@ -404,6 +404,8 @@ export default function IssuesPage() {
             <Button className="w-full font-bold" onClick={handleAssign} disabled={!assignment.operativeId || isSubmitting}>
               {isSubmitting ? "Assigning..." : "Confirm Assignment"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       <Dialog open={isProofDialogOpen} onOpenChange={setIsProofDialogOpen}>
