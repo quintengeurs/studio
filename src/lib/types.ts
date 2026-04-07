@@ -8,7 +8,8 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  team: string;
+  team: string; // Legacy singular
+  teams?: string[]; // Multiple teams
   depot: string;
 
   avatar?: string;

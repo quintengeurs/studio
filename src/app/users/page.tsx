@@ -58,6 +58,22 @@ import { User, Role, Task, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES } f
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -88,7 +104,7 @@ export default function UserManagement() {
 
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "users"), where("isArchived", "==", false));
+    return query(collection(db, "users"));
   }, [db]);
   const { data: users = [], loading: usersLoading } = useCollection<User>(usersQuery as any);
 
@@ -103,7 +119,7 @@ export default function UserManagement() {
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management' | 'archived'>('all');
   const [isUserSubmitting, setIsUserSubmitting] = useState(false);
   const [isConfigSubmitting, setIsConfigSubmitting] = useState(false);
   
@@ -126,6 +142,7 @@ export default function UserManagement() {
     email: '',
     role: 'Gardener',
     team: '',
+    teams: [],
     depot: '',
     training: '',
     isDriver: false,
@@ -137,6 +154,11 @@ export default function UserManagement() {
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
+      if (roleFilter === 'archived') {
+          return user.isArchived === true;
+      }
+      if (user.isArchived) return false;
+
       if (roleFilter === 'all') return true;
       if (roleFilter === 'operative') return OPERATIVE_ROLES.includes(user.role as Role);
       if (roleFilter === 'management') return MANAGEMENT_ROLES.includes(user.role as Role);
@@ -250,17 +272,20 @@ export default function UserManagement() {
     }
   };
 
-  const handleArchiveUser = async () => {
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+
+  const performArchiveToggle = async (archiveState: boolean) => {
     if (!db || !selectedUser || isUserSubmitting) return;
 
     setIsUserSubmitting(true);
     try {
-        await updateDoc(doc(db, "users", selectedUser.id), { isArchived: true });
+        await updateDoc(doc(db, "users", selectedUser.id), { isArchived: archiveState });
         setIsProfileDialogOpen(false);
+        setIsArchiveConfirmOpen(false);
         setSelectedUser(null);
-        toast({ title: "User Archived", description: "Staff member moved to archives." });
+        toast({ title: archiveState ? "User Archived" : "User Restored", description: archiveState ? "Staff member moved to archives." : "Staff member has been unarchived." });
     } catch (e) {
-        toast({ title: "Error", description: "Could not archive user.", variant: "destructive" });
+        toast({ title: "Error", description: "Could not update archive status.", variant: "destructive" });
     } finally {
         setIsUserSubmitting(false);
     }
@@ -330,7 +355,7 @@ export default function UserManagement() {
         </div>
       }
     >
-      <div className="grid gap-6 md:grid-cols-3 mb-8">
+      <div className="grid gap-6 md:grid-cols-4 mb-8">
         <Card 
           className={cn(
             "transition-all cursor-pointer border-2 hover:shadow-md",
@@ -343,7 +368,7 @@ export default function UserManagement() {
               <span className="text-xs font-bold uppercase text-muted-foreground">Total Active Users</span>
               <UsersIcon className={cn("h-4 w-4", roleFilter === 'all' ? "text-primary" : "text-muted-foreground")} />
             </div>
-            <div className="text-3xl font-bold font-headline">{users.length}</div>
+            <div className="text-3xl font-bold font-headline">{users.filter(u => !u.isArchived).length}</div>
           </div>
         </Card>
         
@@ -360,7 +385,7 @@ export default function UserManagement() {
               <Briefcase className={cn("h-4 w-4", roleFilter === 'operative' ? "text-accent-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
-              {users.filter(u => OPERATIVE_ROLES.includes(u.role as Role)).length}
+              {users.filter(u => !u.isArchived && OPERATIVE_ROLES.includes(u.role as Role)).length}
             </div>
           </div>
         </Card>
@@ -378,7 +403,25 @@ export default function UserManagement() {
               <Shield className={cn("h-4 w-4", roleFilter === 'management' ? "text-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
-              {users.filter(u => MANAGEMENT_ROLES.includes(u.role as Role)).length}
+              {users.filter(u => !u.isArchived && MANAGEMENT_ROLES.includes(u.role as Role)).length}
+            </div>
+          </div>
+        </Card>
+
+        <Card 
+          className={cn(
+            "transition-all cursor-pointer border-2 hover:shadow-md",
+            roleFilter === 'archived' ? "bg-muted border-destructive/50" : "bg-card border-border"
+          )}
+          onClick={() => setRoleFilter('archived')}
+        >
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold uppercase text-muted-foreground">Archived</span>
+              <Trash2 className={cn("h-4 w-4 text-destructive")} />
+            </div>
+            <div className="text-3xl font-bold font-headline">
+              {users.filter(u => u.isArchived).length}
             </div>
           </div>
         </Card>
@@ -432,7 +475,7 @@ export default function UserManagement() {
                         <Badge className={`${getRoleColor(user.role)} font-bold text-[9px] uppercase w-fit`} variant="outline">
                           {user.role}
                         </Badge>
-                        <span className="text-[10px] font-bold text-muted-foreground">{user.team}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground">{user.teams?.length ? user.teams.join(', ') : user.team}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -564,12 +607,28 @@ export default function UserManagement() {
               </div>
               <div className="grid gap-2 text-left">
                 <Label>Team / Department</Label>
-                <Select value={newUser.team} onValueChange={v => setNewUser({...newUser, team: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select Team" /></SelectTrigger>
-                  <SelectContent>
-                    {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal text-muted-foreground border-input">
+                       {newUser.teams?.length ? <span className="text-foreground">{newUser.teams.length} Selected</span> : "Select Teams..."}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="start">
+                    {teams.map(t => (
+                      <DropdownMenuCheckboxItem 
+                        key={t}
+                        checked={newUser.teams?.includes(t) || newUser.team === t}
+                        onCheckedChange={(checked) => {
+                           const current = newUser.teams || (newUser.team ? [newUser.team] : []);
+                           if (checked) setNewUser({...newUser, teams: [...current, t], team: t});
+                           else setNewUser({...newUser, teams: current.filter(x => x !== t), team: current.filter(x => x !== t)[0] || ''});
+                        }}
+                      >
+                        {t}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div className="grid gap-2 text-left">
                 <Label>Depot / Location</Label>
@@ -584,24 +643,20 @@ export default function UserManagement() {
 
             <div className="grid gap-3">
               <Label className="text-sm font-bold">Training and Certifications</Label>
-              <div className="flex flex-col gap-4 border rounded-lg p-5 bg-muted/10">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4 border-b border-muted">
-                  {trainingOptions.map((option) => (
-                    <div key={option} className="flex items-center space-x-2">
-                      <Checkbox id={`add-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
-                      <label htmlFor={`add-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
+                {trainingOptions.map((option) => (
+                  <div key={option} className="flex items-center space-x-2">
+                    <Checkbox id={`add-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
+                    <label htmlFor={`add-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
+                  </div>
+                ))}
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="add-isDriver" checked={newUser.isDriver} onCheckedChange={(v) => setNewUser({...newUser, isDriver: !!v})} />
+                  <label htmlFor="add-isDriver" className="text-sm font-medium cursor-pointer">Fleet Driver</label>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pt-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="font-bold">Fleet Driver</Label>
-                    <Switch checked={newUser.isDriver} onCheckedChange={v => setNewUser({...newUser, isDriver: v})} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="font-bold">RoSPA Certified</Label>
-                    <Switch checked={newUser.isRoSPATrained} onCheckedChange={v => setNewUser({...newUser, isRoSPATrained: v})} />
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="add-isRoSPA" checked={newUser.isRoSPATrained} onCheckedChange={(v) => setNewUser({...newUser, isRoSPATrained: !!v})} />
+                  <label htmlFor="add-isRoSPA" className="text-sm font-medium cursor-pointer">RoSPA Certified</label>
                 </div>
               </div>
             </div>
@@ -633,8 +688,8 @@ export default function UserManagement() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="font-bold text-destructive hover:bg-destructive/10" onClick={handleArchiveUser} disabled={isUserSubmitting}>
-                  <UserMinus className="mr-2 h-4 w-4" /> Archive Staff
+                <Button variant="outline" size="sm" className={cn("font-bold", selectedUser?.isArchived ? "text-primary hover:bg-primary/10 border-primary/20" : "text-destructive hover:bg-destructive/10")} onClick={() => setIsArchiveConfirmOpen(true)} disabled={isUserSubmitting}>
+                  <UserMinus className="mr-2 h-4 w-4" /> {selectedUser?.isArchived ? "Unarchive Staff" : "Archive Staff"}
                 </Button>
                 <Button variant={isEditing ? "outline" : "default"} size="sm" className="font-bold" onClick={() => setIsEditing(!isEditing)}>
                   {isEditing ? <Edit2 className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
@@ -682,35 +737,48 @@ export default function UserManagement() {
                       </div>
                       <div className="grid gap-2">
                         <Label>Team</Label>
-                        <Select value={selectedUser?.team} onValueChange={v => selectedUser && setSelectedUser({...selectedUser, team: v})}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start font-normal text-muted-foreground border-input">
+                               {selectedUser?.teams?.length ? <span className="text-foreground">{selectedUser.teams.length} Selected</span> : (selectedUser?.team || "Select Teams...")}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-56" align="start">
+                            {teams.map(t => (
+                              <DropdownMenuCheckboxItem 
+                                key={t}
+                                checked={selectedUser?.teams?.includes(t) || (selectedUser?.team === t && selectedUser?.teams?.length !== 0)}
+                                onCheckedChange={(checked) => {
+                                   if (!selectedUser) return;
+                                   const current = selectedUser.teams || (selectedUser.team ? [selectedUser.team] : []);
+                                   const newTeams = checked ? [...current, t] : current.filter(x => x !== t);
+                                   setSelectedUser({...selectedUser, teams: newTeams, team: newTeams[0] || ''});
+                                }}
+                              >
+                                {t}
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     
                     <div className="grid gap-3">
                       <Label className="text-sm font-bold">Training and Certifications</Label>
-                      <div className="flex flex-col gap-4 border rounded-lg p-5 bg-muted/10">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4 border-b border-muted">
-                          {trainingOptions.map((option) => (
-                            <div key={option} className="flex items-center space-x-2">
-                              <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
-                              <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
-                            </div>
-                          ))}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
+                        {trainingOptions.map((option) => (
+                          <div key={option} className="flex items-center space-x-2">
+                            <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
+                            <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
+                          </div>
+                        ))}
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="edit-isDriver" checked={selectedUser?.isDriver} onCheckedChange={(v) => selectedUser && setSelectedUser({...selectedUser, isDriver: !!v})} />
+                          <label htmlFor="edit-isDriver" className="text-sm font-medium cursor-pointer">Fleet Driver</label>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 pt-1">
-                          <div className="flex items-center justify-between">
-                            <Label className="font-bold">Fleet Driver</Label>
-                            <Switch checked={selectedUser?.isDriver} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isDriver: v})} />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <Label className="font-bold">RoSPA Certified</Label>
-                            <Switch checked={selectedUser?.isRoSPATrained} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isRoSPATrained: v})} />
-                          </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="edit-isRoSPA" checked={selectedUser?.isRoSPATrained} onCheckedChange={(v) => selectedUser && setSelectedUser({...selectedUser, isRoSPATrained: !!v})} />
+                          <label htmlFor="edit-isRoSPA" className="text-sm font-medium cursor-pointer">RoSPA Certified</label>
                         </div>
                       </div>
                     </div>
@@ -726,7 +794,7 @@ export default function UserManagement() {
                           <Briefcase className="h-4 w-4" />
                           <h4 className="text-xs font-bold uppercase tracking-wider">Department</h4>
                         </div>
-                        <p className="text-sm font-semibold">{selectedUser?.team}</p>
+                        <p className="text-sm font-semibold">{selectedUser?.teams?.length ? selectedUser.teams.join(', ') : selectedUser?.team}</p>
                       </div>
                       <div className="p-4 border rounded-lg bg-card">
                         <div className="flex items-center gap-3 text-primary mb-2">
@@ -760,6 +828,25 @@ export default function UserManagement() {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{selectedUser?.isArchived ? "Unarchive User?" : "Archive User?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedUser?.isArchived 
+                ? `Are you sure you want to unarchive ${selectedUser?.name}? They will regain their system access.` 
+                : `Are you sure you want to archive ${selectedUser?.name}? Their access will be revoked but their task history will remain.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => performArchiveToggle(!selectedUser?.isArchived)} className={selectedUser?.isArchived ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}>
+              {selectedUser?.isArchived ? "Confirm Unarchive" : "Confirm Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardShell>
   );
 }
