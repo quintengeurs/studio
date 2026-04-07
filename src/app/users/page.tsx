@@ -80,7 +80,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth } from "@/firebase";
-import { collection, query, where, doc, updateDoc, arrayUnion, arrayRemove, setDoc } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc, arrayUnion, arrayRemove, setDoc, deleteDoc } from "firebase/firestore";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -118,6 +118,9 @@ export default function UserManagement() {
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isTaskDeleteConfirmOpen, setIsTaskDeleteConfirmOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -168,7 +171,8 @@ export default function UserManagement() {
 
   const syncTrainingState = (trainingString: string | undefined | null) => {
     const str = trainingString || "";
-    const parts = str ? str.split(',').map(s => s.trim()) : [];
+    // Filter out "None" or empty strings to prevent them from showing up as "selected" but unticked items
+    const parts = str ? str.split(',').map(s => s.trim()).filter(s => s && s !== 'None') : [];
     setSelectedTrainings(parts);
   };
 
@@ -308,6 +312,21 @@ export default function UserManagement() {
         toast({ title: archiveState ? "User Archived" : "User Restored", description: archiveState ? "Staff member moved to archives." : "Staff member has been unarchived." });
     } catch (e) {
         toast({ title: "Error", description: "Could not update archive status.", variant: "destructive" });
+    } finally {
+        setIsUserSubmitting(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!db || !taskToDelete) return;
+    setIsUserSubmitting(true);
+    try {
+        await deleteDoc(doc(db, "tasks", taskToDelete.id));
+        toast({ title: "Task Deleted", description: "The task has been permanently removed." });
+        setIsTaskDeleteConfirmOpen(false);
+        setTaskToDelete(null);
+    } catch (e) {
+        toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
     } finally {
         setIsUserSubmitting(false);
     }
@@ -501,7 +520,9 @@ export default function UserManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-[10px] font-bold text-foreground line-clamp-2">{user.training || 'None'}</span>
+                      <span className="text-[10px] font-bold text-foreground line-clamp-2">
+                        {user.training && user.training !== 'None' ? user.training : 'None'}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -798,7 +819,9 @@ export default function UserManagement() {
                           <Shield className="h-4 w-4" />
                           <h4 className="text-xs font-bold uppercase tracking-wider">Certifications</h4>
                         </div>
-                        <p className="text-sm font-semibold whitespace-pre-line">{selectedUser?.training}</p>
+                        <p className="text-sm font-semibold whitespace-pre-line">
+                          {selectedUser?.training && selectedUser.training !== 'None' ? selectedUser.training : 'None'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -807,17 +830,35 @@ export default function UserManagement() {
 
               <TabsContent value="tasks" className="mt-0">
                 {userTasks.length > 0 ? (
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 p-1">
                     {userTasks.map(task => (
-                      <div key={task.id} className="p-4 border rounded-lg">
-                        <h5 className="font-bold text-sm">{task.title}</h5>
-                        <p className="text-xs text-muted-foreground mt-1">{task.objective}</p>
+                      <div key={task.id} className="p-4 border rounded-lg group hover:border-primary/30 transition-colors flex justify-between items-start">
+                        <div>
+                          <h5 className="font-bold text-sm">{task.title}</h5>
+                          <p className="text-xs text-muted-foreground mt-1">{task.objective}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                             <Badge variant="outline" className="text-[9px] uppercase font-bold">{task.status}</Badge>
+                             <span className="text-[10px] text-muted-foreground">{task.park} • {task.dueDate}</span>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTaskToDelete(task);
+                            setIsTaskDeleteConfirmOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <p className="text-sm font-medium">No tasks assigned.</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground italic border-2 border-dashed rounded-xl m-2">
+                    <p className="text-sm font-medium">No tasks currently assigned.</p>
                   </div>
                 )}
               </TabsContent>
@@ -825,6 +866,23 @@ export default function UserManagement() {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isTaskDeleteConfirmOpen} onOpenChange={setIsTaskDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the task "<strong>{taskToDelete?.title}</strong>" from the system. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Confirm Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
         <AlertDialogContent>
