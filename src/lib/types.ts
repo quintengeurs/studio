@@ -1,7 +1,7 @@
-export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Admin';
+export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports & Leisure Officer' | 'Community Officer' | 'Admin';
 
 export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener'];
-export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Parks Development Officer', 'Admin'];
+export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Parks Development Officer', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports & Leisure Officer', 'Community Officer', 'Admin'];
 
 export interface User {
   id: string;
@@ -115,6 +115,18 @@ export interface MaterialRequest {
   createdAt: string;
 }
 
+export interface ParkUpdate {
+  id: string;
+  type: 'Project' | 'Event' | 'Volunteering' | 'Sports' | 'UserGroup' | 'Operational';
+  title: string;
+  description: string;
+  startDate?: string;
+  endDate?: string;
+  createdAt: string;
+  createdBy: string;
+  isArchived: boolean;
+}
+
 export interface ParkDetail {
   id: string;
   name: string;
@@ -123,4 +135,13 @@ export interface ParkDetail {
   depot?: string;
   parkOfficer?: string;
   features?: string[];
+  updates?: ParkUpdate[]; // New discrete updates
+  projects?: string;
+  events?: string;
+  operationalGuidance?: string;
+  sportsAndLeisure?: string;
+  volunteering?: string;
+  userGroup?: string;
+  userGroupChair?: string;
+  greenflag?: boolean;
 }
