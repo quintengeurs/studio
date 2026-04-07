@@ -556,13 +556,9 @@ export default function UserManagement() {
                 <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Gardener">Gardener</SelectItem>
-                    <SelectItem value="Keeper">Keeper</SelectItem>
-                    <SelectItem value="Litter Picker">Litter Picker</SelectItem>
-                    <SelectItem value="Bin Run">Bin Run</SelectItem>
-                    <SelectItem value="Area Manager">Area Manager</SelectItem>
-                    <SelectItem value="Operations Manager">Operations Manager</SelectItem>
-                    <SelectItem value="Admin">Admin</SelectItem>
+                    {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(role => (
+                      <SelectItem key={role} value={role}>{role}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -588,13 +584,25 @@ export default function UserManagement() {
 
             <div className="grid gap-3">
               <Label className="text-sm font-bold">Training and Certifications</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
-                {trainingOptions.map((option) => (
-                  <div key={option} className="flex items-center space-x-2">
-                    <Checkbox id={`add-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
-                    <label htmlFor={`add-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
+              <div className="flex flex-col gap-4 border rounded-lg p-5 bg-muted/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4 border-b border-muted">
+                  {trainingOptions.map((option) => (
+                    <div key={option} className="flex items-center space-x-2">
+                      <Checkbox id={`add-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
+                      <label htmlFor={`add-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-bold">Fleet Driver</Label>
+                    <Switch checked={newUser.isDriver} onCheckedChange={v => setNewUser({...newUser, isDriver: v})} />
                   </div>
-                ))}
+                  <div className="flex items-center justify-between">
+                    <Label className="font-bold">RoSPA Certified</Label>
+                    <Switch checked={newUser.isRoSPATrained} onCheckedChange={v => setNewUser({...newUser, isRoSPATrained: v})} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -666,13 +674,9 @@ export default function UserManagement() {
                         <Select value={selectedUser?.role} onValueChange={(v: Role) => selectedUser && setSelectedUser({...selectedUser, role: v})}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Gardener">Gardener</SelectItem>
-                            <SelectItem value="Keeper">Keeper</SelectItem>
-                            <SelectItem value="Litter Picker">Litter Picker</SelectItem>
-                            <SelectItem value="Bin Run">Bin Run</SelectItem>
-                            <SelectItem value="Area Manager">Area Manager</SelectItem>
-                            <SelectItem value="Operations Manager">Operations Manager</SelectItem>
-                            <SelectItem value="Admin">Admin</SelectItem>
+                            {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(role => (
+                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -689,24 +693,25 @@ export default function UserManagement() {
                     
                     <div className="grid gap-3">
                       <Label className="text-sm font-bold">Training and Certifications</Label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
-                        {trainingOptions.map((option) => (
-                          <div key={option} className="flex items-center space-x-2">
-                            <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
-                            <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
+                      <div className="flex flex-col gap-4 border rounded-lg p-5 bg-muted/10">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4 border-b border-muted">
+                          {trainingOptions.map((option) => (
+                            <div key={option} className="flex items-center space-x-2">
+                              <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
+                              <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 pt-1">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-bold">Fleet Driver</Label>
+                            <Switch checked={selectedUser?.isDriver} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isDriver: v})} />
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/20">
-                      <div className="flex items-center justify-between">
-                        <Label>Fleet Driver</Label>
-                        <Switch checked={selectedUser?.isDriver} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isDriver: v})} />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label>RoSPA Certified</Label>
-                        <Switch checked={selectedUser?.isRoSPATrained} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isRoSPATrained: v})} />
+                          <div className="flex items-center justify-between">
+                            <Label className="font-bold">RoSPA Certified</Label>
+                            <Switch checked={selectedUser?.isRoSPATrained} onCheckedChange={v => selectedUser && setSelectedUser({...selectedUser, isRoSPATrained: v})} />
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <Button onClick={handleUpdateUser} className="w-full font-bold" disabled={isUserSubmitting}>

@@ -93,8 +93,8 @@ export default function ParksPage() {
   const canEditProjects = isAdmin || currentUserData?.role === 'Project Manager' || currentUserData?.role === 'Parks Development Officer';
   const canEditEvents = isAdmin || currentUserData?.role === 'Events Manager' || currentUserData?.role === 'Parks Development Officer';
   const canEditVolunteering = isAdmin || currentUserData?.role === 'Volunteering Coordinator' || currentUserData?.role === 'Parks Development Officer';
-  const canEditSports = isAdmin || currentUserData?.role === 'Sports & Leisure Officer' || currentUserData?.role === 'Parks Development Officer';
-  const canEditUserGroups = isAdmin || currentUserData?.role === 'Community Officer' || currentUserData?.role === 'Parks Development Officer';
+  const canEditSports = isAdmin || currentUserData?.role === 'Sports and Leisure Manager' || currentUserData?.role === 'Parks Development Officer';
+  const canEditUserGroups = isAdmin || currentUserData?.role === 'User Group Chair' || currentUserData?.role === 'Parks Development Officer';
 
   const handleOpenUpdateModal = (type: string, existingUpdate?: ParkUpdate) => {
     setCurrentUpdateType(type);
