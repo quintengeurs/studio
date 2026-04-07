@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Asset, Inspection, Task } from "@/lib/types";
+import { Asset, Inspection, Task, RegistryConfig, Frequency } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -70,24 +70,24 @@ export default function AssetRegister() {
     if (!db) return null;
     return query(collection(db, "assets"), orderBy("name"));
   }, [db]);
-  const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery);
+  const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery as any);
 
   // Live All Inspections (for history)
   const inspectionsQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "inspections"), orderBy("dueDate", "desc"));
   }, [db]);
-  const { data: allInspections = [] } = useCollection<Inspection>(inspectionsQuery);
+  const { data: allInspections = [] } = useCollection<Inspection>(inspectionsQuery as any);
 
   // Live All Tasks (for history)
   const tasksQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "tasks"), orderBy("dueDate", "desc"));
   }, [db]);
-  const { data: allTasks = [] } = useCollection<Task>(tasksQuery);
+  const { data: allTasks = [] } = useCollection<Task>(tasksQuery as any);
 
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef);
+  const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef as any);
   const parks = registryConfig?.parks?.sort() ?? [];
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -104,6 +104,8 @@ export default function AssetRegister() {
     location: '',
     condition: 'Excellent' as const,
     setupInspection: false,
+    inspectionFrequency: 'Monthly' as Frequency,
+    inspectionStartDate: format(new Date(), 'yyyy-MM-dd')
   });
 
   const filteredAssets = assets.filter(a => 
@@ -143,12 +145,21 @@ export default function AssetRegister() {
           assetName: assetData.name,
           park: assetData.park,
           status: 'Pending',
-          dueDate: format(new Date(), 'yyyy-MM-dd'),
-          frequency: 'Monthly'
+          dueDate: newAsset.inspectionStartDate,
+          frequency: newAsset.inspectionFrequency
         });
       }
       setIsAddDialogOpen(false);
-      setNewAsset({ name: '', type: '', park: '', location: '', condition: 'Excellent', setupInspection: false });
+      setNewAsset({ 
+        name: '', 
+        type: '', 
+        park: '', 
+        location: '', 
+        condition: 'Excellent', 
+        setupInspection: false,
+        inspectionFrequency: 'Monthly',
+        inspectionStartDate: format(new Date(), 'yyyy-MM-dd')
+      });
       toast({ title: "Asset Added", description: `${assetData.name} registered successfully.` });
     } catch (error) {
       toast({ title: "Error", description: "An error occurred while adding the asset.", variant: "destructive" });
@@ -161,7 +172,7 @@ export default function AssetRegister() {
     if (!db || !selectedAsset || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await updateDoc(doc(db, "assets", selectedAsset.id), selectedAsset);
+      await updateDoc(doc(db, "assets", selectedAsset.id), selectedAsset as any);
       setIsEditing(false);
       toast({ title: "Asset Updated", description: "Changes saved successfully." });
     } catch (error) {
@@ -231,7 +242,7 @@ export default function AssetRegister() {
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
-                      {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      {parks.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -248,6 +259,29 @@ export default function AssetRegister() {
                     <p className="text-xs text-muted-foreground">Automatically create inspection tasks based on asset type.</p>
                   </div>
                 </div>
+
+                {newAsset.setupInspection && (
+                  <div className="grid grid-cols-2 gap-4 pt-2 animate-in slide-in-from-top-2 duration-200">
+                    <div className="grid gap-2">
+                       <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Start Date</Label>
+                       <Input type="date" value={newAsset.inspectionStartDate} onChange={e => setNewAsset({...newAsset, inspectionStartDate: e.target.value})} className="h-9" />
+                    </div>
+                    <div className="grid gap-2">
+                       <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Frequency</Label>
+                       <Select value={newAsset.inspectionFrequency} onValueChange={(v: Frequency) => setNewAsset({...newAsset, inspectionFrequency: v})}>
+                         <SelectTrigger className="h-9">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="Weekly">Weekly</SelectItem>
+                           <SelectItem value="Monthly">Monthly</SelectItem>
+                           <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                           <SelectItem value="Yearly">Yearly</SelectItem>
+                         </SelectContent>
+                       </Select>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>

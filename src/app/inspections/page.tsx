@@ -15,7 +15,8 @@ import {
   Filter,
   RefreshCcw,
   AlertCircle,
-  Trash2
+  Trash2,
+  Edit2
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from "firebase/firestore";
@@ -37,7 +38,13 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Frequency, Inspection, Asset, OPERATIVE_ROLES } from "@/lib/types";
 import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
-const InspectionCard = ({ inspection, onStart, onDelete, isAdmin }: { inspection: Inspection, onStart: (inspection: Inspection) => void, onDelete: (id: string) => void, isAdmin: boolean }) => {
+const InspectionCard = ({ inspection, onStart, onDelete, onEdit, isAdmin }: { 
+  inspection: Inspection, 
+  onStart: (inspection: Inspection) => void, 
+  onDelete: (id: string) => void, 
+  onEdit: (inspection: Inspection) => void,
+  isAdmin: boolean 
+}) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Pending': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 font-bold uppercase text-[10px]">Pending</Badge>;
@@ -63,9 +70,14 @@ const InspectionCard = ({ inspection, onStart, onDelete, isAdmin }: { inspection
           <div className="flex items-center gap-1">
             {getStatusBadge(inspection.status)}
             {isAdmin && (
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => onDelete(inspection.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <div className="flex items-center">
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => onEdit(inspection)}>
+                  <Edit2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => onDelete(inspection.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -120,8 +132,10 @@ export default function InspectionsPage() {
   [currentUserData]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null);
+  const [editingInspection, setEditingInspection] = useState<Inspection | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [newInspection, setNewInspection] = useState({
@@ -161,6 +175,22 @@ export default function InspectionsPage() {
       });
     } catch (error) {
         toast({ title: "Error", description: "Could not schedule inspection. Please try again.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateInspection = async () => {
+    if (!db || !editingInspection || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+        const { id, ...data } = editingInspection;
+        await updateDoc(doc(db, "inspections", id), data as any);
+        setIsEditDialogOpen(false);
+        setEditingInspection(null);
+        toast({ title: "Inspection Updated", description: "Schedule changes have been saved." });
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to update inspection.", variant: "destructive" });
     } finally {
         setIsSubmitting(false);
     }
@@ -347,19 +377,46 @@ export default function InspectionsPage() {
             <>
               <TabsContent value="all" className="mt-0">
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {inspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
+                  {inspections.map((inspection) => (
+                    <InspectionCard 
+                        key={inspection.id} 
+                        inspection={inspection} 
+                        onStart={openCompleteDialog} 
+                        isAdmin={isAdmin} 
+                        onDelete={handleDeleteInspection} 
+                        onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
+                    />
+                  ))}
                   {inspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No inspection records found.</div>}
                 </div>
               </TabsContent>
               <TabsContent value="pending" className="mt-0">
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {pendingInspections.map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
+                  {pendingInspections.map((inspection) => (
+                    <InspectionCard 
+                        key={inspection.id} 
+                        inspection={inspection} 
+                        onStart={openCompleteDialog} 
+                        isAdmin={isAdmin} 
+                        onDelete={handleDeleteInspection} 
+                        onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
+                    />
+                  ))}
                   {pendingInspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No pending inspections for this timeframe.</div>}
                 </div>
               </TabsContent>
               <TabsContent value="completed" className="mt-0">
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {inspections.filter(i => i.status === 'Completed').map((inspection) => <InspectionCard key={inspection.id} inspection={inspection} onStart={openCompleteDialog} isAdmin={isAdmin} onDelete={handleDeleteInspection} />)}
+                  {inspections.filter(i => i.status === 'Completed').map((inspection) => (
+                    <InspectionCard 
+                        key={inspection.id} 
+                        inspection={inspection} 
+                        onStart={openCompleteDialog} 
+                        isAdmin={isAdmin} 
+                        onDelete={handleDeleteInspection} 
+                        onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
+                    />
+                  ))}
                   {inspections.filter(i => i.status === 'Completed').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}
                 </div>
               </TabsContent>
@@ -383,6 +440,7 @@ export default function InspectionsPage() {
                   onStart={openCompleteDialog} 
                   isAdmin={isAdmin} 
                   onDelete={handleDeleteInspection} 
+                  onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                 />
               ))}
               {pendingInspections.filter(i => i.dueDate <= todayStr).length === 0 && (
@@ -438,6 +496,54 @@ export default function InspectionsPage() {
             <Button className="w-full font-bold" onClick={handleFinishInspection} disabled={isSubmitting}>
               {isSubmitting ? "Submitting..." : "Finish Inspection"}
               <CheckCircle2 className="ml-2 h-4 w-4" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Inspection Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="font-headline">Edit Scheduled Inspection</DialogTitle>
+            <DialogDescription>Modify the due date or frequency for: {editingInspection?.assetName}</DialogDescription>
+          </DialogHeader>
+          {editingInspection && (
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Due Date</Label>
+                  <Input 
+                    type="date" 
+                    value={editingInspection.dueDate} 
+                    onChange={e => setEditingInspection({...editingInspection, dueDate: e.target.value})} 
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Frequency</Label>
+                  <Select 
+                    value={editingInspection.frequency || "One-off"} 
+                    onValueChange={(v: Frequency) => setEditingInspection({...editingInspection, frequency: v === 'One-off' ? undefined : v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="One-off">One-off</SelectItem>
+                      <SelectItem value="Weekly">Weekly</SelectItem>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                      <SelectItem value="Yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button className="font-bold" onClick={handleUpdateInspection} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
