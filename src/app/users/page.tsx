@@ -124,6 +124,17 @@ export default function UserManagement() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Synchronize training selections whenever the active user profile changes
+  useEffect(() => {
+    if (selectedUser) {
+      const str = selectedUser.training || "";
+      const parts = str ? str.split(',').map(s => s.trim()).filter(s => s && s !== 'None') : [];
+      setSelectedTrainings(parts);
+    } else {
+      setSelectedTrainings([]);
+    }
+  }, [selectedUser?.id, selectedUser?.training]);
   const [isEditing, setIsEditing] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management' | 'archived'>('all');
   const [isUserSubmitting, setIsUserSubmitting] = useState(false);
@@ -286,6 +297,7 @@ export default function UserManagement() {
             }
         }
 
+        setSelectedUser(updatedData as User);
         setIsEditing(false);
         toast({ title: "Profile Updated", description: "Changes saved and management registry updated." });
     } catch (e: any) {
@@ -372,7 +384,6 @@ export default function UserManagement() {
 
   const openUserProfile = (user: User) => {
     setSelectedUser(user);
-    syncTrainingState(user.training);
     setIsEditing(false);
     setIsProfileDialogOpen(true);
   };
@@ -792,12 +803,19 @@ export default function UserManagement() {
                     <div className="grid gap-3">
                       <Label className="text-sm font-bold">Training and Certifications</Label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
-                        {trainingOptions.map((option) => (
-                          <div key={option} className="flex items-center space-x-2">
-                            <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
-                            <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
-                          </div>
-                        ))}
+                        {/* Display both registry options AND any existing data that doesn't match registry */}
+                        {Array.from(new Set([...trainingOptions, ...selectedTrainings])).sort().map((option) => {
+                          const isUnregistered = !trainingOptions.includes(option);
+                          return (
+                            <div key={option} className="flex items-center space-x-2">
+                              <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
+                              <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                                {option}
+                                {isUnregistered && <span className="text-[9px] font-bold text-destructive uppercase tracking-tighter opacity-70">(Ghost/Old)</span>}
+                              </label>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                     <Button onClick={handleUpdateUser} className="w-full font-bold" disabled={isUserSubmitting}>
