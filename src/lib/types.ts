@@ -8,15 +8,11 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  team: string; // Legacy singular
-  teams?: string[]; // Multiple teams
-  depot: string;
-
+  depot: string; // Primary depot
+  depots?: string[]; // Multiple assigned depots
   avatar?: string;
   training?: string;
   password?: string;
-  isDriver?: boolean;
-  isRoSPATrained?: boolean;
   isArchived?: boolean;
   createdAt?: string;
 }
@@ -47,6 +43,7 @@ export interface Issue {
   resolutionNote?: string;
   resolutionImageUrl?: string;
   resolutionDate?: string;
+  collaborators?: string[];
 }
 
 export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthly' | 'Yearly';

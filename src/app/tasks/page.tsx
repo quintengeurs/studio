@@ -49,7 +49,7 @@ import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from "firebase/firestore";
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
-import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig } from "@/lib/types";
+import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig, ParkDetail } from "@/lib/types";
 import { addDays, addMonths, format } from "date-fns";
 
 export default function TasksPage() {
@@ -69,6 +69,9 @@ export default function TasksPage() {
 
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
+
+  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
+  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
   
   const currentUserData = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
@@ -88,11 +91,28 @@ export default function TasksPage() {
   }, [currentUserData]);
 
   const filteredTasksForUser = useMemo(() => {
-    if (!isOperational) return tasks;
-    const identities = [currentUserName];
-    if (groupIdentity) identities.push(groupIdentity);
-    return tasks.filter(t => identities.includes(t.assignedTo));
-  }, [tasks, isOperational, currentUserName, groupIdentity]);
+    if (isAdmin) return tasks;
+    
+    const userDepots = currentUserData?.depots?.length ? currentUserData.depots : (currentUserData?.depot ? [currentUserData.depot] : []);
+    
+    return tasks.filter(t => {
+      // Direct assignment
+      const identities = [currentUserName];
+      if (groupIdentity) identities.push(groupIdentity);
+      if (identities.includes(t.assignedTo)) return true;
+
+      // Depot containment
+      const parkDetail = allDetails.find(d => d.name === t.park);
+      if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+
+      // Fallback: if no depots assigned to user, they might see everything or nothing? 
+      // User says "they should see parks relating to the clissold depot", so if they have NO depot, show nothing?
+      // I'll stick to: if no depots assigned, show original assignments.
+      if (userDepots.length === 0) return identities.includes(t.assignedTo);
+
+      return false;
+    });
+  }, [tasks, isAdmin, currentUserData, allDetails, currentUserName, groupIdentity]);
 
   const assignableUsers = users;
   const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();
@@ -555,7 +575,7 @@ export default function TasksPage() {
                     <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold">{user.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{user.team}</span>
+                      <span className="text-[10px] text-muted-foreground">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
                     </div>
                   </div>
                   <UserPlus className="h-4 w-4 text-muted-foreground" />

@@ -55,7 +55,13 @@ export default function ParksPage() {
   const [configParks, setConfigParks] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Detail Modal States
+  // Firestore Queries
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
+  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
+  
+  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
+  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
+
   const [selectedParkName, setSelectedParkName] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -65,20 +71,26 @@ export default function ParksPage() {
   const [currentUpdateType, setCurrentUpdateType] = useState<string>("");
   const [updateForm, setUpdateForm] = useState<Partial<ParkUpdate>>({});
 
-
-  // Firestore Queries
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+
+  const filteredParks = useMemo(() => {
+    if (isAdmin || !currentUserData) return parks;
+    
+    const userDepots = currentUserData.depots?.length ? currentUserData.depots : (currentUserData.depot ? [currentUserData.depot] : []);
+    if (userDepots.length === 0) return parks;
+
+    return parks.filter(parkName => {
+      const detail = allDetails.find(d => d.name === parkName);
+      if (!detail?.depot) return true; 
+      return userDepots.includes(detail.depot);
+    });
+  }, [parks, allDetails, currentUserData, isAdmin]);
 
   const headGardeners = useMemo(() => allUsers.filter(u => u.role === 'Head Gardener'), [allUsers]);
   const areaManagers = useMemo(() => allUsers.filter(u => u.role === 'Area Manager'), [allUsers]);
   const parkOfficers = useMemo(() => allUsers.filter(u => u.role === 'Parks Development Officer'), [allUsers]);
   const teams = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
-
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
-  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
 
   const selectedParkDetail = useMemo(() => {
     return allDetails.find(d => d.name === selectedParkName) || {
@@ -293,14 +305,14 @@ export default function ParksPage() {
     >
       <Card>
         <CardHeader>
-          <CardTitle>Registered Parks ({parks.length})</CardTitle>
+          <CardTitle>Registered Parks ({filteredParks.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {configLoading ? (
             <div className="text-center py-10 text-muted-foreground">Loading parks...</div>
-          ) : parks.length > 0 ? (
+          ) : filteredParks.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {parks.map((park) => {
+              {filteredParks.map((park) => {
                 const detail = allDetails.find(d => d.name === park);
                 return (
                   <button 

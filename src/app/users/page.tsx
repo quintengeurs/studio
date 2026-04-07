@@ -54,7 +54,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { User, Role, Task, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES } from "@/lib/types";
+import { User, Role, Task, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES, ParkDetail } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -114,6 +114,9 @@ export default function UserManagement() {
   }, [db]);
   const { data: allTasks = [] } = useCollection<Task>(tasksQuery as any);
 
+  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
+  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
@@ -141,12 +144,9 @@ export default function UserManagement() {
     name: '',
     email: '',
     role: 'Gardener',
-    team: '',
-    teams: [],
     depot: '',
+    depots: [],
     training: '',
-    isDriver: false,
-    isRoSPATrained: false,
     avatar: '',
     isArchived: false,
     password: ''
@@ -210,6 +210,7 @@ export default function UserManagement() {
     const trainingString = getFinalTrainingString() || "None";
     const userEmail = newUser.email?.trim() || "";
     const tempId = `user_${Date.now()}`;
+    const userDepots = newUser.depots || (newUser.depot ? [newUser.depot] : []);
     
     const userToSave = {
         ...newUser,
@@ -217,6 +218,8 @@ export default function UserManagement() {
         name: newUser.name || "Unknown User",
         email: userEmail,
         training: trainingString,
+        depots: userDepots,
+        depot: userDepots[0] || "",
         isArchived: false,
         role: newUser.role || 'Gardener',
         createdAt: new Date().toISOString(),
@@ -226,26 +229,28 @@ export default function UserManagement() {
     const sanitizedUser = JSON.parse(JSON.stringify(userToSave));
 
     try {
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Database operation timed out. Please check your connection.")), 15000)
-        );
+        await setDoc(doc(db, "users", tempId), sanitizedUser);
 
-        await Promise.race([
-          setDoc(doc(db, "users", tempId), sanitizedUser),
-          timeoutPromise
-        ]);
+        // Auto-fill Parks logic
+        if (userToSave.depot && ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(userToSave.role)) {
+            const roleField = userToSave.role === 'Head Gardener' ? 'headGardener' : 
+                             userToSave.role === 'Area Manager' ? 'areaManager' : 'parkOfficer';
+            
+            const parksRef = collection(db, "parks_details");
+            const q = query(parksRef, where("depot", "in", userToSave.depots));
+            const parksToUpdate = allDetails.filter(p => userToSave.depots.includes(p.depot || ""));
+            
+            for (const park of parksToUpdate) {
+                await updateDoc(doc(db, "parks_details", park.id), { [roleField]: userToSave.name });
+            }
+        }
 
-        toast({ title: "User Added", description: `${userToSave.name} has been added.` });
+        toast({ title: "User Added", description: `${userToSave.name} has been added and relevant parks updated.` });
         setIsAddDialogOpen(false);
-        setNewUser({ name: '', email: '', role: 'Gardener', team: '', depot: '', training: '', isDriver: false, isRoSPATrained: false, avatar: '', isArchived: false, password: '' });
+        setNewUser({ name: '', email: '', role: 'Gardener', depot: '', depots: [], training: '', avatar: '', isArchived: false, password: '' });
         setSelectedTrainings([]);
     } catch (e: any) {
-        console.error("[UserManagement] Error creating user:", e);
-        toast({
-            title: "Permission Denied",
-            description: `Could not save user record. Ensure you are logged in as an admin. (Code: ${e.code})`,
-            variant: "destructive",
-        });
+        toast({ title: "Error", description: `Could not save user record. (Code: ${e.code})`, variant: "destructive" });
     } finally {
         setIsUserSubmitting(false);
     }
@@ -256,15 +261,29 @@ export default function UserManagement() {
 
     setIsUserSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
-    const updatedData = {
+    const updatedData: Partial<User> = {
       ...selectedUser,
-      training: trainingString
+      training: trainingString,
+      depots: selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []),
+      depot: selectedUser.depots?.[0] || selectedUser.depot || ""
     };
 
     try {
         await updateDoc(doc(db, "users", selectedUser.id), updatedData);
+
+        // Auto-update Parks logic for management roles
+        if (updatedData.depot && ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(updatedData.role || "")) {
+            const roleField = updatedData.role === 'Head Gardener' ? 'headGardener' : 
+                             updatedData.role === 'Area Manager' ? 'areaManager' : 'parkOfficer';
+            
+            const parksToUpdate = allDetails.filter(p => updatedData.depots?.includes(p.depot || ""));
+            for (const park of parksToUpdate) {
+                await updateDoc(doc(db, "parks_details", park.id), { [roleField]: updatedData.name });
+            }
+        }
+
         setIsEditing(false);
-        toast({ title: "Profile Updated", description: "Changes saved successfully." });
+        toast({ title: "Profile Updated", description: "Changes saved and management registry updated." });
     } catch (e: any) {
         toast({ title: "Error", description: "Could not update profile.", variant: "destructive" });
     } finally {
@@ -280,9 +299,12 @@ export default function UserManagement() {
     setIsUserSubmitting(true);
     try {
         await updateDoc(doc(db, "users", selectedUser.id), { isArchived: archiveState });
-        setIsProfileDialogOpen(false);
+        // Sequence to avoid UI lock
         setIsArchiveConfirmOpen(false);
-        setSelectedUser(null);
+        setTimeout(() => {
+          setIsProfileDialogOpen(false);
+          setSelectedUser(null);
+        }, 100);
         toast({ title: archiveState ? "User Archived" : "User Restored", description: archiveState ? "Staff member moved to archives." : "Staff member has been unarchived." });
     } catch (e) {
         toast({ title: "Error", description: "Could not update archive status.", variant: "destructive" });
@@ -475,7 +497,7 @@ export default function UserManagement() {
                         <Badge className={`${getRoleColor(user.role)} font-bold text-[9px] uppercase w-fit`} variant="outline">
                           {user.role}
                         </Badge>
-                        <span className="text-[10px] font-bold text-muted-foreground">{user.teams?.length ? user.teams.join(', ') : user.team}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -483,8 +505,8 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {user.isDriver && <Car className="h-4 w-4 text-blue-600" />}
-                        {user.isRoSPATrained && <Award className="h-4 w-4 text-yellow-600" />}
+                        {(user.training?.includes('Fleet Driver') || (user as any).isDriver) && <Car className="h-4 w-4 text-primary" />}
+                        {(user.training?.includes('RoSPA') || (user as any).isRoSPATrained) && <Award className="h-4 w-4 text-accent-foreground" />}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -593,7 +615,7 @@ export default function UserManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2 text-left">
                 <Label>Role</Label>
                 <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
@@ -606,22 +628,22 @@ export default function UserManagement() {
                 </Select>
               </div>
               <div className="grid gap-2 text-left">
-                <Label>Team / Department</Label>
+                <Label>Depot Assignment</Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-start font-normal text-muted-foreground border-input">
-                       {newUser.teams?.length ? <span className="text-foreground">{newUser.teams.length} Selected</span> : "Select Teams..."}
+                       {newUser.depots?.length ? <span className="text-foreground">{newUser.depots.length} Selected</span> : "Select Depots..."}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="start">
                     {teams.map(t => (
                       <DropdownMenuCheckboxItem 
                         key={t}
-                        checked={newUser.teams?.includes(t) || newUser.team === t}
+                        checked={newUser.depots?.includes(t) || newUser.depot === t}
                         onCheckedChange={(checked) => {
-                           const current = newUser.teams || (newUser.team ? [newUser.team] : []);
-                           if (checked) setNewUser({...newUser, teams: [...current, t], team: t});
-                           else setNewUser({...newUser, teams: current.filter(x => x !== t), team: current.filter(x => x !== t)[0] || ''});
+                           const current = newUser.depots || (newUser.depot ? [newUser.depot] : []);
+                           if (checked) setNewUser({...newUser, depots: [...current, t], depot: t});
+                           else setNewUser({...newUser, depots: current.filter(x => x !== t), depot: current.filter(x => x !== t)[0] || ''});
                         }}
                       >
                         {t}
@@ -629,15 +651,6 @@ export default function UserManagement() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-              <div className="grid gap-2 text-left">
-                <Label>Depot / Location</Label>
-                <Select value={newUser.depot} onValueChange={v => setNewUser({...newUser, depot: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select Depot" /></SelectTrigger>
-                  <SelectContent>
-                    {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
@@ -650,14 +663,6 @@ export default function UserManagement() {
                     <label htmlFor={`add-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
                   </div>
                 ))}
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="add-isDriver" checked={newUser.isDriver} onCheckedChange={(v) => setNewUser({...newUser, isDriver: !!v})} />
-                  <label htmlFor="add-isDriver" className="text-sm font-medium cursor-pointer">Fleet Driver</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="add-isRoSPA" checked={newUser.isRoSPATrained} onCheckedChange={(v) => setNewUser({...newUser, isRoSPATrained: !!v})} />
-                  <label htmlFor="add-isRoSPA" className="text-sm font-medium cursor-pointer">RoSPA Certified</label>
-                </div>
               </div>
             </div>
           </div>
@@ -683,7 +688,7 @@ export default function UserManagement() {
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className={getRoleColor(selectedUser?.role || '')} variant="outline">{selectedUser?.role}</Badge>
-                    <span className="text-xs font-medium text-muted-foreground">• {selectedUser?.team}</span>
+                    <span className="text-xs font-medium text-muted-foreground">• {selectedUser?.depots?.length ? selectedUser.depots.join(', ') : selectedUser?.depot}</span>
                   </div>
                 </div>
               </div>
@@ -736,23 +741,23 @@ export default function UserManagement() {
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Team</Label>
+                        <Label>Depot Assignment</Label>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" className="w-full justify-start font-normal text-muted-foreground border-input">
-                               {selectedUser?.teams?.length ? <span className="text-foreground">{selectedUser.teams.length} Selected</span> : (selectedUser?.team || "Select Teams...")}
+                               {selectedUser?.depots?.length ? <span className="text-foreground">{selectedUser.depots.length} Selected</span> : (selectedUser?.depot || "Select Depots...")}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="w-56" align="start">
                             {teams.map(t => (
                               <DropdownMenuCheckboxItem 
                                 key={t}
-                                checked={selectedUser?.teams?.includes(t) || (selectedUser?.team === t && selectedUser?.teams?.length !== 0)}
+                                checked={selectedUser?.depots?.includes(t) || (selectedUser?.depot === t && selectedUser?.depots?.length !== 0)}
                                 onCheckedChange={(checked) => {
                                    if (!selectedUser) return;
-                                   const current = selectedUser.teams || (selectedUser.team ? [selectedUser.team] : []);
-                                   const newTeams = checked ? [...current, t] : current.filter(x => x !== t);
-                                   setSelectedUser({...selectedUser, teams: newTeams, team: newTeams[0] || ''});
+                                   const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
+                                   const newDepots = checked ? [...current, t] : current.filter(x => x !== t);
+                                   setSelectedUser({...selectedUser, depots: newDepots, depot: newDepots[0] || ''});
                                 }}
                               >
                                 {t}
@@ -772,14 +777,6 @@ export default function UserManagement() {
                             <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer">{option}</label>
                           </div>
                         ))}
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="edit-isDriver" checked={selectedUser?.isDriver} onCheckedChange={(v) => selectedUser && setSelectedUser({...selectedUser, isDriver: !!v})} />
-                          <label htmlFor="edit-isDriver" className="text-sm font-medium cursor-pointer">Fleet Driver</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="edit-isRoSPA" checked={selectedUser?.isRoSPATrained} onCheckedChange={(v) => selectedUser && setSelectedUser({...selectedUser, isRoSPATrained: !!v})} />
-                          <label htmlFor="edit-isRoSPA" className="text-sm font-medium cursor-pointer">RoSPA Certified</label>
-                        </div>
                       </div>
                     </div>
                     <Button onClick={handleUpdateUser} className="w-full font-bold" disabled={isUserSubmitting}>
@@ -792,9 +789,9 @@ export default function UserManagement() {
                       <div className="p-4 border rounded-lg bg-card">
                         <div className="flex items-center gap-3 text-primary mb-2">
                           <Briefcase className="h-4 w-4" />
-                          <h4 className="text-xs font-bold uppercase tracking-wider">Department</h4>
+                          <h4 className="text-xs font-bold uppercase tracking-wider">Depot Assignment</h4>
                         </div>
-                        <p className="text-sm font-semibold">{selectedUser?.teams?.length ? selectedUser.teams.join(', ') : selectedUser?.team}</p>
+                        <p className="text-sm font-semibold">{selectedUser?.depots?.length ? selectedUser.depots.join(', ') : selectedUser?.depot}</p>
                       </div>
                       <div className="p-4 border rounded-lg bg-card">
                         <div className="flex items-center gap-3 text-primary mb-2">

@@ -53,7 +53,7 @@ import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
-import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role } from "@/lib/types";
+import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role, ParkDetail } from "@/lib/types";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
 
@@ -70,17 +70,35 @@ export default function IssuesPage() {
 
   const issuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    const baseQuery = query(collection(db, "issues"), where("status", "!=", "Resolved"));
-    
-    if (isOperative) {
-      const userIdent = user?.displayName || user?.email || "";
-      return query(baseQuery, where("reportedBy", "==", userIdent), orderBy("status"), orderBy("createdAt", "desc"));
-    }
-    
-    return query(baseQuery, orderBy("status"), orderBy("createdAt", "desc"));
-  }, [db, isOperative, user]);
+    return query(collection(db, "issues"), where("status", "!=", "Resolved"), orderBy("status"), orderBy("createdAt", "desc"));
+  }, [db]);
 
   const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
+
+  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
+  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
+
+  const isAdmin = profile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+
+  const filteredIssues = useMemo(() => {
+    if (isAdmin) return issues;
+    
+    // Using both legacy and new depot fields
+    const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
+    const userIdent = user?.displayName || user?.email || "";
+    const userName = profile?.name || userIdent;
+
+    // Filter by reports, depot, or assignment
+    return issues.filter(issue => {
+        if (issue.reportedBy === userIdent) return true;
+        if (issue.assignedTo === userName) return true;
+        
+        const parkDetail = allDetails.find(d => d.name === issue.park);
+        if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+        
+        return false;
+    });
+  }, [issues, profile, user, allDetails, isAdmin]);
 
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: users = [] } = useCollection<User>(usersQuery as any);
@@ -293,7 +311,7 @@ export default function IssuesPage() {
         </div>
       ) : (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {issues.map((issue) => (
+          {filteredIssues.map((issue) => (
             <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2 w-full">
                 <div className={`h-1.5 w-full shrink-0 ${(issue.priority as string) === 'Emergency' ? 'bg-destructive' : (issue.priority as string) === 'High' ? 'bg-yellow-500' : (issue.priority as string) === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
               
@@ -390,7 +408,7 @@ export default function IssuesPage() {
                       <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold">{user.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{user.team}</span>
+                        <span className="text-[10px] text-muted-foreground">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
                       </div>
                     </div>
                     {assignment.operativeId === user.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
