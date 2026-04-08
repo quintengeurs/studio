@@ -109,6 +109,11 @@ export default function ParksPage() {
   const canEditVolunteering = isAdmin || currentUserData?.role === 'Volunteering Coordinator' || currentUserData?.role === 'Parks Development Officer';
   const canEditSports = isAdmin || currentUserData?.role === 'Sports and Leisure Manager' || currentUserData?.role === 'Parks Development Officer';
   const canEditUserGroups = isAdmin || currentUserData?.role === 'User Group Chair' || currentUserData?.role === 'Parks Development Officer';
+  const canEditDevelopment = isAdmin || currentUserData?.role === 'Parks Development Officer';
+  const canEditTreeWorks = isAdmin || currentUserData?.role === 'Tree Officer';
+  const canEditBiodiversity = isAdmin || currentUserData?.role === 'Biodiversity Officer';
+  const canEditContractorWorks = isAdmin || currentUserData?.role === 'Contractor';
+  const canEditMaintenance = isAdmin || currentUserData?.role === 'Area Manager';
 
   const handleOpenUpdateModal = (type: string, existingUpdate?: ParkUpdate) => {
     setCurrentUpdateType(type);
@@ -786,6 +791,36 @@ export default function ParksPage() {
                       </div>
                     </div>
                     {renderUpdates('UserGroup', canEditUserGroups)}
+                  </div>
+
+                  {/* 9. Development Updates */}
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">9. Development Updates</h3>
+                    {renderUpdates('Development', canEditDevelopment)}
+                  </div>
+
+                  {/* 10. Tree Works */}
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">10. Tree Works</h3>
+                    {renderUpdates('TreeWorks', canEditTreeWorks)}
+                  </div>
+
+                  {/* 11. Biodiversity */}
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">11. Biodiversity</h3>
+                    {renderUpdates('Biodiversity', canEditBiodiversity)}
+                  </div>
+
+                  {/* 12. Contractor Works */}
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">12. Contractor Works</h3>
+                    {renderUpdates('ContractorWorks', canEditContractorWorks)}
+                  </div>
+
+                  {/* 13. Recent Maintenance Work */}
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">13. Recent Maintenance Work</h3>
+                    {renderUpdates('Maintenance', canEditMaintenance)}
                   </div>
                 </div>
               )}

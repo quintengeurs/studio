@@ -1,7 +1,7 @@
-export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Admin';
+export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Officer' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Admin';
 
-export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener'];
-export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Parks Development Officer', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Admin'];
+export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor'];
+export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Officer', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Admin'];
 
 export interface User {
   id: string;
@@ -115,7 +115,7 @@ export interface MaterialRequest {
 
 export interface ParkUpdate {
   id: string;
-  type: 'Project' | 'Event' | 'Volunteering' | 'Sports' | 'UserGroup' | 'Operational';
+  type: 'Project' | 'Event' | 'Volunteering' | 'Sports' | 'UserGroup' | 'Operational' | 'Development' | 'TreeWorks' | 'Biodiversity' | 'ContractorWorks' | 'Maintenance';
   title: string;
   description: string;
   startDate?: string;
