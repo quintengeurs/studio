@@ -16,23 +16,24 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Plus, 
-  Shield, 
-  Mail, 
+  Search, 
+  Filter, 
   MoreHorizontal, 
-  Car, 
-  Award, 
-  Camera, 
+  Mail, 
+  Briefcase, 
+  Shield, 
+  Check, 
+  Edit2, 
   X, 
-  Edit2,
-  Briefcase,
+  UserMinus, 
+  Trash2, 
+  Car, 
+  Award,
+  AlertCircle,
+  ChevronDown,
   Clock,
   Users as UsersIcon,
-  Filter,
-  UserMinus,
-  Settings2,
-  Check,
-  Trash2,
-  AlertCircle
+  Settings2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -62,8 +63,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -844,47 +849,64 @@ export default function UserManagement() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className={cn("font-bold", selectedUser?.isArchived ? "text-primary hover:bg-primary/10 border-primary/20" : "text-destructive hover:bg-destructive/10")} onClick={() => setIsArchiveConfirmOpen(true)} disabled={isUserSubmitting}>
-                  <UserMinus className="mr-2 h-4 w-4" /> {selectedUser?.isArchived ? "Unarchive Staff" : "Archive Staff"}
-                </Button>
-                <Button variant={isEditing ? "outline" : "default"} size="sm" className="font-bold" onClick={() => setIsEditing(!isEditing)}>
-                  {isEditing ? <Edit2 className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
-                  {isEditing ? "Cancel" : "Edit"}
-                </Button>
                 <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="font-bold border-destructive text-destructive hover:bg-destructive/10" 
-                    onClick={() => setIsDeleteUserConfirmOpen(true)}
-                    disabled={isUserSubmitting}
+                  variant={isEditing ? "outline" : "default"} 
+                  size="sm" 
+                  className="font-bold shadow-sm" 
+                  onClick={() => setIsEditing(!isEditing)}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete Account
+                  {isEditing ? <X className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
+                  {isEditing ? "Cancel" : "Edit Profile"}
                 </Button>
-                {selectedUser && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="font-bold border-accent text-accent-foreground hover:bg-accent/10"
-                    onClick={async () => {
-                        if (!selectedUser.password || selectedUser.password.length < 6) {
-                            toast({ title: "Sync Failed", description: "This user needs a valid password (min 6 chars) set in their profile first.", variant: "destructive" });
-                            return;
-                        }
-                        setIsUserSubmitting(true);
-                        try {
-                            await registerUserInAuth(selectedUser.email, selectedUser.password);
-                            toast({ title: "Sync Successful", description: "User can now log in to the system." });
-                        } catch (e: any) {
-                            toast({ title: "Sync Failed", description: e.message, variant: "destructive" });
-                        } finally {
-                            setIsUserSubmitting(false);
-                        }
-                    }}
-                    disabled={isUserSubmitting}
-                  >
-                    <Check className="mr-2 h-4 w-4" /> Sync Login
-                  </Button>
-                )}
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="font-bold border-muted-foreground/20">
+                      More Actions <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem 
+                      className={cn("font-bold cursor-pointer", selectedUser?.isArchived ? "text-primary" : "text-destructive")}
+                      onClick={() => setIsArchiveConfirmOpen(true)}
+                    >
+                      <UserMinus className="mr-2 h-4 w-4" /> 
+                      {selectedUser?.isArchived ? "Unarchive Staff" : "Archive Staff Account"}
+                    </DropdownMenuItem>
+                    
+                    {selectedUser && (
+                      <DropdownMenuItem 
+                        className="font-bold cursor-pointer text-accent-foreground"
+                        onClick={async () => {
+                            if (!selectedUser.password || selectedUser.password.length < 6) {
+                                toast({ title: "Sync Failed", description: "This user needs a valid password (min 6 chars) set in their profile first.", variant: "destructive" });
+                                return;
+                            }
+                            setIsUserSubmitting(true);
+                            try {
+                                await registerUserInAuth(selectedUser.email, selectedUser.password);
+                                toast({ title: "Sync Successful", description: "User can now log in to the system." });
+                            } catch (e: any) {
+                                toast({ title: "Sync Failed", description: e.message, variant: "destructive" });
+                            } finally {
+                                setIsUserSubmitting(false);
+                            }
+                        }}
+                      >
+                        <Check className="mr-2 h-4 w-4" /> Sync Login Service
+                      </DropdownMenuItem>
+                    )}
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem 
+                      className="font-bold cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+                      onClick={() => setIsDeleteUserConfirmOpen(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Permanently Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
@@ -899,25 +921,28 @@ export default function UserManagement() {
               <TabsContent value="overview" className="mt-0 space-y-6">
                 {isEditing ? (
                   <div className="grid gap-6">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                       <div className="grid gap-2">
-                        <Label>Full Name</Label>
-                        <Input value={selectedUser?.name} onChange={e => selectedUser && setSelectedUser({...selectedUser, name: e.target.value})} />
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Full Name</Label>
+                        <Input value={selectedUser?.name} onChange={e => selectedUser && setSelectedUser({...selectedUser, name: e.target.value})} className="font-medium" />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Email</Label>
-                        <Input value={selectedUser?.email} onChange={e => selectedUser && setSelectedUser({...selectedUser, email: e.target.value})} />
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Email Identity</Label>
+                        <Input value={selectedUser?.email} onChange={e => selectedUser && setSelectedUser({...selectedUser, email: e.target.value})} className="font-medium" />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Password</Label>
-                        <Input type="password" value={selectedUser?.password || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, password: e.target.value})} placeholder="Update password" />
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Access Password</Label>
+                        <Input type="password" value={selectedUser?.password || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, password: e.target.value})} placeholder="Enter 6+ characters to update" className="font-medium" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label>Role</Label>
+                    
+                    <Separator className="my-2" />
+
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                      <div className="grid gap-2 text-left">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Designation</Label>
                         <Select value={selectedUser?.role} onValueChange={(v: Role) => selectedUser && setSelectedUser({...selectedUser, role: v})}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="font-medium"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(role => (
                               <SelectItem key={role} value={role}>{role}</SelectItem>
@@ -925,11 +950,11 @@ export default function UserManagement() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="grid gap-2">
-                        <Label>Depot Assignment</Label>
+                      <div className="grid gap-2 text-left">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignment</Label>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start font-normal text-muted-foreground border-input">
+                            <Button variant="outline" className="w-full justify-start font-medium border-input">
                                {selectedUser?.depots?.length ? <span className="text-foreground">{selectedUser.depots.length} Selected</span> : (selectedUser?.depot || "Select Depots...")}
                             </Button>
                           </DropdownMenuTrigger>
@@ -953,18 +978,21 @@ export default function UserManagement() {
                       </div>
                     </div>
                     
-                    <div className="grid gap-3">
-                      <Label className="text-sm font-bold">Training and Certifications</Label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/10">
+                    <div className="grid gap-4 pt-4">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Training & System Certifications</Label>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-xl p-6 bg-muted/10">
                         {/* Display both registry options AND any existing data that doesn't match registry */}
                         {Array.from(new Set([...trainingOptions, ...selectedTrainings])).sort().map((option) => {
                           const isUnregistered = !trainingOptions.includes(option);
                           return (
-                            <div key={option} className="flex items-center space-x-2">
+                            <div key={option} className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer" onClick={() => toggleTraining(option)}>
                               <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
-                              <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                              <label htmlFor={`edit-${option}`} className="text-sm font-medium cursor-pointer flex-1 flex items-center justify-between">
                                 {option}
-                                {isUnregistered && <span className="text-[9px] font-bold text-destructive uppercase tracking-tighter opacity-70">(Ghost/Old)</span>}
+                                {isUnregistered && <Badge variant="outline" className="text-[8px] h-4 font-bold border-destructive/30 text-destructive uppercase tracking-tighter">Legacy</Badge>}
                               </label>
                             </div>
                           );

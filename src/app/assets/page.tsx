@@ -425,34 +425,37 @@ export default function AssetRegister() {
                 {isEditing ? (
                   <div className="grid gap-6">
                     {/* Edit Form Fields */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                       <div className="grid gap-2">
-                        <Label>Asset Name</Label>
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Asset Name</Label>
                         <Input 
                           value={selectedAsset?.name} 
                           onChange={e => selectedAsset && setSelectedAsset({...selectedAsset, name: e.target.value})} 
+                          className="font-medium"
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Category</Label>
-                        <Input value={selectedAsset?.type} disabled />
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Asset Category</Label>
+                        <Input value={selectedAsset?.type} disabled className="font-medium opacity-100" />
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label>Condition</Label>
-                      <Select 
-                        value={selectedAsset?.condition} 
-                        onValueChange={(v: "Excellent" | "Good" | "Fair" | "Poor" | "Critical") => selectedAsset && setSelectedAsset({...selectedAsset, condition: v})}
-                      >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Excellent">Excellent</SelectItem>
-                          <SelectItem value="Good">Good</SelectItem>
-                          <SelectItem value="Fair">Fair</SelectItem>
-                          <SelectItem value="Poor">Poor</SelectItem>
-                          <SelectItem value="Critical">Critical</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Physical Condition</Label>
+                        <Select 
+                          value={selectedAsset?.condition} 
+                          onValueChange={(v: "Excellent" | "Good" | "Fair" | "Poor" | "Critical") => selectedAsset && setSelectedAsset({...selectedAsset, condition: v})}
+                        >
+                          <SelectTrigger className="font-medium"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Excellent">Excellent</SelectItem>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Fair">Fair</SelectItem>
+                            <SelectItem value="Poor">Poor</SelectItem>
+                            <SelectItem value="Critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <Button onClick={handleUpdateAsset} className="w-full font-bold" disabled={isSubmitting}>
                       {isSubmitting ? "Saving Changes..." : "Save Asset Changes"}

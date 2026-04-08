@@ -423,48 +423,51 @@ export default function ParksPage() {
       {/* Detail & Edit Modal */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-primary/10 px-8 py-8 relative">
-            <div className="flex items-center gap-4 mb-2">
-               <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+          <div className="bg-primary/10 px-8 py-8 border-b border-primary/10">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
                   <Leaf className="h-6 w-6 text-primary-foreground" />
-               </div>
-               <div>
-                  <DialogTitle className="text-2xl font-headline font-bold text-primary flex items-center gap-2">
-                    {selectedParkName}
-                    {selectedParkDetail?.greenflag && <Leaf className="h-6 w-6 text-green-600 fill-green-600" />}
+                </div>
+                <div className="min-w-0">
+                  <DialogTitle className="text-2xl font-headline font-bold text-primary flex items-center gap-2 truncate">
+                    <span className="truncate">{selectedParkName}</span>
+                    {selectedParkDetail?.greenflag && <Leaf className="h-6 w-6 text-green-600 fill-green-600 shrink-0" />}
                   </DialogTitle>
                   <p className="text-sm text-primary/60 font-medium tracking-tight">Park Information & Registry Details</p>
                   
                   {/* Diagnostic Debug Info - Only visible for admin troubleshooting */}
                   {(user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || isAdmin) && (
-                    <div className="mt-2 py-1 px-2 bg-black/5 rounded text-[9px] font-mono text-primary/40 flex gap-3">
-                      <span>EMAIL: {user?.email}</span>
+                    <div className="mt-2 py-1 px-2 bg-black/5 rounded text-[9px] font-mono text-primary/40 flex gap-3 w-fit">
                       <span>ROLE: {currentUserData?.role || 'NOT FOUND'}</span>
-                      <span>PERM: {isAdmin ? 'ADMIN_BYPASS' : 'STANDARD'}</span>
                     </div>
                   )}
-               </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex items-center gap-2">
+                {isAdmin && !isEditing && (
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="font-bold gap-2 shadow-sm whitespace-nowrap"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <Edit3 className="h-3.5 w-3.5" /> Edit
+                  </Button>
+                )}
+                {isEditing && (
+                  <Button 
+                    variant="outline" 
+                    className="font-bold border-primary/20 text-primary hover:bg-primary/10"
+                    size="sm"
+                    onClick={() => setIsEditing(false)}
+                  >
+                    <X className="mr-2 h-4 w-4" /> Cancel
+                  </Button>
+                )}
+              </div>
             </div>
-            {isAdmin && !isEditing && (
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                className="absolute top-8 right-12 font-bold gap-2 shadow-sm"
-                onClick={() => setIsEditing(true)}
-              >
-                <Edit3 className="h-3.5 w-3.5" /> Edit Information
-              </Button>
-            )}
-            {isEditing && (
-               <Button 
-                variant="ghost" 
-                size="icon" 
-                className="absolute top-8 right-12 text-primary"
-                onClick={() => setIsEditing(false)}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            )}
           </div>
 
           <ScrollArea className="max-h-[75vh]">
@@ -475,11 +478,11 @@ export default function ParksPage() {
                   <div>
                     <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">1. Key Information</h3>
                     <div className="grid gap-6">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Head Gardener</Label>
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Head Gardener</Label>
                           <Select value={editForm.headGardener || "unassigned"} onValueChange={v => setEditForm({...editForm, headGardener: v === "unassigned" ? "" : v})}>
-                            <SelectTrigger><SelectValue placeholder="Select Head Gardener" /></SelectTrigger>
+                            <SelectTrigger className="font-medium"><SelectValue placeholder="Select Head Gardener" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">Not Assigned</SelectItem>
                               {headGardeners.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
@@ -490,9 +493,9 @@ export default function ParksPage() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Area Manager</Label>
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Area Manager</Label>
                           <Select value={editForm.areaManager || "unassigned"} onValueChange={v => setEditForm({...editForm, areaManager: v === "unassigned" ? "" : v})}>
-                            <SelectTrigger><SelectValue placeholder="Select Area Manager" /></SelectTrigger>
+                            <SelectTrigger className="font-medium"><SelectValue placeholder="Select Area Manager" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">Not Assigned</SelectItem>
                               {areaManagers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
@@ -503,7 +506,7 @@ export default function ParksPage() {
                           </Select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                         <div className="space-y-2">
                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Attached Depot</Label>
                           <Select value={editForm.depot || "unassigned"} onValueChange={handleDepotChange}>
