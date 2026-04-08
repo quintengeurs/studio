@@ -267,6 +267,32 @@ export default function ParksPage() {
     setIsDetailDialogOpen(true);
   };
 
+  const handleDepotChange = (depotValue: string) => {
+    const isUnassigned = depotValue === "unassigned";
+    const selectedDepot = isUnassigned ? "" : depotValue;
+    
+    // Find management for this depot
+    // Note: If multiple exist, we take the first match as a primary suggestion
+    const hg = allUsers.find(u => !u.isArchived && u.role === 'Head Gardener' && (u.depots?.includes(selectedDepot) || u.depot === selectedDepot));
+    const am = allUsers.find(u => !u.isArchived && u.role === 'Area Manager' && (u.depots?.includes(selectedDepot) || u.depot === selectedDepot));
+    const po = allUsers.find(u => !u.isArchived && u.role === 'Parks Development Officer' && (u.depots?.includes(selectedDepot) || u.depot === selectedDepot));
+    
+    setEditForm(prev => ({
+        ...prev,
+        depot: selectedDepot,
+        headGardener: hg?.name || prev.headGardener,
+        areaManager: am?.name || prev.areaManager,
+        parkOfficer: po?.name || prev.parkOfficer
+    }));
+
+    if (selectedDepot) {
+        toast({ 
+            title: "Management Suggested", 
+            description: `Auto-populated staff based on ${selectedDepot} assignments.` 
+        });
+    }
+  };
+
   const handleSaveParkDetail = async () => {
     if (!db || !selectedParkName || isSubmitting) return;
 
@@ -480,7 +506,7 @@ export default function ParksPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Attached Depot</Label>
-                          <Select value={editForm.depot || "unassigned"} onValueChange={v => setEditForm({...editForm, depot: v === "unassigned" ? "" : v})}>
+                          <Select value={editForm.depot || "unassigned"} onValueChange={handleDepotChange}>
                             <SelectTrigger><SelectValue placeholder="Select Depot" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">Not Assigned</SelectItem>

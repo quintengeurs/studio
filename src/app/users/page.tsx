@@ -207,7 +207,8 @@ export default function UserManagement() {
   };
 
   const getFinalTrainingString = () => {
-    return selectedTrainings.join(', ');
+    const active = selectedTrainings.filter(t => t && t !== 'None').map(t => t.trim());
+    return active.length > 0 ? active.join(', ') : 'None';
   };
 
   const toggleTraining = (training: string) => {
@@ -324,7 +325,10 @@ export default function UserManagement() {
     if (!db || !selectedUser || isUserSubmitting) return;
 
     setIsUserSubmitting(true);
+    const oldName = selectedUser.name;
     const trainingString = getFinalTrainingString() || "None";
+    
+    // Combine existing user with potential updates (if any specific state is used, otherwise values come from current selectedUser modifications)
     const updatedData: Partial<User> = {
       ...selectedUser,
       training: trainingString,
@@ -335,7 +339,7 @@ export default function UserManagement() {
     try {
         await updateDoc(doc(db, "users", selectedUser.id), updatedData);
 
-        // Auto-update Parks logic for management roles
+        // 1. Sync management role assignments for the current depot(s)
         if (updatedData.depot && ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(updatedData.role || "")) {
             const roleField = updatedData.role === 'Head Gardener' ? 'headGardener' : 
                              updatedData.role === 'Area Manager' ? 'areaManager' : 'parkOfficer';
@@ -343,6 +347,23 @@ export default function UserManagement() {
             const parksToUpdate = allDetails.filter(p => updatedData.depots?.includes(p.depot || ""));
             for (const park of parksToUpdate) {
                 await updateDoc(doc(db, "parks_details", park.id), { [roleField]: updatedData.name });
+            }
+        }
+
+        // 2. Propagation: If the name changed, find all parks where this person was listed under ANY role and update them
+        if (updatedData.name && updatedData.name !== oldName) {
+            const parksWithOldName = allDetails.filter(p => 
+                p.headGardener === oldName || 
+                p.areaManager === oldName || 
+                p.parkOfficer === oldName
+            );
+            
+            for (const park of parksWithOldName) {
+                const updates: any = {};
+                if (park.headGardener === oldName) updates.headGardener = updatedData.name;
+                if (park.areaManager === oldName) updates.areaManager = updatedData.name;
+                if (park.parkOfficer === oldName) updates.parkOfficer = updatedData.name;
+                await updateDoc(doc(db, "parks_details", park.id), updates);
             }
         }
 
