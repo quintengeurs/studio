@@ -100,7 +100,9 @@ export default function DepotsPage() {
   const depotStaff = useMemo(() => {
     if (!selectedDepotName) return [];
     return allUsers.filter(u => 
-      !u.isArchived && (u.depots?.includes(selectedDepotName) || u.depot === selectedDepotName)
+      !u.isArchived && 
+      u.role !== 'Admin' && 
+      (u.depots?.includes(selectedDepotName) || u.depot === selectedDepotName)
     );
   }, [allUsers, selectedDepotName]);
 
@@ -284,7 +286,9 @@ export default function DepotsPage() {
         {depots.map((depot) => {
           const detail = allDetails.find(d => d.name === depot);
           const staffCount = allUsers.filter(u => 
-            !u.isArchived && (u.depots?.includes(depot) || u.depot === depot)
+            !u.isArchived && 
+            u.role !== 'Admin' &&
+            (u.depots?.includes(depot) || u.depot === depot)
           ).length;
           const parkCount = allParks.filter(p => p.depot === depot).length;
 
