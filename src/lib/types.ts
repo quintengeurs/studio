@@ -1,7 +1,7 @@
-export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Officer' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Admin';
+export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Assistant Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Officer' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Admin';
 
 export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor'];
-export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Officer', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Admin'];
+export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Officer', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Admin'];
 
 export interface User {
   id: string;
@@ -150,6 +150,7 @@ export interface DepotUpdate {
   type: 'Training' | 'Machinery' | 'Safety' | 'General' | 'Tools' | 'Sites';
   title: string;
   description: string;
+  attendees?: string[]; // IDs or names of staff members
   startDate?: string;
   endDate?: string;
   createdAt: string;

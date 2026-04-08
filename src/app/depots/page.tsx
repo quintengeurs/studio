@@ -34,8 +34,10 @@ import {
   Truck,
   Wrench,
   Construction,
-  Leaf
+  Leaf,
+  CheckCircle2
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import { collection, doc, setDoc, query } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -146,7 +148,7 @@ export default function DepotsPage() {
     if (existingUpdate) {
       setUpdateForm(existingUpdate);
     } else {
-      setUpdateForm({ type: type as any, title: "", description: "" });
+      setUpdateForm({ type: type as any, title: "", description: "", attendees: [] });
     }
     setIsUpdateModalOpen(true);
   };
@@ -164,6 +166,7 @@ export default function DepotsPage() {
           type: currentUpdateType as any,
           title: updateForm.title || "Untitled",
           description: updateForm.description || "",
+          attendees: updateForm.attendees || [],
           createdAt: new Date().toISOString(),
           createdBy: currentUserData?.name || user.email || "Unknown",
           isArchived: false,
@@ -191,7 +194,18 @@ export default function DepotsPage() {
             {list.map(u => (
               <div key={u.id} className="p-4 bg-muted/20 border rounded-xl flex flex-col gap-2 relative">
                 <div className="flex justify-between items-start">
-                  <h4 className="font-bold text-sm tracking-tight">{u.title}</h4>
+                  <div className="flex flex-col gap-1">
+                    <h4 className="font-bold text-sm tracking-tight">{u.title}</h4>
+                    {u.attendees && u.attendees.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {u.attendees.map(attendee => (
+                          <Badge key={attendee} variant="outline" className="text-[9px] py-0 px-1.5 bg-primary/5 text-primary border-primary/20">
+                            {attendee}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   {canEdit && (
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOpenUpdateModal(type, u)}>
                       <Edit3 className="h-3 w-3" />
@@ -211,7 +225,7 @@ export default function DepotsPage() {
         )}
         {canEdit && (
           <Button variant="outline" size="sm" className="w-full font-bold border-dashed border-2 text-primary" onClick={() => handleOpenUpdateModal(type)}>
-            <Plus className="mr-2 h-4 w-4" /> Add {type} Entry
+            <Plus className="mr-2 h-4 w-4" /> Add Record Entry
           </Button>
         )}
       </div>
@@ -257,7 +271,7 @@ export default function DepotsPage() {
   };
 
   const rolesInOrder: Role[] = [
-    'Area Manager', 'Head Gardener', 'Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Parks Development Officer'
+    'Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Gardener', 'Keeper', 'Litter Picker'
   ];
 
   return (
@@ -333,18 +347,18 @@ export default function DepotsPage() {
                 </div>
               </div>
 
-              {/* 2. Training & Certifications */}
+              {/* 2. Upcoming Training and Courses */}
               <div>
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-primary" /> 2. Training & Certifications
+                  <ShieldCheck className="h-5 w-5 text-primary" /> 2. Upcoming Training and Courses
                 </h3>
                 {renderUpdates('Training')}
               </div>
 
-              {/* 3. Equipment & Machinery */}
+              {/* 3. Equipment and Machinery */}
               <div>
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-primary" /> 3. Equipment & Machinery
+                  <Truck className="h-5 w-5 text-primary" /> 3. Equipment and Machinery
                 </h3>
                 {selectedDepotDetail.machinery && selectedDepotDetail.machinery.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
@@ -356,18 +370,10 @@ export default function DepotsPage() {
                 {renderUpdates('Machinery')}
               </div>
 
-              {/* 4. Tools & Gear */}
+              {/* 4. Parks Serviced */}
               <div>
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
-                  <Wrench className="h-5 w-5 text-primary" /> 4. Tools & Gear
-                </h3>
-                {renderUpdates('Tools')}
-              </div>
-
-              {/* 5. Serviced Parks */}
-              <div>
-                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
-                  <Leaf className="h-5 w-5 text-primary" /> 5. Serviced Parks
+                  <Leaf className="h-5 w-5 text-primary" /> 4. Parks Serviced
                 </h3>
                 <div className="grid gap-3">
                   {linkedParks.map(park => (
@@ -390,25 +396,28 @@ export default function DepotsPage() {
                 </div>
               </div>
 
-              {/* 6. External Care Sites */}
+              {/* 5. Contracted and Overtime Sites */}
               <div>
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
-                  <Construction className="h-5 w-5 text-primary" /> 6. External Care Sites
+                  <Construction className="h-5 w-5 text-primary" /> 5. Contracted and Overtime Sites
                 </h3>
-                {selectedDepotDetail.overtimeSites && selectedDepotDetail.overtimeSites.length > 0 && (
+                {(selectedDepotDetail.overtimeSites && selectedDepotDetail.overtimeSites.length > 0 || selectedDepotDetail.contractedSites && selectedDepotDetail.contractedSites.length > 0) && (
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {selectedDepotDetail.overtimeSites.map(s => (
+                    {selectedDepotDetail.overtimeSites?.map(s => (
                       <Badge key={s} variant="secondary" className="bg-orange-500/5 text-orange-600 border-orange-500/10 font-bold text-[10px]">{s}</Badge>
+                    ))}
+                    {selectedDepotDetail.contractedSites?.map(s => (
+                      <Badge key={s} variant="secondary" className="bg-blue-500/5 text-blue-600 border-blue-500/10 font-bold text-[10px]">{s}</Badge>
                     ))}
                   </div>
                 )}
                 {renderUpdates('Sites')}
               </div>
 
-              {/* 7. Depot Access & Information */}
+              {/* 6. Depot Access & Info */}
               <div>
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" /> 7. Depot Access & Info
+                  <Building2 className="h-5 w-5 text-primary" /> 6. Depot Access & Info
                 </h3>
                 
                 {isEditing ? (
@@ -439,10 +448,13 @@ export default function DepotsPage() {
                         </div>
                       </div>
 
-                      {/* Machinery Tag Input */}
+                      {/* Inventory Tag Inputs */}
                       <div className="space-y-4 pt-4 border-t">
                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Inventory Tags (Quick Reference)</Label>
-                        <div className="grid gap-4">
+                        
+                        {/* Equipment and Machinery Tags */}
+                        <div className="grid gap-4 bg-background/50 p-4 rounded-xl border border-dashed">
+                           <Label className="text-[9px] font-bold uppercase tracking-widest text-primary">3. Equipment and Machinery</Label>
                            <div className="flex gap-2">
                               <Input value={newMachinery} onChange={e => setNewMachinery(e.target.value)} placeholder="Add Machinery..." className="bg-background" onKeyDown={e => {
                                 if (e.key === 'Enter') {
@@ -451,6 +463,7 @@ export default function DepotsPage() {
                                 }
                               }}/>
                               <Button variant="outline" size="sm" onClick={() => {
+                                if (!newMachinery) return;
                                 setEditForm({...editForm, machinery: [...(editForm.machinery || []), newMachinery]});
                                 setNewMachinery("");
                               }}><Plus className="h-4 w-4" /></Button>
@@ -464,15 +477,18 @@ export default function DepotsPage() {
                            </div>
                         </div>
 
-                        <div className="grid gap-4 pt-2">
+                        {/* Sites Tags */}
+                        <div className="grid gap-4 bg-background/50 p-4 rounded-xl border border-dashed">
+                           <Label className="text-[9px] font-bold uppercase tracking-widest text-orange-600">5. Contracted and Overtime Sites</Label>
                            <div className="flex gap-2">
-                              <Input value={newOvertimeSite} onChange={e => setNewOvertimeSite(e.target.value)} placeholder="Add Overtime Site..." className="bg-background" onKeyDown={e => {
+                              <Input value={newOvertimeSite} onChange={e => setNewOvertimeSite(e.target.value)} placeholder="Add Site..." className="bg-background" onKeyDown={e => {
                                 if (e.key === 'Enter') {
                                   setEditForm({...editForm, overtimeSites: [...(editForm.overtimeSites || []), newOvertimeSite]});
                                   setNewOvertimeSite("");
                                 }
                               }}/>
                               <Button variant="outline" size="sm" onClick={() => {
+                                if (!newOvertimeSite) return;
                                 setEditForm({...editForm, overtimeSites: [...(editForm.overtimeSites || []), newOvertimeSite]});
                                 setNewOvertimeSite("");
                               }}><Plus className="h-4 w-4" /></Button>
@@ -536,11 +552,34 @@ export default function DepotsPage() {
                 <Label>Entry Title</Label>
                 <Input value={updateForm.title} onChange={e => setUpdateForm({...updateForm, title: e.target.value})} placeholder="e.g. H&S Refresher next Tuesday"/>
              </div>
-             <div className="grid gap-2">
-                <Label>Details / Instructions</Label>
-                <Input value={updateForm.description} onChange={e => setUpdateForm({...updateForm, description: e.target.value})} />
-             </div>
-          </div>
+              <div className="grid gap-2">
+                 <Label>Details / Instructions</Label>
+                 <Input value={updateForm.description} onChange={e => setUpdateForm({...updateForm, description: e.target.value})} />
+              </div>
+
+              {currentUpdateType === 'Training' && (
+                <div className="grid gap-3 pt-2">
+                   <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Team Attendees</Label>
+                   <div className="grid grid-cols-2 gap-2 border rounded-xl p-3 bg-muted/5 max-h-[150px] overflow-y-auto">
+                      {depotStaff.map(staff => (
+                        <div key={staff.id} className="flex items-center space-x-2 group">
+                           <Checkbox 
+                              id={`staff-${staff.id}`} 
+                              checked={(updateForm.attendees || []).includes(staff.name)} 
+                              onCheckedChange={(checked) => {
+                                 const current = updateForm.attendees || [];
+                                 const next = checked ? [...current, staff.name] : current.filter(n => n !== staff.name);
+                                 setUpdateForm({...updateForm, attendees: next});
+                              }}
+                           />
+                           <label htmlFor={`staff-${staff.id}`} className="text-xs font-medium cursor-pointer flex-1 truncate">{staff.name}</label>
+                        </div>
+                      ))}
+                      {depotStaff.length === 0 && <span className="text-[10px] text-muted-foreground italic">No staff found for this depot.</span>}
+                   </div>
+                </div>
+              )}
+           </div>
           <div className="flex gap-3 justify-end">
             <Button variant="outline" onClick={() => setIsUpdateModalOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveUpdate} disabled={isSubmitting}>Save Entry</Button>
