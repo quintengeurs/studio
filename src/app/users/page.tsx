@@ -756,26 +756,26 @@ export default function UserManagement() {
             <DialogDescription>Create a new profile for a staff member to grant them access to the studio dashboard.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
-             <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
               <div className="grid gap-2">
-                <Label>Full Name</Label>
-                <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" />
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Full Name</Label>
+                <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" className="font-medium" />
               </div>
               <div className="grid gap-2">
-                <Label>Email Address</Label>
-                <Input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="david.jones@hackney.gov.uk" />
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Email Address</Label>
+                <Input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="david.jones@hackney.gov.uk" className="font-medium" />
               </div>
               <div className="grid gap-2">
-                <Label>Password</Label>
-                <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Set initial password" />
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Initial Password</Label>
+                <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Min 6 characters" className="font-medium" />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
               <div className="grid gap-2 text-left">
-                <Label>Role</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Staff Role</Label>
                 <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="font-medium"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(role => (
                       <SelectItem key={role} value={role}>{role}</SelectItem>
@@ -783,30 +783,32 @@ export default function UserManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2 text-left">
-                <Label>Depot Assignment</Label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start font-normal text-muted-foreground border-input">
-                       {newUser.depots?.length ? <span className="text-foreground">{newUser.depots.length} Selected</span> : "Select Depots..."}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="start">
-                    {teams.map(t => (
-                      <DropdownMenuCheckboxItem 
-                        key={t}
-                        checked={newUser.depots?.includes(t) || newUser.depot === t}
-                        onCheckedChange={(checked) => {
-                           const current = newUser.depots || (newUser.depot ? [newUser.depot] : []);
-                           if (checked) setNewUser({...newUser, depots: [...current, t], depot: t});
-                           else setNewUser({...newUser, depots: current.filter(x => x !== t), depot: current.filter(x => x !== t)[0] || ''});
-                        }}
-                      >
-                        {t}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            </div>
+
+            <div className="grid gap-4">
+              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignment</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border rounded-xl p-4 bg-muted/10">
+                {teams.map(t => (
+                  <div 
+                    key={t} 
+                    className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer"
+                    onClick={() => {
+                      const current = newUser.depots || (newUser.depot ? [newUser.depot] : []);
+                      const isChecked = current.includes(t);
+                      const newDepots = isChecked ? current.filter(x => x !== t) : [...current, t];
+                      setNewUser({...newUser, depots: newDepots, depot: newDepots[0] || ''});
+                    }}
+                  >
+                    <Checkbox 
+                      id={`new-depot-${t}`} 
+                      checked={newUser.depots?.includes(t) || (newUser.depot === t && newUser.depots?.length !== 0)}
+                      onCheckedChange={() => {}} // Handled by div onClick
+                    />
+                    <label htmlFor={`new-depot-${t}`} className="text-xs font-medium cursor-pointer flex-1">
+                      {t}
+                    </label>
+                  </div>
+                ))}
               </div>
             </div>
 
