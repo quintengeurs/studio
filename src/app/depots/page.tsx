@@ -85,7 +85,7 @@ export default function DepotsPage() {
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
 
   const selectedDepotDetail = useMemo(() => {
-    return allDetails.find(d => d.name === selectedDepotName) || {
+    return allDetails.find(d => d.name === selectedDepotName || d.id === selectedDepotName) || {
       id: selectedDepotName || "",
       name: selectedDepotName || "",
       machinery: [],
@@ -173,7 +173,11 @@ export default function DepotsPage() {
         };
         updatedList = [...updatedList, newUpdate];
       }
-      await setDoc(doc(db, "depots_details", selectedDepotName), { updates: updatedList }, { merge: true });
+      await setDoc(doc(db, "depots_details", selectedDepotName), { 
+        updates: updatedList,
+        name: selectedDepotName,
+        id: selectedDepotName
+      }, { merge: true });
       setIsUpdateModalOpen(false);
       toast({ title: "Update Saved" });
     } catch (e) {
@@ -320,7 +324,9 @@ export default function DepotsPage() {
                   <DialogTitle className="text-2xl font-headline font-bold text-primary truncate">
                     {selectedDepotName}
                   </DialogTitle>
-                  <p className="text-sm text-primary/60 font-medium tracking-tight">Depot Operational Hub & Staff Registry</p>
+                  <DialogDescription className="text-sm text-primary/60 font-medium tracking-tight">
+                    Depot Operational Hub & Staff Registry
+                  </DialogDescription>
                 </div>
               </div>
               {!isMobile && isAdmin && (
