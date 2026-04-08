@@ -147,7 +147,7 @@ export interface ParkDetail {
 }
 export interface DepotUpdate {
   id: string;
-  type: 'Training' | 'Machinery' | 'Safety' | 'General';
+  type: 'Training' | 'Machinery' | 'Safety' | 'General' | 'Tools' | 'Sites';
   title: string;
   description: string;
   startDate?: string;

@@ -318,191 +318,210 @@ export default function DepotsPage() {
             </div>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-background">
-            <div className="px-8 border-b bg-muted/5">
-              <TabsList className="h-12 bg-transparent gap-8 p-0">
-                <TabsTrigger value="overview" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent font-bold text-xs uppercase tracking-widest">Overview</TabsTrigger>
-                <TabsTrigger value="staff" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent font-bold text-xs uppercase tracking-widest">Staff ({depotStaff.length})</TabsTrigger>
-                <TabsTrigger value="parks" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent font-bold text-xs uppercase tracking-widest">Parks ({linkedParks.length})</TabsTrigger>
-                <TabsTrigger value="updates" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent font-bold text-xs uppercase tracking-widest">Training</TabsTrigger>
-              </TabsList>
-            </div>
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-8 space-y-12 pb-24">
+              {/* 1. Team Staff */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
+                  <UserIcon className="h-5 w-5 text-primary" /> 1. Team Staff
+                </h3>
+                <div className="space-y-8">
+                  {rolesInOrder.map(role => renderStaffByRole(role))}
+                  {depotStaff.length === 0 && (
+                    <div className="py-12 text-center text-muted-foreground italic border-2 border-dashed rounded-3xl">No staff currently assigned to this depot.</div>
+                  )}
+                </div>
+              </div>
 
-            <ScrollArea className="max-h-[65vh]">
-              <div className="p-8 pb-12">
-                <TabsContent value="overview" className="m-0 space-y-8">
-                  {isEditing ? (
-                    <div className="grid gap-8">
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-bold font-headline border-b pb-2">1. Access & Contact</h3>
-                        <div className="grid gap-6">
-                           <div className="grid gap-2">
-                             <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Address</Label>
-                             <Input value={editForm.address || ""} onChange={e => setEditForm({...editForm, address: e.target.value})} placeholder="Full address..." />
-                           </div>
-                           <div className="grid grid-cols-2 gap-4">
-                              <div className="grid gap-2">
-                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Office Phone</Label>
-                                <Input value={editForm.contactPhone || ""} onChange={e => setEditForm({...editForm, contactPhone: e.target.value})} />
-                              </div>
-                              <div className="grid gap-2">
-                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Main Email</Label>
-                                <Input value={editForm.contactEmail || ""} onChange={e => setEditForm({...editForm, contactEmail: e.target.value})} />
-                              </div>
-                           </div>
-                           <div className="grid grid-cols-2 gap-4">
-                              <div className="grid gap-2">
-                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1.5"><Wifi className="h-3 w-3" /> Wifi Code</Label>
-                                <Input value={editForm.wifiCode || ""} onChange={e => setEditForm({...editForm, wifiCode: e.target.value})} />
-                              </div>
-                              <div className="grid gap-2">
-                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1.5"><Lock className="h-3 w-3" /> Gate Code</Label>
-                                <Input value={editForm.gateCode || ""} onChange={e => setEditForm({...editForm, gateCode: e.target.value})} />
-                              </div>
-                           </div>
+              {/* 2. Training & Certifications */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-primary" /> 2. Training & Certifications
+                </h3>
+                {renderUpdates('Training')}
+              </div>
+
+              {/* 3. Equipment & Machinery */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" /> 3. Equipment & Machinery
+                </h3>
+                {selectedDepotDetail.machinery && selectedDepotDetail.machinery.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {selectedDepotDetail.machinery.map(m => (
+                      <Badge key={m} variant="secondary" className="bg-primary/5 text-primary border-primary/10 font-bold text-[10px]">{m}</Badge>
+                    ))}
+                  </div>
+                )}
+                {renderUpdates('Machinery')}
+              </div>
+
+              {/* 4. Tools & Gear */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
+                  <Wrench className="h-5 w-5 text-primary" /> 4. Tools & Gear
+                </h3>
+                {renderUpdates('Tools')}
+              </div>
+
+              {/* 5. Serviced Parks */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
+                  <Leaf className="h-5 w-5 text-primary" /> 5. Serviced Parks
+                </h3>
+                <div className="grid gap-3">
+                  {linkedParks.map(park => (
+                    <div key={park.id} className="p-4 bg-muted/20 border rounded-xl flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
+                          <Leaf className="h-5 w-5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm">{park.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Linked Park</span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="font-bold text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Serviced Site</Badge>
+                    </div>
+                  ))}
+                  {linkedParks.length === 0 && (
+                    <div className="py-12 text-center text-muted-foreground italic border-2 border-dashed rounded-3xl">No parks currently serviced by this depot.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* 6. External Care Sites */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
+                  <Construction className="h-5 w-5 text-primary" /> 6. External Care Sites
+                </h3>
+                {selectedDepotDetail.overtimeSites && selectedDepotDetail.overtimeSites.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {selectedDepotDetail.overtimeSites.map(s => (
+                      <Badge key={s} variant="secondary" className="bg-orange-500/5 text-orange-600 border-orange-500/10 font-bold text-[10px]">{s}</Badge>
+                    ))}
+                  </div>
+                )}
+                {renderUpdates('Sites')}
+              </div>
+
+              {/* 7. Depot Access & Information */}
+              <div>
+                <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" /> 7. Depot Access & Info
+                </h3>
+                
+                {isEditing ? (
+                  <div className="grid gap-8 bg-muted/20 p-6 rounded-2xl border border-primary/10 shadow-inner">
+                    <div className="grid gap-6">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Address</Label>
+                        <Input value={editForm.address || ""} onChange={e => setEditForm({...editForm, address: e.target.value})} placeholder="Full address..." className="bg-background"/>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Office Phone</Label>
+                          <Input value={editForm.contactPhone || ""} onChange={e => setEditForm({...editForm, contactPhone: e.target.value})} className="bg-background"/>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Main Email</Label>
+                          <Input value={editForm.contactEmail || ""} onChange={e => setEditForm({...editForm, contactEmail: e.target.value})} className="bg-background"/>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1.5"><Wifi className="h-3 w-3" /> Wifi Code</Label>
+                          <Input value={editForm.wifiCode || ""} onChange={e => setEditForm({...editForm, wifiCode: e.target.value})} className="bg-background font-mono"/>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1.5"><Lock className="h-3 w-3" /> Gate Code</Label>
+                          <Input value={editForm.gateCode || ""} onChange={e => setEditForm({...editForm, gateCode: e.target.value})} className="bg-background font-mono"/>
                         </div>
                       </div>
 
                       {/* Machinery Tag Input */}
-                      <div className="space-y-4">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Machinery & Vehicles</Label>
-                        <div className="flex gap-2">
-                          <Input value={newMachinery} onChange={e => setNewMachinery(e.target.value)} placeholder="e.g. Kubota Mower" onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              setEditForm({...editForm, machinery: [...(editForm.machinery || []), newMachinery]});
-                              setNewMachinery("");
-                            }
-                          }}/>
-                          <Button variant="outline" size="sm" onClick={() => {
-                            setEditForm({...editForm, machinery: [...(editForm.machinery || []), newMachinery]});
-                            setNewMachinery("");
-                          }}><Plus className="h-4 w-4" /></Button>
+                      <div className="space-y-4 pt-4 border-t">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Inventory Tags (Quick Reference)</Label>
+                        <div className="grid gap-4">
+                           <div className="flex gap-2">
+                              <Input value={newMachinery} onChange={e => setNewMachinery(e.target.value)} placeholder="Add Machinery..." className="bg-background" onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  setEditForm({...editForm, machinery: [...(editForm.machinery || []), newMachinery]});
+                                  setNewMachinery("");
+                                }
+                              }}/>
+                              <Button variant="outline" size="sm" onClick={() => {
+                                setEditForm({...editForm, machinery: [...(editForm.machinery || []), newMachinery]});
+                                setNewMachinery("");
+                              }}><Plus className="h-4 w-4" /></Button>
+                           </div>
+                           <div className="flex flex-wrap gap-2">
+                             {editForm.machinery?.map((item, i) => (
+                               <Badge key={i} variant="secondary" className="pl-3 pr-1 py-1 font-bold text-[10px]">
+                                 {item} <X className="h-3 w-3 ml-2 cursor-pointer" onClick={() => setEditForm({...editForm, machinery: editForm.machinery?.filter((_, index) => index !== i)})}/>
+                               </Badge>
+                             ))}
+                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {editForm.machinery?.map((item, i) => (
-                            <Badge key={i} variant="secondary" className="pl-3 pr-1 py-1 font-bold text-[10px]">
-                              {item} <X className="h-3 w-3 ml-2 cursor-pointer" onClick={() => setEditForm({...editForm, machinery: editForm.machinery?.filter((_, index) => index !== i)})}/>
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
 
-                      {/* Overtime Sites Tag Input */}
-                      <div className="space-y-4">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Overtime Care Sites</Label>
-                        <div className="flex gap-2">
-                          <Input value={newOvertimeSite} onChange={e => setNewOvertimeSite(e.target.value)} placeholder="e.g. Housing Estate A" onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              setEditForm({...editForm, overtimeSites: [...(editForm.overtimeSites || []), newOvertimeSite]});
-                              setNewOvertimeSite("");
-                            }
-                          }}/>
-                          <Button variant="outline" size="sm" onClick={() => {
-                            setEditForm({...editForm, overtimeSites: [...(editForm.overtimeSites || []), newOvertimeSite]});
-                            setNewOvertimeSite("");
-                          }}><Plus className="h-4 w-4" /></Button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {editForm.overtimeSites?.map((item, i) => (
-                            <Badge key={i} variant="secondary" className="pl-3 pr-1 py-1 font-bold text-[10px]">
-                              {item} <X className="h-3 w-3 ml-2 cursor-pointer" onClick={() => setEditForm({...editForm, overtimeSites: editForm.overtimeSites?.filter((_, index) => index !== i)})}/>
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <Button className="w-full font-bold h-12" onClick={handleSaveDepotDetail} disabled={isSubmitting}>
-                         <Save className="h-4 w-4 mr-2" /> Save Depot Changes
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-10">
-                      <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                            <MapPin className="h-3 w-3 text-primary" /> Location
-                          </span>
-                          <span className="font-bold text-sm">{selectedDepotDetail.address || "No address listed"}</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                            <Phone className="h-3 w-3 text-primary" /> Phone
-                          </span>
-                          <span className="font-bold text-sm">{selectedDepotDetail.contactPhone || "None"}</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                            <Wifi className="h-3 w-3 text-primary" /> WiFi Code
-                          </span>
-                          <span className="font-bold text-sm font-mono tracking-tight">{selectedDepotDetail.wifiCode || "Not listed"}</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                            <Lock className="h-3 w-3 text-primary" /> Gate Code
-                          </span>
-                          <span className="font-bold text-sm font-mono tracking-tight">{selectedDepotDetail.gateCode || "Not listed"}</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                          <Truck className="h-3 w-3 text-primary" /> Machinery & Vehicles
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                           {selectedDepotDetail.machinery?.map(m => <Badge key={m} variant="secondary" className="bg-primary/5 text-primary border-primary/10 font-bold text-[10px]">{m}</Badge>)}
-                           {!selectedDepotDetail.machinery?.length && <span className="text-xs text-muted-foreground italic">None listed.</span>}
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                          <Construction className="h-3 w-3 text-primary" /> Overtime care sites
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                           {selectedDepotDetail.overtimeSites?.map(s => <Badge key={s} variant="secondary" className="bg-orange-500/5 text-orange-600 border-orange-500/10 font-bold text-[10px]">{s}</Badge>)}
-                           {!selectedDepotDetail.overtimeSites?.length && <span className="text-xs text-muted-foreground italic">None listed.</span>}
+                        <div className="grid gap-4 pt-2">
+                           <div className="flex gap-2">
+                              <Input value={newOvertimeSite} onChange={e => setNewOvertimeSite(e.target.value)} placeholder="Add Overtime Site..." className="bg-background" onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  setEditForm({...editForm, overtimeSites: [...(editForm.overtimeSites || []), newOvertimeSite]});
+                                  setNewOvertimeSite("");
+                                }
+                              }}/>
+                              <Button variant="outline" size="sm" onClick={() => {
+                                setEditForm({...editForm, overtimeSites: [...(editForm.overtimeSites || []), newOvertimeSite]});
+                                setNewOvertimeSite("");
+                              }}><Plus className="h-4 w-4" /></Button>
+                           </div>
+                           <div className="flex flex-wrap gap-2">
+                             {editForm.overtimeSites?.map((item, i) => (
+                               <Badge key={i} variant="secondary" className="pl-3 pr-1 py-1 font-bold text-[10px] bg-orange-50 text-orange-600 border-orange-200">
+                                 {item} <X className="h-3 w-3 ml-2 cursor-pointer" onClick={() => setEditForm({...editForm, overtimeSites: editForm.overtimeSites?.filter((_, index) => index !== i)})}/>
+                               </Badge>
+                             ))}
+                           </div>
                         </div>
                       </div>
                     </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="staff" className="m-0 space-y-8">
-                   {rolesInOrder.map(role => renderStaffByRole(role))}
-                   {depotStaff.length === 0 && (
-                     <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-3xl">No staff currently assigned to this depot.</div>
-                   )}
-                </TabsContent>
-
-                <TabsContent value="parks" className="m-0 space-y-4">
-                   <div className="grid gap-3">
-                     {linkedParks.map(park => (
-                       <div key={park.id} className="p-4 bg-muted/20 border rounded-xl flex items-center justify-between group">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
-                               <Leaf className="h-5 w-5" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-bold text-sm">{park.name}</span>
-                              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Linked Park</span>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="font-bold text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Serviced Site</Badge>
-                       </div>
-                     ))}
-                     {linkedParks.length === 0 && (
-                       <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-3xl">No parks currently serviced by this depot.</div>
-                     )}
-                   </div>
-                </TabsContent>
-
-                <TabsContent value="updates" className="m-0 space-y-6">
-                   {renderUpdates('Training')}
-                   {renderUpdates('Machinery')}
-                </TabsContent>
+                    <Button className="w-full font-bold h-12" onClick={handleSaveDepotDetail} disabled={isSubmitting}>
+                      <Save className="h-4 w-4 mr-2" /> Save Hub Information
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-10 bg-muted/10 p-8 rounded-2xl border">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                        <MapPin className="h-3 w-3 text-primary" /> Location
+                      </span>
+                      <span className="font-bold text-sm tracking-tight leading-relaxed">{selectedDepotDetail.address || "No address listed"}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                        <Phone className="h-3 w-3 text-primary" /> Phone
+                      </span>
+                      <span className="font-bold text-sm">{selectedDepotDetail.contactPhone || "None"}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                        <Wifi className="h-3 w-3 text-primary" /> WiFi Code
+                      </span>
+                      <span className="font-bold text-sm font-mono tracking-wider bg-background p-2 rounded border border-primary/10 inline-block w-fit">{selectedDepotDetail.wifiCode || "Not listed"}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                        <Lock className="h-3 w-3 text-primary" /> Gate Code
+                      </span>
+                      <span className="font-bold text-sm font-mono tracking-wider bg-background p-2 rounded border border-primary/10 inline-block w-fit">{selectedDepotDetail.gateCode || "Not listed"}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-            </ScrollArea>
-          </Tabs>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
