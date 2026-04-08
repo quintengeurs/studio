@@ -28,7 +28,8 @@ import {
   Clock,
   History,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -49,7 +50,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Asset, Inspection, Task, RegistryConfig, Frequency } from "@/lib/types";
+import { Asset, Inspection, Task, RegistryConfig, Frequency, User } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -57,13 +58,21 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, addDoc, updateDoc, doc, query, orderBy, where } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
 import { format } from "date-fns";
 
 export default function AssetRegister() {
   const { toast } = useToast();
   const db = useFirestore();
+  const { user } = useUser();
+  
+  // Live Users (to check roles)
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
+  
+  const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   
   // Live Assets
   const assetsQuery = useMemoFirebase(() => {
@@ -408,7 +417,7 @@ export default function AssetRegister() {
           <Tabs defaultValue="overview" className="flex-1 overflow-hidden flex flex-col mt-4">
             <TabsList className="mx-6 justify-start h-10 bg-transparent border-b rounded-none p-0 gap-6">
               <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Overview</TabsTrigger>
-              <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Inspection Log History</TabsTrigger>
+              <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Inspection Audit & History</TabsTrigger>
             </TabsList>
 
             <ScrollArea className="flex-1 p-6">
@@ -488,6 +497,39 @@ export default function AssetRegister() {
               </TabsContent>
 
               <TabsContent value="history" className="mt-0 space-y-8">
+                <section className="mb-8">
+                  <h4 className="text-xs font-bold uppercase text-primary tracking-widest mb-4 flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5" /> Upcoming Scheduled Checks
+                  </h4>
+                  {assetInspections.filter(i => i.status === 'Pending').length > 0 ? (
+                    <div className="space-y-3">
+                      {assetInspections.filter(i => i.status === 'Pending').map(insp => (
+                        <div key={insp.id} className="p-3 border rounded-md flex items-center justify-between group hover:border-primary/40 transition-colors bg-primary/5">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold">Safety Check (Due: {insp.dueDate})</span>
+                            <span className="text-[10px] text-muted-foreground uppercase">{insp.frequency || 'One-off'} Schedule</span>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-1">
+                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={async (e) => {
+                                 e.stopPropagation();
+                                 if (db && confirm('Delete this scheduled inspection?')) {
+                                   await deleteDoc(doc(db, "inspections", insp.id));
+                                   toast({ title: "Inspection Canceled" });
+                                 }
+                               }}>
+                                 <Trash2 className="h-3.5 w-3.5" />
+                               </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic py-4 text-center border border-dashed rounded-lg">No upcoming inspections scheduled.</p>
+                  )}
+                </section>
+
                 <section>
                   <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-widest mb-4 flex items-center gap-2">
                     <History className="h-3.5 w-3.5" /> Historical Inspection Records
