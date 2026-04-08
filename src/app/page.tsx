@@ -30,6 +30,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { RequestModal } from "@/components/modals/request-modal";
 import { LogWorkModal } from "@/components/modals/log-work-modal";
+import { TrainingUpdateModal } from "@/components/modals/training-update-modal";
+import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -40,6 +42,9 @@ export default function Dashboard() {
   const isMobile = useIsMobile();
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [logWorkModalOpen, setLogWorkModalOpen] = useState(false);
+  const [trainingModalOpen, setTrainingModalOpen] = useState(false);
+  const [taskDetailOpen, setTaskDetailOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const userDisplayName = user?.displayName || user?.email || "";
   const { toast } = useToast();
@@ -100,6 +105,9 @@ export default function Dashboard() {
 
   const { data: myRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
 
+  const allIssuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues")) : null, [db]);
+  const { data: allIssues = [] } = useCollection<Issue>(allIssuesQuery as any);
+
   // Computed Values
   const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
   const openMyIssues = myIssues.filter(i => i.status !== 'Resolved');
@@ -114,6 +122,11 @@ export default function Dashboard() {
       { name: 'Pending', value: myTasks.filter(t => t.status === 'Todo' || t.status === 'Pending Approval').length, color: 'hsl(var(--muted))' },
     ].filter(d => d.value > 0);
   }, [myTasks]);
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setTaskDetailOpen(true);
+  };
 
   const isLoading = tasksLoading || issuesLoading || requestsLoading;
 
@@ -176,6 +189,15 @@ export default function Dashboard() {
 
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
           <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
+          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={allUsers} />
+          
+          <TaskDetailModal 
+            open={taskDetailOpen} 
+            onOpenChange={setTaskDetailOpen} 
+            task={selectedTask} 
+            linkedIssue={allIssues.find(i => i.id === selectedTask?.linkedIssueId)}
+            allUsers={allUsers}
+          />
 
           {/* Admin Quick Actions */}
           {isAdmin && (
@@ -194,11 +216,13 @@ export default function Dashboard() {
                     <span className="text-[10px] font-bold uppercase truncate w-full px-1">Park Facility</span>
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                  <Link href="/users">
-                    <Users className="h-6 w-6 text-accent-foreground" />
-                    <span className="text-[10px] font-bold uppercase truncate w-full px-1">Add Training</span>
-                  </Link>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                  onClick={() => setTrainingModalOpen(true)}
+                >
+                  <Users className="h-6 w-6 text-accent-foreground" />
+                  <span className="text-[10px] font-bold uppercase truncate w-full px-1">Add Training</span>
                 </Button>
               </div>
             </div>
@@ -241,15 +265,19 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground text-center py-4">No active tasks assigned.</p>
               ) : (
                 activeMyTasks.slice(0, 5).map(task => (
-                  <Link href="/tasks" key={task.id} className="block group">
-                    <div className="flex flex-col gap-1 rounded bg-muted/30 p-3 hover:bg-muted/50 transition-colors border">
+                  <div 
+                    key={task.id} 
+                    className="block group"
+                    onClick={() => handleTaskClick(task)}
+                  >
+                    <div className="flex flex-col gap-1 rounded bg-muted/30 p-3 hover:bg-muted/50 transition-colors border cursor-pointer">
                       <div className="flex justify-between items-start">
                         <span className="font-bold text-sm tracking-tight">{task.title}</span>
-                        <Badge variant="outline" className="text-[10px]">{task.status}</Badge>
+                        <Badge variant="outline" className="text-[10px] uppercase">{task.status}</Badge>
                       </div>
                       <span className="text-xs text-muted-foreground truncate">{task.park} • {task.dueDate}</span>
                     </div>
-                  </Link>
+                  </div>
                 ))
               )}
             </CardContent>

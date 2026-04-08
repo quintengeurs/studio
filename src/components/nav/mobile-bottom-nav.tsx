@@ -35,9 +35,15 @@ export function MobileBottomNav() {
   
   const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
 
+  const isAdmin = profile?.role === 'Admin' || user?.email === 'quinten.geurs@gmail.com';
+
   const filteredItems = isOperative 
     ? items.filter(item => ["Dashboard", "Inspections", "Issues"].includes(item.title))
-    : items.filter(item => ["Dashboard", "All Tasks", "Inspections", "Issues", "Assets"].includes(item.title));
+    : items.filter(item => {
+        const allowed = ["Dashboard", "All Tasks", "Inspections", "Issues", "Assets"];
+        if (isAdmin && item.title === "All Tasks") return false;
+        return allowed.includes(item.title);
+      });
 
   return (
     <>
@@ -58,16 +64,6 @@ export function MobileBottomNav() {
             </Link>
           );
         })}
-        
-        {!isOperative && (
-          <button
-            onClick={() => setIsRequestOpen(true)}
-            className="flex flex-col items-center justify-center gap-1 rounded-md px-2 py-1 text-primary min-w-[60px]"
-          >
-            <PackagePlus className="h-5 w-5 stroke-[2.5px]" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Request</span>
-          </button>
-        )}
       </nav>
       
       <RequestModal open={isRequestOpen} onOpenChange={setIsRequestOpen} />
