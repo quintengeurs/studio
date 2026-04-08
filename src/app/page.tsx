@@ -464,9 +464,13 @@ export default function Dashboard() {
                  <p className="text-center py-8 text-muted-foreground">No active tasks.</p>
                ) : (
                  activeMyTasks.slice(0, 5).map(task => (
-                   <div key={task.id} className="p-4 hover:bg-muted/10 flex justify-between items-center transition-colors">
+                   <div 
+                     key={task.id} 
+                     className="p-4 hover:bg-muted/10 flex justify-between items-center transition-colors cursor-pointer group"
+                     onClick={() => handleTaskClick(task)}
+                   >
                      <div>
-                       <p className="font-bold text-sm">{task.title}</p>
+                       <p className="font-bold text-sm group-hover:text-primary transition-colors">{task.title}</p>
                        <p className="text-xs text-muted-foreground mt-0.5">{task.park}</p>
                      </div>
                      <Badge variant="outline">{task.status}</Badge>

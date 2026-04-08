@@ -40,8 +40,9 @@ export function MobileBottomNav() {
   const filteredItems = isOperative 
     ? items.filter(item => ["Dashboard", "Inspections", "Issues"].includes(item.title))
     : items.filter(item => {
-        const allowed = ["Dashboard", "All Tasks", "Inspections", "Issues", "Assets"];
-        if (isAdmin && item.title === "All Tasks") return false;
+        const allowed = ["Dashboard", "Inspections", "Issues"];
+        // Only show Assets to non-admins or management who need it
+        if (!isAdmin) allowed.push("Assets");
         return allowed.includes(item.title);
       });
 
