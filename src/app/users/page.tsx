@@ -31,7 +31,8 @@ import {
   UserMinus,
   Settings2,
   Check,
-  Trash2
+  Trash2,
+  AlertCircle
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -54,7 +55,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { User, Role, Task, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES, ParkDetail } from "@/lib/types";
+import { User, Role, Task, Issue, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES, ParkDetail } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -83,7 +84,7 @@ import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth } from "@
 import { firebaseConfig } from "@/firebase/config";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { collection, query, where, doc, updateDoc, arrayUnion, arrayRemove, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc, arrayUnion, arrayRemove, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -120,6 +121,9 @@ export default function UserManagement() {
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
 
+  const issuesQuery = useMemoFirebase(() => db ? collection(db, "issues") : null, [db]);
+  const { data: allIssues = [] } = useCollection<Issue>(issuesQuery as any);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isTaskDeleteConfirmOpen, setIsTaskDeleteConfirmOpen] = useState(false);
@@ -127,6 +131,7 @@ export default function UserManagement() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+  const [isDeleteUserConfirmOpen, setIsDeleteUserConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Synchronize training selections whenever the active user profile changes
@@ -375,6 +380,48 @@ export default function UserManagement() {
         toast({ title: archiveState ? "User Archived" : "User Restored", description: archiveState ? "Staff member moved to archives." : "Staff member has been unarchived." });
     } catch (e) {
         toast({ title: "Error", description: "Could not update archive status.", variant: "destructive" });
+    } finally {
+        setIsUserSubmitting(false);
+    }
+  };
+
+  const performPermanentDelete = async () => {
+    if (!db || !selectedUser || isUserSubmitting) return;
+
+    setIsUserSubmitting(true);
+    const userName = selectedUser.name;
+    const batch = writeBatch(db);
+
+    try {
+        // 1. Queue assigned tasks for deletion
+        const userTasksToDelete = allTasks.filter(t => t.assignedTo === userName);
+        userTasksToDelete.forEach(task => {
+            batch.delete(doc(db, "tasks", task.id));
+        });
+
+        // 2. Queue related issues for UNASSIGNMENT (not deletion)
+        const userIssuesToUpdate = allIssues.filter(i => i.assignedTo === userName);
+        userIssuesToUpdate.forEach(issue => {
+            batch.update(doc(db, "issues", issue.id), { assignedTo: "" });
+        });
+
+        // 3. Queue user document for deletion
+        batch.delete(doc(db, "users", selectedUser.id));
+
+        // Commit all deletions
+        await batch.commit();
+
+        setIsDeleteUserConfirmOpen(false);
+        setIsProfileDialogOpen(false);
+        setSelectedUser(null);
+        
+        toast({ 
+            title: "Account Permanently Deleted", 
+            description: `All records associated with ${userName} have been removed.`,
+            variant: "destructive"
+        });
+    } catch (e) {
+        toast({ title: "Deletion Failed", description: "An error occurred during cleanup.", variant: "destructive" });
     } finally {
         setIsUserSubmitting(false);
     }
@@ -783,6 +830,15 @@ export default function UserManagement() {
                   {isEditing ? <Edit2 className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
                   {isEditing ? "Cancel" : "Edit"}
                 </Button>
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="font-bold border-destructive text-destructive hover:bg-destructive/10" 
+                    onClick={() => setIsDeleteUserConfirmOpen(true)}
+                    disabled={isUserSubmitting}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Account
+                </Button>
                 {selectedUser && (
                   <Button 
                     variant="outline" 
@@ -992,6 +1048,28 @@ export default function UserManagement() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => performArchiveToggle(!selectedUser?.isArchived)} className={selectedUser?.isArchived ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}>
               {selectedUser?.isArchived ? "Confirm Unarchive" : "Confirm Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteUserConfirmOpen} onOpenChange={setIsDeleteUserConfirmOpen}>
+        <AlertDialogContent className="border-2 border-destructive">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" /> PERMANENTLY DELETE ACCOUNT?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p>You are about to delete <strong>{selectedUser?.name}</strong> and all their data.</p>
+              <div className="p-3 bg-destructive/10 border-l-4 border-destructive rounded text-xs font-bold uppercase text-destructive">
+                This will delete every Task and Issue associated with this user. This action is irreversible.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Account</AlertDialogCancel>
+            <AlertDialogAction onClick={performPermanentDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold">
+              YES, DELETE EVERYTHING
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
