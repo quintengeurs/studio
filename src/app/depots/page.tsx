@@ -196,7 +196,7 @@ export default function DepotsPage() {
         {list.length > 0 ? (
           <div className="grid gap-3">
             {list.map(u => (
-              <div key={u.id} className="p-4 bg-muted/20 border rounded-xl flex flex-col gap-2 relative">
+              <div key={u.id} className="p-3 sm:p-4 bg-muted/20 border rounded-xl flex flex-col gap-2 relative">
                 <div className="flex justify-between items-start">
                   <div className="flex flex-col gap-1">
                     <h4 className="font-bold text-sm tracking-tight">{u.title}</h4>
@@ -245,8 +245,8 @@ export default function DepotsPage() {
         <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary/60 border-b pb-1">{role}s</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {staff.map(s => (
-            <div key={s.id} className="p-4 bg-background border rounded-xl shadow-sm flex flex-col gap-2">
-              <div className="flex items-center gap-3">
+            <div key={s.id} className="p-3 sm:p-4 bg-background border rounded-xl shadow-sm flex flex-col gap-2 transition-all hover:border-primary/20">
+              <div className="flex items-center gap-2 sm:gap-3">
                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
                     {s.name.charAt(0)}
                  </div>
@@ -339,7 +339,7 @@ export default function DepotsPage() {
           </div>
 
           <ScrollArea className="max-h-[80vh]">
-            <div className="p-8 space-y-12 pb-24">
+            <div className="p-4 sm:p-8 space-y-8 sm:space-y-12 pb-24">
               {/* 1. Team Staff */}
               <div>
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
@@ -381,11 +381,11 @@ export default function DepotsPage() {
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
                   <Leaf className="h-5 w-5 text-primary" /> 4. Parks Serviced
                 </h3>
-                <div className="grid gap-3">
+                <div className="grid grid-cols-1 gap-2 sm:gap-3">
                   {linkedParks.map(park => (
-                    <div key={park.id} className="p-4 bg-muted/20 border rounded-xl flex items-center justify-between group">
+                    <div key={park.id} className="p-3 sm:p-4 bg-muted/20 border rounded-xl flex items-center justify-between group transition-all hover:bg-muted/30">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
+                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
                           <Leaf className="h-5 w-5" />
                         </div>
                         <div className="flex flex-col">
@@ -514,7 +514,7 @@ export default function DepotsPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-x-12 gap-y-10 bg-muted/10 p-8 rounded-2xl border">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 sm:gap-y-10 bg-muted/10 p-4 sm:p-8 rounded-2xl border">
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                         <MapPin className="h-3 w-3 text-primary" /> Location

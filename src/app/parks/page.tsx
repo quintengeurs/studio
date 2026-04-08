@@ -77,7 +77,17 @@ export default function ParksPage() {
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
 
   const filteredParks = useMemo(() => {
-    if (isAdmin || !currentUserData) return parks;
+    const isGlobalRole = currentUserData && [
+      'Area Manager', 
+      'Assistant Area Manager', 
+      'Operations Manager', 
+      'Parks Development Officer', 
+      'Tree Officer', 
+      'Biodiversity Officer', 
+      'Project Manager'
+    ].includes(currentUserData.role);
+
+    if (isAdmin || isGlobalRole || !currentUserData) return parks;
     
     const userDepots = currentUserData.depots?.length ? currentUserData.depots : (currentUserData.depot ? [currentUserData.depot] : []);
     if (userDepots.length === 0) return parks;
