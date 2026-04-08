@@ -80,6 +80,9 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth } from "@/firebase";
+import { firebaseConfig } from "@/firebase/config";
+import { initializeApp, deleteApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, query, where, doc, updateDoc, arrayUnion, arrayRemove, setDoc, deleteDoc } from "firebase/firestore";
 
 export default function UserManagement() {
@@ -219,6 +222,32 @@ export default function UserManagement() {
     }
   };
 
+  const registerUserInAuth = async (email: string, password?: string) => {
+    if (!password || password.length < 6) {
+        throw new Error("Password must be at least 6 characters long for the login service.");
+    }
+    
+    // Create a secondary app to avoid signing out the current admin
+    const secondaryAppName = `TempApp_${Date.now()}`;
+    const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+    const secondaryAuth = getAuth(secondaryApp);
+    
+    try {
+        await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        await signOut(secondaryAuth);
+        await deleteApp(secondaryApp);
+        return true;
+    } catch (error: any) {
+        // Cleanup even on error
+        await deleteApp(secondaryApp);
+        if (error.code === 'auth/email-already-in-use') {
+            // If they already exist in Auth, we consider this a "partial success" or already synced
+            return true;
+        }
+        throw error;
+    }
+  };
+
   const handleAddUser = async () => {
     if (!db || isUserSubmitting) return;
 
@@ -242,8 +271,12 @@ export default function UserManagement() {
 
     setIsUserSubmitting(true);
     const sanitizedUser = JSON.parse(JSON.stringify(userToSave));
-
+  
     try {
+        // Step 1: Register in Firebase Authentication
+        await registerUserInAuth(userEmail, newUser.password);
+
+        // Step 2: Save to Firestore
         await setDoc(doc(db, "users", tempId), sanitizedUser);
 
         // Auto-fill Parks logic
@@ -732,6 +765,31 @@ export default function UserManagement() {
                   {isEditing ? <Edit2 className="mr-2 h-4 w-4" /> : <Edit2 className="mr-2 h-4 w-4" />}
                   {isEditing ? "Cancel" : "Edit"}
                 </Button>
+                {selectedUser && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="font-bold border-accent text-accent-foreground hover:bg-accent/10"
+                    onClick={async () => {
+                        if (!selectedUser.password || selectedUser.password.length < 6) {
+                            toast({ title: "Sync Failed", description: "This user needs a valid password (min 6 chars) set in their profile first.", variant: "destructive" });
+                            return;
+                        }
+                        setIsUserSubmitting(true);
+                        try {
+                            await registerUserInAuth(selectedUser.email, selectedUser.password);
+                            toast({ title: "Sync Successful", description: "User can now log in to the system." });
+                        } catch (e: any) {
+                            toast({ title: "Sync Failed", description: e.message, variant: "destructive" });
+                        } finally {
+                            setIsUserSubmitting(false);
+                        }
+                    }}
+                    disabled={isUserSubmitting}
+                  >
+                    <Check className="mr-2 h-4 w-4" /> Sync Login
+                  </Button>
+                )}
               </div>
             </div>
           </div>
