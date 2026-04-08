@@ -18,6 +18,7 @@ const items = [
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
   { title: "Assets", icon: MapPin, href: "/assets" },
+  { title: "Parks", icon: MapPin, href: "/parks" },
 ];
 
 export function MobileBottomNav() {
@@ -34,14 +35,12 @@ export function MobileBottomNav() {
   const profile = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   
   const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
-
   const isAdmin = profile?.role === 'Admin' || user?.email === 'quinten.geurs@gmail.com';
 
   const filteredItems = isOperative 
-    ? items.filter(item => ["Dashboard", "Inspections", "Issues"].includes(item.title))
+    ? items.filter(item => ["Dashboard", "Inspections", "Issues", "Parks"].includes(item.title))
     : items.filter(item => {
-        const allowed = ["Dashboard", "Inspections", "Issues"];
-        // Only show Assets to non-admins or management who need it
+        const allowed = ["Dashboard", "Inspections", "Issues", "Parks"];
         if (!isAdmin) allowed.push("Assets");
         return allowed.includes(item.title);
       });

@@ -39,10 +39,12 @@ import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate } from "@/lib/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function ParksPage() {
   const { toast } = useToast();
   const db = useFirestore();
+  const isMobile = useIsMobile();
 
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef as any);
@@ -168,7 +170,8 @@ export default function ParksPage() {
       }
   };
 
-  const renderUpdates = (type: string, canEdit: boolean) => {
+  const renderUpdates = (type: string, canEditRaw: boolean) => {
+    const canEdit = isMobile ? false : canEditRaw;
     const sectionUpdates = (selectedParkDetail.updates || []).filter(u => u.type === type && !u.isArchived);
 
     return (
@@ -319,14 +322,16 @@ export default function ParksPage() {
       title="Park Management"
       description="View and manage the list of registered parks."
       actions={
-        <Button
-          variant="outline"
-          className="font-bold"
-          onClick={() => setIsConfigDialogOpen(true)}
-          disabled={configLoading || isSubmitting}
-        >
-          <Settings2 className="mr-2 h-4 w-4" /> Manage Park List
-        </Button>
+        !isMobile && (
+          <Button
+            variant="outline"
+            className="font-bold"
+            onClick={() => setIsConfigDialogOpen(true)}
+            disabled={configLoading || isSubmitting}
+          >
+            <Settings2 className="mr-2 h-4 w-4" /> Manage Park List
+          </Button>
+        )
       }
     >
       <Card>
@@ -446,7 +451,7 @@ export default function ParksPage() {
               </div>
 
               <div className="shrink-0 flex items-center gap-2">
-                {isAdmin && !isEditing && (
+                {isAdmin && !isEditing && !isMobile && (
                   <Button 
                     variant="secondary" 
                     size="sm" 
