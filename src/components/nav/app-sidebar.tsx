@@ -16,7 +16,8 @@ import {
   UserX,
   PackagePlus,
   Truck,
-  Map
+  Map,
+  Building2
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,6 +46,7 @@ const navItems = [
   { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Parks", icon: Map, href: "/parks" },
+  { title: "Depots", icon: Building2, href: "/depots" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
   { title: "Resolved Issues", icon: Archive, href: "/resolved-issues" },

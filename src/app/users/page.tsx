@@ -769,6 +769,14 @@ export default function UserManagement() {
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Initial Password</Label>
                 <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Min 6 characters" className="font-medium" />
               </div>
+              <div className="grid gap-2">
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Work Phone</Label>
+                <Input value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} placeholder="07xxx xxxxxx" className="font-medium" />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Radio Call Sign</Label>
+                <Input value={newUser.radioCallSign} onChange={e => setNewUser({...newUser, radioCallSign: e.target.value})} placeholder="e.g. Victor 1" className="font-medium" />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-x-8 gap-y-6">
@@ -932,9 +940,17 @@ export default function UserManagement() {
                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Email Identity</Label>
                         <Input value={selectedUser?.email} onChange={e => selectedUser && setSelectedUser({...selectedUser, email: e.target.value})} className="font-medium" />
                       </div>
-                      <div className="grid gap-2">
+                       <div className="grid gap-2">
                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Access Password</Label>
                         <Input type="password" value={selectedUser?.password || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, password: e.target.value})} placeholder="Enter 6+ characters to update" className="font-medium" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Work Phone</Label>
+                        <Input value={selectedUser?.phone || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, phone: e.target.value})} className="font-medium" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Radio Call Sign</Label>
+                        <Input value={selectedUser?.radioCallSign || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, radioCallSign: e.target.value})} className="font-medium" />
                       </div>
                     </div>
                     

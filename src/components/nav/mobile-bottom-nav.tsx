@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck, PackagePlus, ClipboardList } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck, PackagePlus, ClipboardList, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
@@ -19,6 +19,7 @@ const items = [
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
   { title: "Assets", icon: MapPin, href: "/assets" },
   { title: "Parks", icon: MapPin, href: "/parks" },
+  { title: "Depots", icon: Building2, href: "/depots" },
 ];
 
 export function MobileBottomNav() {
@@ -38,9 +39,9 @@ export function MobileBottomNav() {
   const isAdmin = profile?.role === 'Admin' || user?.email === 'quinten.geurs@gmail.com';
 
   const filteredItems = isOperative 
-    ? items.filter(item => ["Dashboard", "Inspections", "Issues", "Parks"].includes(item.title))
+    ? items.filter(item => ["Dashboard", "Inspections", "Issues", "Parks", "Depots"].includes(item.title))
     : items.filter(item => {
-        const allowed = ["Dashboard", "Inspections", "Issues", "Parks"];
+        const allowed = ["Dashboard", "Inspections", "Issues", "Parks", "Depots"];
         if (!isAdmin) allowed.push("Assets");
         return allowed.includes(item.title);
       });

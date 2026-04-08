@@ -12,6 +12,8 @@ export interface User {
   depots?: string[]; // Multiple assigned depots
   avatar?: string;
   training?: string;
+  phone?: string;
+  radioCallSign?: string;
   password?: string;
   isArchived?: boolean;
   createdAt?: string;
@@ -142,4 +144,30 @@ export interface ParkDetail {
   userGroup?: string;
   userGroupChair?: string;
   greenflag?: boolean;
+}
+export interface DepotUpdate {
+  id: string;
+  type: 'Training' | 'Machinery' | 'Safety' | 'General';
+  title: string;
+  description: string;
+  startDate?: string;
+  endDate?: string;
+  createdAt: string;
+  createdBy: string;
+  isArchived: boolean;
+}
+
+export interface DepotDetail {
+  id: string; // Depot Name used as ID
+  name: string;
+  address?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  wifiCode?: string;
+  gateCode?: string;
+  overtimeSites?: string[];
+  contractedSites?: string[];
+  machinery?: string[]; // Pills for machinery
+  tools?: string[]; // Pills for tools
+  updates?: DepotUpdate[];
 }
