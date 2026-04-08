@@ -85,7 +85,7 @@ export default function ParksPage() {
     return parks.filter(parkName => {
       const detail = allDetails.find(d => d.name === parkName);
       if (!detail?.depot) return true; 
-      return userDepots.includes(detail.depot);
+      return (userDepots || []).some(ud => ud.trim() === detail.depot?.trim());
     });
   }, [parks, allDetails, currentUserData, isAdmin]);
 
@@ -276,9 +276,9 @@ export default function ParksPage() {
     
     // Find management for this depot
     // Note: If multiple exist, we take the first match as a primary suggestion
-    const hg = allUsers.find(u => !u.isArchived && u.role === 'Head Gardener' && (u.depots?.includes(selectedDepot) || u.depot === selectedDepot));
-    const am = allUsers.find(u => !u.isArchived && u.role === 'Area Manager' && (u.depots?.includes(selectedDepot) || u.depot === selectedDepot));
-    const po = allUsers.find(u => !u.isArchived && u.role === 'Parks Development Officer' && (u.depots?.includes(selectedDepot) || u.depot === selectedDepot));
+    const hg = allUsers.find(u => !u.isArchived && u.role === 'Head Gardener' && ((u.depots || []).some(d => d.trim() === selectedDepot.trim()) || u.depot?.trim() === selectedDepot.trim()));
+    const am = allUsers.find(u => !u.isArchived && u.role === 'Area Manager' && ((u.depots || []).some(d => d.trim() === selectedDepot.trim()) || u.depot?.trim() === selectedDepot.trim()));
+    const po = allUsers.find(u => !u.isArchived && u.role === 'Parks Development Officer' && ((u.depots || []).some(d => d.trim() === selectedDepot.trim()) || u.depot?.trim() === selectedDepot.trim()));
     
     setEditForm(prev => ({
         ...prev,

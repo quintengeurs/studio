@@ -143,7 +143,7 @@ export default function UserManagement() {
   useEffect(() => {
     if (selectedUser) {
       const str = selectedUser.training || "";
-      const parts = str ? str.split(',').map(s => s.trim()).filter(s => s && s !== 'None') : [];
+      const parts = str ? str.split(',').map(s => s.trim()).filter(s => s && s.toLowerCase() !== 'none') : [];
       setSelectedTrainings(parts);
     } else {
       setSelectedTrainings([]);
@@ -207,12 +207,12 @@ export default function UserManagement() {
   const syncTrainingState = (trainingString: string | undefined | null) => {
     const str = trainingString || "";
     // Filter out "None" or empty strings to prevent them from showing up as "selected" but unticked items
-    const parts = str ? str.split(',').map(s => s.trim()).filter(s => s && s !== 'None') : [];
+    const parts = str ? str.split(',').map(s => s.trim()).filter(s => s && s.toLowerCase() !== 'none') : [];
     setSelectedTrainings(parts);
   };
 
   const getFinalTrainingString = () => {
-    const active = selectedTrainings.filter(t => t && t !== 'None').map(t => t.trim());
+    const active = selectedTrainings.filter(t => t && t.trim().toLowerCase() !== 'none').map(t => t.trim());
     return active.length > 0 ? active.join(', ') : 'None';
   };
 
@@ -801,7 +801,7 @@ export default function UserManagement() {
                   >
                     <Checkbox 
                       id={`new-depot-${t}`} 
-                      checked={newUser.depots?.includes(t) || (newUser.depot === t && newUser.depots?.length !== 0)}
+                      checked={(newUser.depots || []).some(d => d.trim() === t.trim()) || (newUser.depot?.trim() === t.trim() && newUser.depots?.length !== 0)}
                       onCheckedChange={() => {}} // Handled by div onClick
                     />
                     <label htmlFor={`new-depot-${t}`} className="text-xs font-medium cursor-pointer flex-1">
@@ -964,7 +964,7 @@ export default function UserManagement() {
                             {teams.map(t => (
                               <DropdownMenuCheckboxItem 
                                 key={t}
-                                checked={selectedUser?.depots?.includes(t) || (selectedUser?.depot === t && selectedUser?.depots?.length !== 0)}
+                                checked={(selectedUser?.depots || []).some(d => d.trim() === t.trim()) || (selectedUser?.depot?.trim() === t.trim() && selectedUser?.depots?.length !== 0)}
                                 onCheckedChange={(checked) => {
                                    if (!selectedUser) return;
                                    const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
@@ -987,8 +987,8 @@ export default function UserManagement() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-xl p-6 bg-muted/10">
                         {/* Display both registry options AND any existing data that doesn't match registry */}
-                        {Array.from(new Set([...trainingOptions, ...selectedTrainings])).sort().map((option) => {
-                          const isUnregistered = !trainingOptions.includes(option);
+                        {Array.from(new Set([...trainingOptions.map(t => t.trim()), ...selectedTrainings.map(t => t.trim())])).sort().map((option) => {
+                          const isUnregistered = !trainingOptions.some(ref => ref.trim() === option.trim());
                           return (
                             <div key={option} className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer" onClick={() => toggleTraining(option)}>
                               <Checkbox id={`edit-${option}`} checked={selectedTrainings.includes(option)} onCheckedChange={() => toggleTraining(option)} />
