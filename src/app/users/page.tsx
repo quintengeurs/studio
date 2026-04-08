@@ -126,6 +126,7 @@ export default function UserManagement() {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Synchronize training selections whenever the active user profile changes
@@ -138,10 +139,20 @@ export default function UserManagement() {
       setSelectedTrainings([]);
     }
   }, [selectedUser?.id, selectedUser?.training]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management' | 'archived'>('all');
   const [isUserSubmitting, setIsUserSubmitting] = useState(false);
   const [isConfigSubmitting, setIsConfigSubmitting] = useState(false);
+  
+  // Global safety hook to prevent UI lockups from Radix Dialogs
+  useEffect(() => {
+    const anyModalOpen = isAddDialogOpen || isUpdateModalOpen || isTaskDeleteConfirmOpen || isProfileDialogOpen || isConfigDialogOpen || isArchiveConfirmOpen;
+    if (!anyModalOpen) {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+    }
+  }, [isAddDialogOpen, isUpdateModalOpen, isTaskDeleteConfirmOpen, isProfileDialogOpen, isConfigDialogOpen, isArchiveConfirmOpen]);
   
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
   
@@ -340,7 +351,7 @@ export default function UserManagement() {
     }
   };
 
-  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+
 
   const performArchiveToggle = async (archiveState: boolean) => {
     if (!db || !selectedUser || isUserSubmitting) return;
@@ -348,12 +359,19 @@ export default function UserManagement() {
     setIsUserSubmitting(true);
     try {
         await updateDoc(doc(db, "users", selectedUser.id), { isArchived: archiveState });
-        // Sequence to avoid UI lock
+        // Sequence to avoid UI lock: Close confirmed dialog first
         setIsArchiveConfirmOpen(false);
+        
+        // Wait for first dialog to clear before closing parent
         setTimeout(() => {
           setIsProfileDialogOpen(false);
-          setSelectedUser(null);
-        }, 100);
+          // Small final delay before clearing state to ensure smooth transition
+          setTimeout(() => {
+            setSelectedUser(null);
+            setIsEditing(false);
+          }, 150);
+        }, 300);
+        
         toast({ title: archiveState ? "User Archived" : "User Restored", description: archiveState ? "Staff member moved to archives." : "Staff member has been unarchived." });
     } catch (e) {
         toast({ title: "Error", description: "Could not update archive status.", variant: "destructive" });
