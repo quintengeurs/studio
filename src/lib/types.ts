@@ -144,6 +144,7 @@ export interface ParkDetail {
   userGroup?: string;
   userGroupChair?: string;
   greenflag?: boolean;
+  greenFlagInfo?: string;
 }
 export interface DepotUpdate {
   id: string;

@@ -366,13 +366,12 @@ export default function ParksPage() {
                     onClick={() => handleOpenDetail(park)}
                     className="flex items-center gap-3 p-4 bg-background border-2 hover:border-primary/50 hover:bg-muted/30 transition-all rounded-xl text-left group"
                   >
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Leaf className="h-5 w-5 text-primary"/>
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${detail?.greenflag ? 'bg-green-600/10' : 'bg-primary/10 opacity-40'}`}>
+                      <Leaf className={`h-5 w-5 ${detail?.greenflag ? 'text-green-600 fill-green-600' : 'text-primary'}`}/>
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="font-bold text-sm tracking-tight flex items-center gap-2 truncate">
                         <span className="truncate">{park}</span>
-                        {detail?.greenflag && <Leaf className="h-4 w-4 text-green-600 fill-green-600 flex-shrink-0" />}
                       </span>
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">View Details</span>
                     </div>
@@ -446,13 +445,12 @@ export default function ParksPage() {
           <div className="bg-primary/10 px-8 py-8 border-b border-primary/10">
             <div className="flex items-start justify-between gap-6">
               <div className="flex items-center gap-4 min-w-0">
-                <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-                  <Leaf className="h-6 w-6 text-primary-foreground" />
+                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${selectedParkDetail?.greenflag ? 'bg-green-600 shadow-green-600/20' : 'bg-primary shadow-primary/20'}`}>
+                  <Leaf className={`h-6 w-6 ${selectedParkDetail?.greenflag ? 'text-white fill-white' : 'text-primary-foreground'}`} />
                 </div>
                 <div className="min-w-0">
-                  <DialogTitle className="text-2xl font-headline font-bold text-primary flex items-center gap-2 truncate">
-                    <span className="truncate">{selectedParkName}</span>
-                    {selectedParkDetail?.greenflag && <Leaf className="h-6 w-6 text-green-600 fill-green-600 shrink-0" />}
+                  <DialogTitle className="text-2xl font-headline font-bold text-primary truncate">
+                    {selectedParkName}
                   </DialogTitle>
                   <p className="text-sm text-primary/60 font-medium tracking-tight">Park Information & Registry Details</p>
                   
@@ -555,15 +553,26 @@ export default function ParksPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-2 pt-2 pb-2">
-                        <Checkbox 
-                          id="greenflag" 
-                          checked={editForm.greenflag || false} 
-                          onCheckedChange={v => setEditForm({...editForm, greenflag: !!v})} 
-                        />
-                        <label htmlFor="greenflag" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2 cursor-pointer">
-                          Greenflag Status <Leaf className="h-4 w-4 text-green-600" />
-                        </label>
+                      <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-xl border border-primary/10">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="greenflag" 
+                            checked={editForm.greenflag || false} 
+                            onCheckedChange={v => setEditForm({...editForm, greenflag: !!v})} 
+                          />
+                          <label htmlFor="greenflag" className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2 cursor-pointer">
+                            Green Flag Award Status <Leaf className="h-4 w-4 text-green-600" />
+                          </label>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection / Mystery Shop Details</Label>
+                          <Input 
+                            placeholder="e.g. To be inspected this year / Mystery shop 2026"
+                            value={editForm.greenFlagInfo || ""}
+                            onChange={e => setEditForm({...editForm, greenFlagInfo: e.target.value})}
+                            className="bg-background"
+                          />
+                        </div>
                       </div>
 
                       <div className="space-y-4">
@@ -732,6 +741,15 @@ export default function ParksPage() {
                         <span className="font-bold text-sm">{selectedParkDetail.parkOfficer || "Not Assigned"}</span>
                       </div>
                     </div>
+                    {selectedParkDetail.greenflag && (
+                      <div className="mt-6 p-4 bg-green-600/5 rounded-xl border border-green-600/10 flex items-center gap-3">
+                        <Leaf className="h-5 w-5 text-green-600 fill-green-600 shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-green-700">Green Flag Award Status</span>
+                          <span className="text-sm font-bold text-green-900">{selectedParkDetail.greenFlagInfo || "Current Holder"}</span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="pt-6">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
