@@ -4,86 +4,84 @@ import { useEffect, useRef } from "react";
 
 export function PixelPark() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
     let time = 0;
-    let gardenerX = 8;           // starting position
-    let gardenerPhase = 1;        // 0: walk right → 1: water → 2: walk to bench → 3: rest → 4: walk to rake → 5: rake → 6: walk back
+    let gardenerX = 14;
+    let gardenerPhase = 0;
     let apples: any[] = [];
     let leaves: any[] = [];
     let birds: any[] = [];
     let flowerGrowth = [0, 0, 0];
 
+    // Apple positions — locked to the RIGHT tree only
     const applePositions = [
-      {x: 59, y: 21}, {x: 64, y: 19}, {x: 68, y: 24},
-      {x: 55, y: 26}, {x: 71, y: 27}, {x: 60, y: 30},
-      {x: 66, y: 18}, {x: 70, y: 29}
+      {x: 59, y: 21}, {x: 63, y: 18}, {x: 67, y: 22},
+      {x: 56, y: 25}, {x: 70, y: 24}, {x: 64, y: 29}
     ];
 
     for (let i = 0; i < 2; i++) {
-      birds.push({
-        x: 8 + i * 30,
-        y: 9 + i * 4,
-        speed: 0.15 + Math.random() * 0.12,
-        bob: 0
-      });
+      birds.push({ x: 10 + i * 32, y: 9 + i * 4, speed: 0.22 + Math.random() * 0.12, bob: 0 });
+    }
+
+    function resizeCanvas() {
+      if (!canvas || !containerRef.current) return;
+      const containerWidth = containerRef.current.clientWidth;
+      canvas.width = Math.floor(containerWidth / 3);
+      canvas.height = 60;
     }
 
     function drawBackground() {
-      if (!ctx) return;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 80, 60);
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Soft lawn
+      const w = canvas.width;
+
+      // Lawn
       ctx.fillStyle = '#c8e0c0';
-      ctx.fillRect(0, 52, 80, 8);
+      ctx.fillRect(0, 52, w, 8);
 
       // Left tree
       ctx.fillStyle = '#8ab88a';
       ctx.fillRect(4, 15, 7, 33);
       ctx.fillStyle = '#a8d0a8';
       ctx.fillRect(1, 10, 13, 12);
-      ctx.fillRect(0, 12, 20, 15);
-      ctx.fillStyle = '#b8e0b8';
-      ctx.fillRect(3, 8, 12, 12);
+      ctx.fillRect(0, 16, 16, 10);
 
       // Right apple tree
+      const rightX = w - 20;
       ctx.fillStyle = '#8ab88a';
-      ctx.fillRect(60, 18, 7, 30);
+      ctx.fillRect(rightX, 18, 7, 30);
       ctx.fillStyle = '#a8d0a8';
-      ctx.fillRect(54, 11, 16, 13);
-      ctx.fillRect(52, 19, 21, 11);
-      ctx.fillStyle = '#b8e0b8';
-      ctx.fillRect(56, 13, 10, 7);
+      ctx.fillRect(rightX - 6, 11, 16, 13);
+      ctx.fillRect(rightX - 8, 17, 19, 11);
 
       // Shrubs
       ctx.fillStyle = '#9ac89a';
-      ctx.fillRect(18, 41, 14, 13);
-      ctx.fillRect(40, 40, 13, 14);
+      ctx.fillRect(18, 41, 12, 13);
+      if (w > 240) ctx.fillRect(w - 33, 40, 13, 14);
 
-      // Bench (moved to right, under apple tree)
+      // Bench - positioned under the right apple tree
+      const benchX = w - 29;
       ctx.fillStyle = '#d4b88a';
-      ctx.fillRect(62, 44, 14, 3);           // seat
-      ctx.fillRect(63, 41, 2, 9);            // legs
-      ctx.fillRect(73, 41, 2, 9);
+      ctx.fillRect(benchX, 44, 14, 3);           // seat
+      ctx.fillRect(benchX + 1, 41, 2, 9);        // legs
+      ctx.fillRect(benchX + 11, 41, 2, 9);
       ctx.fillStyle = '#b89a6a';
-      ctx.fillRect(61, 43, 16, 2);           // seat shading
-
-      // Ground
-      ctx.fillStyle = '#44aa44';
-      ctx.fillRect(0, 52, 80, 8);
+      ctx.fillRect(benchX - 1, 43, 16, 2);
     }
 
     function drawGardener() {
       if (!ctx) return;
       const phase = Math.floor(gardenerPhase);
       let gx = gardenerX;
-      let gy = (phase === 3) ? 41 : 38;   // sit lower on bench
+      let gy = (phase === 3) ? 41 : 46;   // on lawn
 
       // Hat
       ctx.fillStyle = '#f0d8a0';
@@ -104,13 +102,12 @@ export function PixelPark() {
       ctx.fillRect(gx + 2, gy + 10, 1, 2);
       ctx.fillRect(gx + 4, gy + 10, 1, 2);
 
-      // Tools
-      if (phase === 1) { // Watering
+      if (phase === 1 || phase === 4 || phase === 6) { // Watering
         ctx.fillStyle = '#b0d8f0';
         ctx.fillRect(gx + 6, gy + 6, 4, 2);
       } 
       else if (phase === 5) { // Raking
-        const rakeMove = Math.sin(time / 5) * 1.2;
+        const rakeMove = Math.sin(time / 5) * 1.5;
         ctx.fillStyle = '#c8a878';
         ctx.fillRect(gx + 6 + rakeMove, gy + 5, 1, 7);
         ctx.fillStyle = '#a87848';
@@ -119,32 +116,52 @@ export function PixelPark() {
     }
 
     function drawFlowers() {
-      if (!ctx) return;
-      const growth = flowerGrowth[0];
-      ctx.fillStyle = '#9ac89a';
-      ctx.fillRect(20, 49 - growth*2, 2, 5 + growth*2);
-      ctx.fillStyle = '#f8b0c8';
-      ctx.fillRect(19, 47 - growth*3, 3, 3);
+      if (!ctx || !canvas) return;
+      const w = canvas.width;
+      const g = flowerGrowth;
 
+      // Left flower
       ctx.fillStyle = '#9ac89a';
-      ctx.fillRect(48, 49 - growth*2, 2, 5 + growth*2);
-      ctx.fillStyle = '#f0e0a0';
-      ctx.fillRect(47, 47 - growth*3, 3, 3);
+      ctx.fillRect(18, 49 - g[0] * 2, 1, 5 + g[0] * 2);
+      ctx.fillStyle = '#f8b0c8';
+      ctx.fillRect(17, 47 - g[0] * 3, 3, 3);
+
+      // Middle flower
+      if (w > 40) {
+        ctx.fillStyle = '#9ac89a';
+        ctx.fillRect(56, 49 - g[1] * 2, 1, 5 + g[1] * 2);
+        ctx.fillStyle = '#f0e0a0';
+        ctx.fillRect(55, 47 - g[1] * 3, 3, 3);
+      }
+      
+      // Secondary flower
+      if (w > 40) {
+        ctx.fillStyle = '#9ac89a';
+        ctx.fillRect(66, 49 - g[1] * 2, 1, 5 + g[1] * 2);
+        ctx.fillStyle = '#f0e0a0';
+        ctx.fillRect(65, 47 - g[1] * 3, 3, 3);
+      }
+
+      // Right flower (near bench)
+      if (w > 40) {
+        ctx.fillStyle = '#9ac89a';
+        ctx.fillRect(w - 36, 49 - g[2] * 2, 1, 5 + g[2] * 2);
+        ctx.fillStyle = '#e8c0d8';
+        ctx.fillRect(w - 37, 47 - g[2] * 3, 3, 3);
+      }
     }
 
     function updateFlowers() {
-      flowerGrowth[0] = Math.min(1, flowerGrowth[0] + 0.0013);
+      for (let i = 0; i < flowerGrowth.length; i++) {
+        flowerGrowth[i] = Math.min(1, flowerGrowth[i] + 0.0014);
+      }
     }
 
     function updateApples() {
-      if (apples.length < 3 && Math.random() < 0.006) {
+      if (apples.length < 3 && Math.random() < 0.005) {
         const pos = applePositions[Math.floor(Math.random() * applePositions.length)];
-        apples.push({
-          x: pos.x,
-          y: pos.y,
-          onTree: true,
-          timer: 220 + Math.random() * 280
-        });
+        // Ensure x is relative if tree position changes, but for now fixed
+        apples.push({ x: pos.x, y: pos.y, onTree: true, timer: 240 + Math.random() * 160 });
       }
 
       for (let i = apples.length - 1; i >= 0; i--) {
@@ -179,7 +196,7 @@ export function PixelPark() {
     }
 
     function updateLeaves() {
-      for (let i = leaves.length - 3; i >= 0; i--) {
+      for (let i = leaves.length - 1; i >= 0; i--) {
         leaves[i].life--;
         if (leaves[i].life <= 0) leaves.splice(i, 1);
       }
@@ -196,10 +213,11 @@ export function PixelPark() {
     }
 
     function updateBirds() {
+      if (!canvas) return;
       for (let bird of birds) {
         bird.x += bird.speed;
         bird.bob = Math.sin(time / 8) * 0.8;
-        if (bird.x > 85) bird.x = -8;
+        if (bird.x > canvas.width + 5) bird.x = -8;
       }
     }
 
@@ -215,35 +233,25 @@ export function PixelPark() {
     }
 
     function updateGardener() {
+      if (!canvas) return;
       time++;
-      gardenerPhase += 0.00125;   // slower cycle for longer rest
+      gardenerPhase += 0.0015;
 
-      if (gardenerPhase > 7) gardenerPhase = 0;   // extended phases for smooth loop
+      if (gardenerPhase > 8.5) gardenerPhase = 0;
 
-      // Smooth movement logic
-      if (gardenerPhase < 1) {                    // walk right to watering spot
-        gardenerX += 0.12;
-      } 
-      else if (gardenerPhase < 2) {               // watering (long)
-        gardenerX = 16;
-      } 
-      else if (gardenerPhase < 3) {               // walk to bench
-        gardenerX += 0.12;
-      } 
-      else if (gardenerPhase < 5) {               // rest on bench (very long)
-        gardenerX = 64;
-      } 
-      else if (gardenerPhase < 6) {               // walk to raking spot
-        gardenerX -= 0.12;
-      } 
-      else if (gardenerPhase < 6.8) {             // raking (long)
-        gardenerX = 50;
-      } 
-      else {                                      // walk back to start
-        gardenerX -= 0.19;
-      }
+      const w = canvas.width;
 
-      gardenerX = Math.max(12, Math.min(68, gardenerX));
+      if (gardenerPhase < 1) gardenerX += 0.17;
+      else if (gardenerPhase < 2) gardenerX = 18;           // water left
+      else if (gardenerPhase < 3) gardenerX += 0.18;
+      else if (gardenerPhase < 4) gardenerX = Math.floor(w * 0.45); // water middle
+      else if (gardenerPhase < 5) gardenerX += 0.17;
+      else if (gardenerPhase < 6.5) gardenerX = w - 18;     // rest on bench (right)
+      else if (gardenerPhase < 7) gardenerX -= 0.16;
+      else if (gardenerPhase < 7.8) gardenerX = 39;         // rake
+      else gardenerX -= 0.19;
+
+      gardenerX = Math.max(12, Math.min(w - 16, gardenerX));
     }
 
     let animationFrameId: number;
@@ -265,22 +273,23 @@ export function PixelPark() {
       animationFrameId = requestAnimationFrame(animate);
     }
 
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
     animate();
 
     return () => {
+      window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
 
   return (
-    <div className="hidden md:block fixed bottom-6 right-6 z-50">
-      <div className="p-3 bg-white border-[6px] border-[#a8c8a8] shadow-[0_0_20px_rgba(140,180,140,0.3)] rounded-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-1000">
-        <div className="w-[180px] h-[135px] relative overflow-hidden bg-white">
+    <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
+      <div className="pointer-events-auto p-3 bg-white border-[6px] border-[#a8c8a8] shadow-[0_0_20px_rgba(140,180,140,0.3)] rounded-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div ref={containerRef} className="w-[200px] h-[150px] relative overflow-hidden bg-transparent">
           <canvas 
             ref={canvasRef} 
-            width={80} 
-            height={60} 
-            className="w-full h-full"
+            className="w-full h-full block"
             style={{ imageRendering: 'pixelated' }}
           />
         </div>
