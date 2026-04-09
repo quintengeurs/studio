@@ -122,32 +122,32 @@ export function PixelPark() {
 
       // Left flower
       ctx.fillStyle = '#9ac89a';
-      ctx.fillRect(18, 49 - g[0] * 2, 1, 5 + g[0] * 2);
+      ctx.fillRect(18, 49 - g[0]*2, 1, 5 + g[0]*2);
       ctx.fillStyle = '#f8b0c8';
-      ctx.fillRect(17, 47 - g[0] * 3, 3, 3);
+      ctx.fillRect(17, 47 - g[0]*3, 3, 3);
 
       // Middle flower
       if (w > 40) {
         ctx.fillStyle = '#9ac89a';
-        ctx.fillRect(56, 49 - g[1] * 2, 1, 5 + g[1] * 2);
+        ctx.fillRect(56, 49 - g[1]*2, 1, 5 + g[1]*2);
         ctx.fillStyle = '#f0e0a0';
-        ctx.fillRect(55, 47 - g[1] * 3, 3, 3);
+        ctx.fillRect(55, 47 - g[1]*3, 3, 3);
       }
       
-      // Secondary flower
+      // Secondary middle flower
       if (w > 40) {
         ctx.fillStyle = '#9ac89a';
-        ctx.fillRect(66, 49 - g[1] * 2, 1, 5 + g[1] * 2);
+        ctx.fillRect(66, 49 - g[1]*2, 1, 5 + g[1]*2);
         ctx.fillStyle = '#f0e0a0';
-        ctx.fillRect(65, 47 - g[1] * 3, 3, 3);
+        ctx.fillRect(65, 47 - g[1]*3, 3, 3);
       }
 
       // Right flower (near bench)
       if (w > 40) {
         ctx.fillStyle = '#9ac89a';
-        ctx.fillRect(w - 36, 49 - g[2] * 2, 1, 5 + g[2] * 2);
+        ctx.fillRect(w - 36, 49 - g[2]*2, 1, 5 + g[2]*2);
         ctx.fillStyle = '#e8c0d8';
-        ctx.fillRect(w - 37, 47 - g[2] * 3, 3, 3);
+        ctx.fillRect(w - 37, 47 - g[2]*3, 3, 3);
       }
     }
 
@@ -160,7 +160,6 @@ export function PixelPark() {
     function updateApples() {
       if (apples.length < 3 && Math.random() < 0.005) {
         const pos = applePositions[Math.floor(Math.random() * applePositions.length)];
-        // Ensure x is relative if tree position changes, but for now fixed
         apples.push({ x: pos.x, y: pos.y, onTree: true, timer: 240 + Math.random() * 160 });
       }
 
@@ -285,8 +284,8 @@ export function PixelPark() {
 
   return (
     <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
-      <div className="pointer-events-auto p-3 bg-white border-[6px] border-[#a8c8a8] shadow-[0_0_20px_rgba(140,180,140,0.3)] rounded-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-1000">
-        <div ref={containerRef} className="w-[200px] h-[150px] relative overflow-hidden bg-transparent">
+      <div className="pointer-events-auto p-3 bg-transparent overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div ref={containerRef} className="w-[300px] h-[150px] relative overflow-hidden bg-transparent">
           <canvas 
             ref={canvasRef} 
             className="w-full h-full block"
