@@ -273,6 +273,20 @@ export default function ParksPage() {
     }
   };
 
+  const handleTogglePixelPark = async () => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const registryRef = doc(db, "settings", "registry");
+      await setDoc(registryRef, { showPixelPark: !registryConfig?.showPixelPark }, { merge: true });
+      toast({ title: "Settings Updated", description: `Pixel Park is now ${!registryConfig?.showPixelPark ? 'enabled' : 'disabled'}.` });
+    } catch (e) {
+      toast({ title: "Error updating settings", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleOpenDetail = (parkName: string) => {
     setSelectedParkName(parkName);
     const detail = allDetails.find(d => d.name === parkName) || {
@@ -435,6 +449,17 @@ export default function ParksPage() {
                   <div className="text-center text-sm text-muted-foreground p-4">No parks configured.</div>
               )}
             </ScrollArea>
+            <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10 mt-2">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-bold tracking-tight">Pixel Park Animation</span>
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Desktop Only • Peaceful Corner</span>
+              </div>
+              <Checkbox 
+                checked={registryConfig?.showPixelPark ?? true} 
+                onCheckedChange={handleTogglePixelPark}
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

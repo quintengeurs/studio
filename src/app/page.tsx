@@ -35,6 +35,8 @@ import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
+import { PixelPark } from "@/components/dashboard/pixel-park";
+import { RegistryConfig } from "@/lib/types";
 
 export default function Dashboard() {
   const db = useFirestore();
@@ -48,6 +50,9 @@ export default function Dashboard() {
 
   const userDisplayName = user?.displayName || user?.email || "";
   const { toast } = useToast();
+
+  const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: registryConfig } = useDoc<RegistryConfig>(registryRef as any);
 
   const handleCollectItem = async (id: string) => {
     if (!db) return;
@@ -486,6 +491,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {(registryConfig?.showPixelPark ?? true) && <PixelPark />}
     </DashboardShell>
   );
 }
