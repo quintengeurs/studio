@@ -977,12 +977,12 @@ export default function UserManagement() {
                     <Separator className="my-2" />
 
                     <div className="grid gap-3">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Designations</Label>
-                      <div className="grid grid-cols-2 gap-3 border rounded-xl p-4 bg-muted/10">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Designations (Multi-select)</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border rounded-xl p-4 bg-muted/10">
                         {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].filter((v, i, a) => a.indexOf(v) === i).map(role => (
                           <div 
                             key={role} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1 rounded transition-colors"
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1.5 rounded-md transition-colors"
                             onClick={() => {
                               if (!selectedUser) return;
                               const current = selectedUser.roles || (selectedUser.role ? [selectedUser.role] : []);
@@ -991,37 +991,37 @@ export default function UserManagement() {
                             }}
                           >
                             <Checkbox checked={(selectedUser?.roles || (selectedUser?.role ? [selectedUser.role] : [])).includes(role)} onCheckedChange={() => {}} />
-                            <Label className="text-xs font-medium cursor-pointer">{role}</Label>
+                            <Label className="text-[10px] font-bold cursor-pointer leading-tight">{role}</Label>
                           </div>
                         ))}
                       </div>
                     </div>
                     
-                    <div className="grid gap-2 text-left mt-4">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignment</Label>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="w-full justify-start font-medium border-input">
-                             {selectedUser?.depots?.length ? <span className="text-foreground">{selectedUser.depots.length} Selected</span> : (selectedUser?.depot || "Select Depots...")}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56" align="start">
-                          {teams.map(t => (
-                            <DropdownMenuCheckboxItem 
-                              key={t}
+                    <div className="grid gap-3 mt-4">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignments</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border rounded-xl p-4 bg-muted/10">
+                        {teams.map(t => (
+                          <div 
+                            key={t} 
+                            className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer"
+                            onClick={() => {
+                              if (!selectedUser) return;
+                              const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
+                              const checked = current.some(d => d.trim() === t.trim());
+                              const newDepots = checked ? current.filter(x => x.trim() !== t.trim()) : [...current, t];
+                              setSelectedUser({...selectedUser, depots: newDepots, depot: newDepots[0] || ''});
+                            }}
+                          >
+                            <Checkbox 
                               checked={(selectedUser?.depots || []).some(d => d.trim() === t.trim()) || (selectedUser?.depot?.trim() === t.trim() && selectedUser?.depots?.length !== 0)}
-                              onCheckedChange={(checked) => {
-                                 if (!selectedUser) return;
-                                 const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
-                                 const newDepots = checked ? [...current, t] : current.filter(x => x !== t);
-                                 setSelectedUser({...selectedUser, depots: newDepots, depot: newDepots[0] || ''});
-                              }}
-                            >
+                              onCheckedChange={() => {}} // Handled by div onClick
+                            />
+                            <label className="text-xs font-medium cursor-pointer flex-1">
                               {t}
-                            </DropdownMenuCheckboxItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     
                     <div className="grid gap-4 pt-4">
@@ -1045,9 +1045,11 @@ export default function UserManagement() {
                         })}
                       </div>
                     </div>
-                    <Button onClick={handleUpdateUser} className="w-full font-bold" disabled={isUserSubmitting}>
-                      {isUserSubmitting ? "Saving..." : "Save Profile Changes"}
-                    </Button>
+                    <div className="pt-6 pb-12">
+                      <Button onClick={handleUpdateUser} className="w-full font-bold h-12 text-lg shadow-lg" disabled={isUserSubmitting}>
+                        {isUserSubmitting ? "Saving..." : "Save Profile Changes"}
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid gap-6">
