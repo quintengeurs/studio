@@ -283,7 +283,7 @@ export function PixelPark() {
   }, []);
 
   return (
-    <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
+    <div className="hidden md:block fixed bottom-4 right-4 z-[9999] pointer-events-none">
       <div className="pointer-events-auto p-3 bg-transparent overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-1000">
         <div ref={containerRef} className="w-[300px] h-[150px] relative overflow-hidden bg-transparent">
           <canvas 
