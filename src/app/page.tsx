@@ -87,6 +87,9 @@ export default function Dashboard() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const identities = useMemo(() => {
     const list = [userEffectiveName];
+    if (user?.email) list.push(user.email.toLowerCase());
+    if (user?.displayName) list.push(user.displayName);
+
     const userDepots = currentUserData?.depots || (currentUserData?.depot ? [currentUserData.depot] : []);
     currentUserRoles.forEach(r => {
       userDepots.forEach(d => {
@@ -95,7 +98,7 @@ export default function Dashboard() {
     });
     // Ensure uniqueness and limit to 10 for Firestore 'in' query safety
     return Array.from(new Set(list)).slice(0, 10);
-  }, [userEffectiveName, currentUserRoles, currentUserData?.depots, currentUserData?.depot]);
+  }, [userEffectiveName, user?.email, user?.displayName, currentUserRoles, currentUserData?.depots, currentUserData?.depot]);
 
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {

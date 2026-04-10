@@ -96,23 +96,28 @@ export default function TasksPage() {
     const userDepots = currentUserData?.depots?.length ? currentUserData.depots : (currentUserData?.depot ? [currentUserData.depot] : []);
     
     return tasks.filter(t => {
-      // Direct assignment
+      // 1. Direct assignment (Name, Email, or Group)
       const identities = [currentUserName];
+      if (user?.email) identities.push(user.email.toLowerCase());
+      if (user?.displayName) identities.push(user.displayName);
       if (groupIdentity) identities.push(groupIdentity);
-      if (identities.includes(t.assignedTo)) return true;
+      
+      const isDirectlyAssigned = identities.some(ident => 
+        t.assignedTo?.toLowerCase() === ident.toLowerCase() || t.assignedTo === ident
+      );
+      
+      if (isDirectlyAssigned) return true;
 
-      // Depot containment
+      // 2. Depot containment (Visibility for team members)
       const parkDetail = allDetails.find(d => d.name === t.park);
       if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
 
-      // Fallback: if no depots assigned to user, they might see everything or nothing? 
-      // User says "they should see parks relating to the clissold depot", so if they have NO depot, show nothing?
-      // I'll stick to: if no depots assigned, show original assignments.
-      if (userDepots.length === 0) return identities.includes(t.assignedTo);
+      // 3. Fallback for users without depots
+      if (userDepots.length === 0) return isDirectlyAssigned;
 
       return false;
     });
-  }, [tasks, isAdmin, currentUserData, allDetails, currentUserName, groupIdentity]);
+  }, [tasks, isAdmin, currentUserData, allDetails, currentUserName, groupIdentity, user?.email, user?.displayName]);
 
   const assignableUsers = users;
   const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();

@@ -93,9 +93,14 @@ export default function MyTasksPage() {
   const tasksQuery = useMemoFirebase(() => {
     if (!db || !currentUserName) return null;
     const identities = [currentUserName];
+    if (user?.email) identities.push(user.email.toLowerCase());
+    if (user?.displayName) identities.push(user.displayName);
     if (groupIdentity) identities.push(groupIdentity);
-    return query(collection(db, "tasks"), where("assignedTo", "in", identities));
-  }, [db, currentUserName, groupIdentity]);
+    
+    // Ensure uniqueness and limit for Firestore safety
+    const uniqueIdentities = Array.from(new Set(identities)).slice(0, 10);
+    return query(collection(db, "tasks"), where("assignedTo", "in", uniqueIdentities));
+  }, [db, currentUserName, groupIdentity, user?.email, user?.displayName]);
 
   const { data: tasks = [], loading } = useCollection<any>(tasksQuery);
 

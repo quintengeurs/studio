@@ -20,16 +20,16 @@ const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
 let db: any;
 
 try {
-  // Try to initialize with specific settings (Force long polling for corporate firewalls)
+  // Use initializeFirestore with experimentalForceLongPolling for stability
+  // Defaulting to (default) silo as it was flagged as restoring data in commit 4571839
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
-  }, DB_ID);
-  console.log(`[Firebase] Initialized Firestore: ${DB_ID}`);
-} catch (e) {
-  // If already initialized (common during development HMR), reuse the existing instance
-  db = getFirestore(app, DB_ID);
-  console.log(`[Firebase] Reusing Firestore: ${DB_ID}`);
+  });
+  console.log(`[Firebase] Initialized DEFAULT Firestore Silo: (default)`);
+} catch (e: any) {
+  // Graceful reuse if already initialized
+  db = getFirestore(app);
 }
 
 const auth = getAuth(app);

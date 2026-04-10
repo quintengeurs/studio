@@ -63,8 +63,17 @@ export default function IssuesPage() {
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  const userEmail = user?.email || "";
+  const emailId = userEmail.toLowerCase().replace(/[.#$[\]]/g, "_");
+  
+  // Resilient profile lookup: try UID first, then emailIdId
   const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
-  const { data: profile } = useDoc<User>(userProfileRef as any);
+  const { data: profileByUid } = useDoc<User>(userProfileRef as any);
+  
+  const emailProfileRef = (user && db) ? doc(db, "users", emailId) : null;
+  const { data: profileByEmail } = useDoc<User>(emailProfileRef as any);
+  
+  const profile = profileByEmail || profileByUid;
   
   const isOperative = profile?.role && OPERATIVE_ROLES.includes(profile.role);
 
@@ -90,8 +99,16 @@ export default function IssuesPage() {
 
     // Filter by reports, depot, or assignment
     return issues.filter(issue => {
-        if (issue.reportedBy === userIdent) return true;
-        if (issue.assignedTo === userName) return true;
+        // Direct attribution (Reporting or Assigned)
+        const matchesReporter = issue.reportedBy?.toLowerCase() === userIdent.toLowerCase() || 
+                               issue.reportedBy?.toLowerCase() === user?.email?.toLowerCase() ||
+                               issue.reportedBy === userName;
+                               
+        const matchesAssignee = issue.assignedTo?.toLowerCase() === userIdent.toLowerCase() || 
+                               issue.assignedTo?.toLowerCase() === user?.email?.toLowerCase() ||
+                               issue.assignedTo === userName;
+        
+        if (matchesReporter || matchesAssignee) return true;
         
         const parkDetail = allDetails.find(d => d.name === issue.park);
         if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
