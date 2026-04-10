@@ -870,9 +870,8 @@ export default function UserManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* User Profile / Edit Dialog */}
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="sm:max-w-[700px] h-[90vh] overflow-hidden flex flex-col p-0">
           <div className="p-6 pb-0">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
@@ -959,8 +958,9 @@ export default function UserManagement() {
               <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Tasks ({userTasks.length})</TabsTrigger>
             </TabsList>
 
-            <ScrollArea className="flex-1 p-6">
-              <TabsContent value="overview" className="mt-0 space-y-6">
+            <ScrollArea className="flex-1 w-full h-full">
+              <div className="p-6 h-full">
+                <TabsContent value="overview" className="mt-0 space-y-6 outline-none h-full">
                 {isEditing ? (
                   <div className="grid gap-6">
                     <div className="grid grid-cols-2 gap-x-8 gap-y-6">
@@ -1099,7 +1099,7 @@ export default function UserManagement() {
                 )}
               </TabsContent>
 
-              <TabsContent value="tasks" className="mt-0">
+              <TabsContent value="tasks" className="mt-0 h-full outline-none">
                 {userTasks.length > 0 ? (
                   <div className="grid gap-3 p-1">
                     {userTasks.map(task => (
@@ -1133,6 +1133,7 @@ export default function UserManagement() {
                   </div>
                 )}
               </TabsContent>
+              </div>
             </ScrollArea>
           </Tabs>
         </DialogContent>
