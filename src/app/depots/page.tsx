@@ -290,39 +290,51 @@ export default function DepotsPage() {
           const operationalRoles = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener'];
           const staffCount = allUsers.filter(u => 
             !u.isArchived && 
-            operationalRoles.includes(u.role) &&
+            (u.roles || (u.role ? [u.role] : [])).some(r => operationalRoles.includes(r)) &&
             (u.depots?.includes(depot) || u.depot === depot)
           ).length;
           const parkCount = allParks.filter(p => p.depot === depot).length;
 
           return (
-            <Card key={depot} className="group hover:border-primary/50 transition-all cursor-pointer h-full" onClick={() => handleOpenDetail(depot)}>
-               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xl font-headline font-bold">{depot}</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <Building className="h-5 w-5 text-primary" />
+            <button 
+                key={depot} 
+                onClick={() => handleOpenDetail(depot)}
+                className="flex flex-col gap-4 p-5 bg-background border-2 border-primary/5 hover:border-primary/20 hover:bg-muted/30 transition-all rounded-2xl text-left group relative overflow-hidden h-full shadow-sm"
+            >
+                <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <Edit3 className="h-4 w-4 text-primary/40" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 mt-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                      <Users className="h-3 w-3 text-primary" /> On-Site Team
-                    </span>
-                    <Badge variant="secondary" className="w-fit font-bold text-[10px] bg-primary/5 text-primary border-primary/10 transition-colors group-hover:bg-primary/10 italic">
-                       {staffCount} {staffCount === 1 ? 'Operational Staff' : 'Operational Staff'}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex flex-col gap-1">
-                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                       <Leaf className="h-3 w-3 text-primary" /> Serviced Parks
-                     </span>
-                     <span className="font-bold text-sm tracking-tight">{parkCount} Locations</span>
-                  </div>
+                
+                <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                        <Building2 className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-lg tracking-tight truncate">{depot}</span>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Operation Hub</span>
+                    </div>
                 </div>
-              </CardContent>
-            </Card>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="flex flex-col gap-1 p-3 bg-muted/40 rounded-xl border border-primary/5">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            <Users className="h-3 w-3 text-primary" /> Staff
+                        </div>
+                        <span className="text-xl font-bold font-headline">{staffCount}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 p-3 bg-muted/40 rounded-xl border border-primary/5">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            <Leaf className="h-3 w-3 text-primary" /> Parks
+                        </div>
+                        <span className="text-xl font-bold font-headline">{parkCount}</span>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                    <Badge variant="secondary" className="bg-primary/5 text-primary border-primary/10 font-bold text-[10px] px-2 shadow-sm uppercase tracking-tighter h-5">Hub Active</Badge>
+                    <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">View Team &rarr;</span>
+                </div>
+            </button>
           );
         })}
       </div>

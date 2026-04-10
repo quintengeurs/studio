@@ -386,16 +386,21 @@ export default function ParksPage() {
                   <button 
                     key={park} 
                     onClick={() => handleOpenDetail(park)}
-                    className="flex items-center gap-3 p-4 bg-background border-2 hover:border-primary/50 hover:bg-muted/30 transition-all rounded-xl text-left group"
+                    className={`flex items-center gap-3 p-4 border-2 transition-all rounded-xl text-left group ${detail?.greenflag ? 'bg-green-600/5 border-green-600/20 hover:border-green-600/40 hover:bg-green-600/10' : 'bg-background border-primary/5 hover:border-primary/20 hover:bg-muted/30'}`}
                   >
-                    <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-colors ${detail?.greenflag ? 'bg-green-600/10' : 'bg-primary/10 opacity-40'}`}>
-                      <Leaf className={`h-5 w-5 ${detail?.greenflag ? 'text-green-600 fill-green-600' : 'text-primary'}`}/>
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${detail?.greenflag ? 'bg-green-600 shadow-lg shadow-green-600/20' : 'bg-primary/5'}`}>
+                      {detail?.greenflag ? (
+                        <Leaf className="h-5 w-5 text-white fill-white" />
+                      ) : (
+                        <MapPin className="h-5 w-5 text-primary opacity-20 group-hover:opacity-40" />
+                      )}
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="font-bold text-sm tracking-tight flex items-center gap-2 truncate">
                         <span className="truncate">{park}</span>
+                        {detail?.greenflag && <Badge variant="outline" className="text-[7px] h-3 px-1 uppercase font-bold border-green-600/30 text-green-700 bg-white">Awarded</Badge>}
                       </span>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">View Details</span>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">View Intelligence</span>
                     </div>
                   </button>
                 );
@@ -597,7 +602,17 @@ export default function ParksPage() {
                             Green Flag Award Status <Leaf className="h-4 w-4 text-green-600" />
                           </label>
                         </div>
-                        <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-4 ml-6">
+                           <div className="space-y-2">
+                              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection Year</Label>
+                              <Input placeholder="e.g. 2026" value={editForm.gfInspectionYear || ""} onChange={e => setEditForm({...editForm, gfInspectionYear: e.target.value})} />
+                           </div>
+                           <div className="space-y-2">
+                              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Mystery Shop Year</Label>
+                              <Input placeholder="e.g. 2027" value={editForm.gfMysteryShopYear || ""} onChange={e => setEditForm({...editForm, gfMysteryShopYear: e.target.value})} />
+                           </div>
+                        </div>
+                        <div className="space-y-2 ml-6">
                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection / Mystery Shop Details</Label>
                           <Input 
                             placeholder="e.g. To be inspected this year / Mystery shop 2026"
@@ -775,11 +790,25 @@ export default function ParksPage() {
                       </div>
                     </div>
                     {selectedParkDetail.greenflag && (
-                      <div className="mt-6 p-4 bg-green-600/5 rounded-xl border border-green-600/10 flex items-center gap-3">
-                        <Leaf className="h-5 w-5 text-green-600 fill-green-600 shrink-0" />
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-green-700">Green Flag Award Status</span>
-                          <span className="text-sm font-bold text-green-900">{selectedParkDetail.greenFlagInfo || "Current Holder"}</span>
+                      <div className="mt-6 p-5 bg-green-600/5 rounded-2xl border border-green-600/10 flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center shadow-lg shadow-green-600/20">
+                            <Leaf className="h-5 w-5 text-white fill-white shrink-0" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-green-700">Green Flag Award Holder</span>
+                            <span className="text-sm font-bold text-green-900">{selectedParkDetail.greenFlagInfo || "Validated Site"}</span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-green-600/10">
+                           <div className="flex flex-col gap-0.5">
+                              <span className="text-[8px] font-bold uppercase tracking-widest text-green-600/60">Next Full Inspection</span>
+                              <span className="text-xs font-bold text-green-800">{selectedParkDetail.gfInspectionYear || "Not Scheduled"}</span>
+                           </div>
+                           <div className="flex flex-col gap-0.5">
+                              <span className="text-[8px] font-bold uppercase tracking-widest text-green-600/60">Next Mystery Shop</span>
+                              <span className="text-xs font-bold text-green-800">{selectedParkDetail.gfMysteryShopYear || "Not Scheduled"}</span>
+                           </div>
                         </div>
                       </div>
                     )}

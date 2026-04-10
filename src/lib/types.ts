@@ -143,6 +143,8 @@ export interface ParkDetail {
   parkOfficer?: string;
   features?: string[];
   updates?: ParkUpdate[]; // New discrete updates
+  gfInspectionYear?: string;
+  gfMysteryShopYear?: string;
   projects?: string;
   events?: string;
   operationalGuidance?: string;
