@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
+import { Input } from "@/components/ui/input";
 import { compressImage } from "@/lib/image-compress";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -18,7 +19,9 @@ import {
   X,
   Camera,
   Send,
-  Users
+  Users,
+  Search,
+  Filter
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -80,7 +83,6 @@ export default function MyTasksPage() {
   const colleagues = useMemo(() => {
     if (!currentUserProfile) return [];
     return allUsers.filter(u => 
-      u.team === currentUserProfile.team && 
       u.depot === currentUserProfile.depot && 
       u.name !== currentUserName && 
       !u.isArchived
@@ -107,6 +109,7 @@ export default function MyTasksPage() {
 
   const [showColleagueSelection, setShowColleagueSelection] = useState(false);
   const [selectedColleagues, setSelectedColleagues] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [completionData, setCompletionData] = useState({
     note: "",
     imageUrl: ""
@@ -195,8 +198,18 @@ export default function MyTasksPage() {
   };
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const activeTasks = tasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
-  const archivedTasks = tasks.filter(t => t.status === 'Completed' && t.dueDate === today);
+  
+  const filteredTasks = tasks.filter(t => {
+    const search = searchQuery.toLowerCase();
+    return (
+      t.title.toLowerCase().includes(search) ||
+      t.park.toLowerCase().includes(search) ||
+      (t.objective || "").toLowerCase().includes(search)
+    );
+  });
+
+  const activeTasks = filteredTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
+  const archivedTasks = filteredTasks.filter(t => t.status === 'Completed' && t.dueDate === today);
 
   return (
     <DashboardShell 
@@ -214,10 +227,23 @@ export default function MyTasksPage() {
            <span>TASKS_LOADED: {tasks.length}</span>
            <span>VISIBLE: {activeTasks.length + archivedTasks.length}</span>
            {!currentUserProfile && <span className="text-destructive font-bold">MISSING DB RECORD</span>}
+           <span>ROLE: {currentUserProfile?.role}</span>
         </div>
       )}
 
-      <Tabs defaultValue="active" className="w-full">
+      <div className="space-y-6">
+        {/* Search Bar */}
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Input 
+            placeholder="Search tasks by title, park, or objective..." 
+            className="pl-10 h-10 bg-background border-2 focus-visible:ring-primary shadow-sm rounded-xl"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
           {!isOperational && <TabsTrigger value="archived">Archived ({archivedTasks.length})</TabsTrigger>}
@@ -455,7 +481,7 @@ export default function MyTasksPage() {
                         
                         {showColleagueSelection && (
                           <div className="space-y-2 pt-2 border-t">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Colleagues in {currentUserProfile?.team || 'General Staff'}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Colleagues at {currentUserProfile?.depot || 'General Depot'}</p>
                             <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto pr-2">
                               {colleagues.map(colleague => (
                                 <div 
@@ -493,6 +519,7 @@ export default function MyTasksPage() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </DashboardShell>
   );
 }

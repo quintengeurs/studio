@@ -21,7 +21,9 @@ import {
   RefreshCcw,
   Trash2,
   Users,
-  Inbox
+  Inbox,
+  Search,
+  Filter
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,13 +52,22 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } 
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig, ParkDetail } from "@/lib/types";
-import { addDays, addMonths, format } from "date-fns";
+import { addDays, addMonths, format, parseISO } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+import { getNextBespokeOccurrence } from "@/lib/scheduling-utils";
 
 export default function TasksPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isGroupAssign, setIsGroupAssign] = useState(false);
+  const [groupRole, setGroupRole] = useState<Role>("Keeper");
+  const [groupPark, setGroupPark] = useState("");
 
   const tasksQuery = useMemoFirebase(() => db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")) : null, [db]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
@@ -85,17 +96,37 @@ export default function TasksPage() {
     return user?.displayName || user?.email || "";
   }, [currentUserData, user]);
 
+  const colleagues = useMemo(() => {
+    if (!currentUserData) return [];
+    return users.filter(u => 
+      u.depot === currentUserData.depot && 
+      u.name !== currentUserName && 
+      !u.isArchived
+    );
+  }, [users, currentUserData, currentUserName]);
+
   const groupIdentity = useMemo(() => {
     if (!currentUserData?.role || !currentUserData?.depot) return null;
     return `Group: ${currentUserData.role} @ ${currentUserData.depot}`;
   }, [currentUserData]);
 
   const filteredTasksForUser = useMemo(() => {
-    if (isAdmin) return tasks;
-    
-    const userDepots = currentUserData?.depots?.length ? currentUserData.depots : (currentUserData?.depot ? [currentUserData.depot] : []);
-    
     return tasks.filter(t => {
+      // 1. Check Search Match
+      const search = searchQuery.toLowerCase();
+      const matchesSearch = 
+        t.title.toLowerCase().includes(search) ||
+        t.park.toLowerCase().includes(search) ||
+        t.assignedTo.toLowerCase().includes(search) ||
+        (t.objective || "").toLowerCase().includes(search);
+
+      if (!matchesSearch) return false;
+
+      // 2. Original Permission Checks
+      if (isAdmin) return true;
+      
+      const userDepots = currentUserData?.depots?.length ? currentUserData.depots : (currentUserData?.depot ? [currentUserData.depot] : []);
+      
       // Direct assignment
       const identities = [currentUserName];
       if (groupIdentity) identities.push(groupIdentity);
@@ -105,25 +136,15 @@ export default function TasksPage() {
       const parkDetail = allDetails.find(d => d.name === t.park);
       if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
 
-      // Fallback: if no depots assigned to user, they might see everything or nothing? 
-      // User says "they should see parks relating to the clissold depot", so if they have NO depot, show nothing?
-      // I'll stick to: if no depots assigned, show original assignments.
       if (userDepots.length === 0) return identities.includes(t.assignedTo);
 
       return false;
     });
-  }, [tasks, isAdmin, currentUserData, allDetails, currentUserName, groupIdentity]);
+  }, [tasks, isAdmin, currentUserData, allDetails, currentUserName, groupIdentity, searchQuery]);
 
   const assignableUsers = users;
   const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();
 
-  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
-  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  
-  const [isGroupAssign, setIsGroupAssign] = useState(false);
-  const [groupRole, setGroupRole] = useState<Role>("Keeper");
-  const [groupPark, setGroupPark] = useState("");
 
   
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -134,8 +155,13 @@ export default function TasksPage() {
     park: "",
     assignedTo: "",
     dueDate: format(new Date(), 'yyyy-MM-dd'),
-    frequency: "One-off" as Frequency
+    frequency: "One-off" as Frequency,
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: "",
+    daysOfWeek: [] as number[],
+    isBespoke: false
   });
+  const [selectedParks, setSelectedParks] = useState<string[]>([]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -149,21 +175,39 @@ export default function TasksPage() {
   const handleCreateTask = async () => {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
-    const taskData = {
-        title: newTask.title,
-        objective: newTask.objective,
-        park: newTask.park,
-        assignedTo: isGroupAssign ? `Group: ${groupRole} @ ${groupPark}` : newTask.assignedTo,
-        dueDate: newTask.dueDate,
-        frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
-        status: 'Todo' as const,
-    };
-
+    const parksToCreate = selectedParks.length > 0 ? selectedParks : [newTask.park];
+    
     try {
-        await addDoc(collection(db, "tasks"), taskData);
-        toast({ title: "Task Created", description: `Task assigned to ${taskData.assignedTo}.` });
+        for (const park of parksToCreate) {
+            if (!park) continue;
+            
+            const taskData = {
+                title: newTask.title,
+                objective: newTask.objective,
+                park: park,
+                assignedTo: isGroupAssign ? `Group: ${groupRole} @ ${groupPark}` : newTask.assignedTo,
+                dueDate: newTask.dueDate,
+                frequency: newTask.isBespoke ? 'Bespoke' : (newTask.frequency !== 'One-off' ? newTask.frequency : null),
+                status: 'Todo' as const,
+                ...(newTask.isBespoke && {
+                    isBespoke: true,
+                    startDate: newTask.startDate,
+                    endDate: newTask.endDate,
+                    daysOfWeek: newTask.daysOfWeek
+                })
+            };
+            await addDoc(collection(db, "tasks"), taskData);
+        }
+        
+        toast({ title: "Task(s) Created", description: `Task(s) assigned for ${parksToCreate.length} site(s).` });
         setIsTaskDialogOpen(false);
-        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), frequency: "One-off" });
+        setNewTask({ 
+            title: "", objective: "", park: "", assignedTo: "", 
+            dueDate: format(new Date(), 'yyyy-MM-dd'), frequency: "One-off",
+            startDate: format(new Date(), 'yyyy-MM-dd'), endDate: "",
+            daysOfWeek: [], isBespoke: false
+        });
+        setSelectedParks([]);
         setIsGroupAssign(false);
     } catch (error) {
         toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
@@ -228,7 +272,14 @@ export default function TasksPage() {
         await updateDoc(doc(db, "tasks", taskId), { status: 'Completed' });
 
         if (task.frequency && task.frequency !== 'One-off') {
-            const nextDate = calculateNextDueDate(task.dueDate, task.frequency);
+            let nextDate: string | null = null;
+            
+            if (task.isBespoke && task.daysOfWeek) {
+                nextDate = getNextBespokeOccurrence(task.dueDate, task.daysOfWeek, task.endDate || undefined);
+            } else if (task.frequency) {
+                nextDate = calculateNextDueDate(task.dueDate, task.frequency as Frequency);
+            }
+
             if (nextDate) {
                 await addDoc(collection(db, "tasks"), {
                     title: task.title,
@@ -237,7 +288,13 @@ export default function TasksPage() {
                     assignedTo: task.assignedTo,
                     dueDate: nextDate,
                     frequency: task.frequency,
-                    status: 'Todo'
+                    status: 'Todo',
+                    ...(task.isBespoke && {
+                        isBespoke: true,
+                        startDate: task.startDate,
+                        endDate: task.endDate,
+                        daysOfWeek: task.daysOfWeek
+                    })
                 });
             }
         }
@@ -261,97 +318,185 @@ export default function TasksPage() {
       actions={!isOperational && (
         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="font-headline font-bold w-full md:w-auto">
-              <Plus className="mr-2 h-4 w-4" /> Create Task
+            <Button className="font-headline font-bold w-full md:w-auto shadow-lg hover:shadow-xl transition-all">
+              <Plus className="mr-2 h-4 w-4" /> Create New Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[425px] w-[95vw] shadow-2xl rounded-3xl">
             <DialogHeader>
-              <DialogTitle className="font-headline">Create New Task</DialogTitle>
-              <DialogDescription>Assign a new operational task to the team.</DialogDescription>
+              <DialogTitle className="font-headline text-2xl tracking-tight">Allocate Task</DialogTitle>
+              <DialogDescription>Assign objectives to specific operatives or teams.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <Input placeholder="Task Title e.g. Mow North Lawn" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} />
-                <Textarea placeholder="Objective: What needs to be achieved?" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} />
-              <div className="space-y-4 pt-2 border-t mt-2">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Group Assignment</Label>
-                    <p className="text-[10px] text-muted-foreground italic">Allocate to a whole team at a park</p>
-                  </div>
-                  <Switch checked={isGroupAssign} onCheckedChange={setIsGroupAssign} />
-                </div>
-
-                {isGroupAssign ? (
-                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="grid gap-2">
-                      <Label className="text-xs">Team / Role</Label>
-                      <Select value={groupRole} onValueChange={(v: Role) => setGroupRole(v)}>
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Keeper">Keepers</SelectItem>
-                          <SelectItem value="Gardener">Gardeners</SelectItem>
-                          <SelectItem value="Litter Picker">Litter Pickers</SelectItem>
-                          <SelectItem value="Bin Run">Bin Run Team</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label className="text-xs">Location / Depot</Label>
-                      <Select value={groupPark} onValueChange={v => setGroupPark(v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Select Depot" /></SelectTrigger>
-                        <SelectContent>
-                          {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
-                        <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
-                        <SelectContent>
-                            {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
-                        <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
-                        <SelectContent>
-                            {assignableUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                  </div>
-                )}
+            <div className="grid gap-6 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="title" className="text-[10px] font-bold uppercase tracking-widest opacity-60">Task Label</Label>
+                <Input id="title" placeholder="e.g. Broken Fence Repair" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="h-11 px-4 text-sm font-medium focus-visible:ring-primary shadow-sm" />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="objective" className="text-[10px] font-bold uppercase tracking-widest opacity-60">Instructions</Label>
+                <Textarea id="objective" placeholder="Detailed objectives..." value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} className="min-h-[100px] text-sm font-medium focus-visible:ring-primary shadow-sm" />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Site Locations (Select Multiple)</Label>
+                <div className="grid grid-cols-2 gap-2 p-3 border rounded-xl max-h-[120px] overflow-y-auto bg-muted/10">
+                  {parks.map(p => (
+                    <div key={p} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`park-${p}`} 
+                        checked={selectedParks.includes(p)} 
+                        onCheckedChange={(checked: boolean) => {
+                          if (checked) setSelectedParks(prev => [...prev, p]);
+                          else setSelectedParks(prev => prev.filter(item => item !== p));
+                        }}
+                      />
+                      <Label htmlFor={`park-${p}`} className="text-xs font-medium cursor-pointer">{p}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
-                <Input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
-                <Select value={newTask.frequency} onValueChange={(v: Frequency) => setNewTask({...newTask, frequency: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Allocation Type</Label>
+                  <div className="flex items-center gap-2 h-11 border px-3 rounded-md bg-muted/20">
+                    <Switch checked={isGroupAssign} onCheckedChange={setIsGroupAssign} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Group</span>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Schedule Type</Label>
+                  <div className="flex items-center gap-2 h-11 border px-3 rounded-md bg-muted/20">
+                    <Switch checked={newTask.isBespoke} onCheckedChange={(v: boolean) => setNewTask({...newTask, isBespoke: v})} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Bespoke</span>
+                  </div>
+                </div>
+              </div>
+
+              {newTask.isBespoke && (
+                <div className="p-4 border-2 border-primary/20 rounded-2xl bg-primary/5 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Start Date</Label>
+                      <Input type="date" value={newTask.startDate} onChange={e => setNewTask({...newTask, startDate: e.target.value})} className="h-9" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">End Date (Optional)</Label>
+                      <Input type="date" value={newTask.endDate} onChange={e => setNewTask({...newTask, endDate: e.target.value})} className="h-9" />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Frequency: Repeat Every</Label>
+                    <div className="flex flex-wrap gap-3 pt-1">
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+                        const dayValue = (idx + 1) % 7;
+                        return (
+                          <div key={idx} className="flex flex-col items-center gap-1">
+                            <Checkbox 
+                              checked={newTask.daysOfWeek.includes(dayValue)}
+                              onCheckedChange={(checked: boolean) => {
+                                if (checked) setNewTask(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, dayValue] }));
+                                else setNewTask(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== dayValue) }));
+                              }}
+                            />
+                            <span className="text-[9px] font-bold opacity-60">{day}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!newTask.isBespoke && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Due Date</Label>
+                    <Input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} className="h-11 shadow-sm" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Recurrence</Label>
+                    <Select value={newTask.frequency} onValueChange={(v: Frequency) => setNewTask({...newTask, frequency: v})}>
+                      <SelectTrigger className="h-11 shadow-sm"><SelectValue placeholder="Frequency" /></SelectTrigger>
+                      <SelectContent>
                         <SelectItem value="One-off">One-off</SelectItem>
                         <SelectItem value="Daily">Daily</SelectItem>
                         <SelectItem value="Weekly">Weekly</SelectItem>
                         <SelectItem value="Monthly">Monthly</SelectItem>
-                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                        <SelectItem value="Yearly">Yearly</SelectItem>
-                    </SelectContent>
-                </Select>
-              </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {!isGroupAssign ? (
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Assign To Operative</Label>
+                    <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
+                      <SelectTrigger className="h-11 shadow-sm"><SelectValue placeholder="Search operatives..." /></SelectTrigger>
+                      <SelectContent>
+                          {assignableUsers.map(u => <SelectItem key={u.id} value={u.name || (u.email as string)}>{u.name || u.email}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Group</Label>
+                    <Select value={groupRole} onValueChange={(v: any) => setGroupRole(v)}>
+                      <SelectTrigger className="h-11 shadow-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Keeper">Keepers</SelectItem>
+                        <SelectItem value="Gardener">Gardeners</SelectItem>
+                        <SelectItem value="Litter Picker">Litter Pickers</SelectItem>
+                        <SelectItem value="Bin Run">Bin Runs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Target</Label>
+                    <Select value={groupPark} onValueChange={setGroupPark}>
+                      <SelectTrigger className="h-11 shadow-sm"><SelectValue placeholder="Depot" /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from(new Set(allDetails.map(d => d.depot).filter(Boolean))).map(depot => (
+                          <SelectItem key={depot} value={depot as string}>{depot}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || (!isGroupAssign && (!newTask.park || !newTask.assignedTo)) || (isGroupAssign && (!groupRole || !groupPark)) || isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Task"}
-                </Button>
+              <Button type="submit" onClick={handleCreateTask} disabled={!newTask.title || isSubmitting} className="w-full h-12 font-bold uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                {isSubmitting ? "Creating..." : "Confirm Deployment"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
     >
-      {!isOperational ? (
+      <div className="space-y-6 pb-20">
+        {/* Search Bar */}
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Input 
+            placeholder="Filter tasks by site, operative, or title..." 
+            className="pl-10 h-12 bg-background border-2 focus-visible:ring-primary shadow-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {tasksLoading ? (
+          <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+        ) : !isOperational ? (
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="active" className="flex items-center gap-2"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
-            <TabsTrigger value="approvals" className="flex items-center gap-2 relative">
+          <TabsList className="mb-6 h-12 p-1 bg-muted/50 border rounded-xl">
+            <TabsTrigger value="active" className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest rounded-lg data-[state=active]:bg-background"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
+            <TabsTrigger value="approvals" className="flex items-center gap-2 relative font-bold text-xs uppercase tracking-widest rounded-lg data-[state=active]:bg-background">
               <Inbox className="h-4 w-4" /> Work Logs
               {tasks.filter(t => t.status === 'Pending Approval').length > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">
@@ -359,30 +504,30 @@ export default function TasksPage() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="recurring" className="flex items-center gap-2"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
+            <TabsTrigger value="recurring" className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest rounded-lg data-[state=active]:bg-background"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active">
             {tasksLoading ? (
               <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-            ) : tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
+            ) : filteredTasksForUser.filter(t => t.status !== 'Pending Approval' && t.status !== 'Completed' && t.dueDate <= today).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/5 opacity-50">
                  <ListTodo className="h-12 w-12 mb-4" />
-                 <p className="font-bold">No active tasks for today</p>
+                 <p className="font-bold">No active tasks found matching criteria</p>
               </div>
             ) : (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                {tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).map((task) => (
-                  <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
+                {filteredTasksForUser.filter(t => t.status !== 'Pending Approval' && t.status !== 'Completed' && t.dueDate <= today).map((task) => (
+                  <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 hover:shadow-xl transition-all shadow-sm flex flex-col rounded-2xl">
                     <CardHeader className="pb-3 px-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                           <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
                           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" />{task.dueDate}</div>
                       </div>
-                      <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">{task.title}</CardTitle>
+                      <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary transition-colors break-words flex-1 min-w-0 tracking-tight">{task.title}</CardTitle>
                     </CardHeader>
                     <CardContent className="pb-4 px-4 sm:px-6 flex-1">
-                      <p className="text-sm font-medium text-foreground/80 mb-4 line-clamp-2">{task.objective}</p>
+                      <p className="text-sm font-medium text-foreground/80 mb-4 line-clamp-2 leading-relaxed">{task.objective}</p>
                       <div className="space-y-4">
                         {task.status === 'Pending Approval' && (
                           <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 flex flex-col gap-2">
@@ -586,6 +731,7 @@ export default function TasksPage() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </DashboardShell>
   );
 }

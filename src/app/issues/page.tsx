@@ -23,8 +23,12 @@ import {
   AlertCircle,
   ThumbsUp,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Search,
+  Filter,
+  Edit2
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -70,7 +74,7 @@ export default function IssuesPage() {
 
   const issuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "issues"), where("status", "!=", "Resolved"), orderBy("status"), orderBy("createdAt", "desc"));
+    return query(collection(db, "issues"), orderBy("createdAt", "desc"));
   }, [db]);
 
   const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
@@ -109,6 +113,7 @@ export default function IssuesPage() {
 
   const operatives = users.filter(u => OPERATIVE_ROLES.includes(u.role as Role) || (u.role as string) === 'operative');
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
@@ -188,20 +193,34 @@ export default function IssuesPage() {
       const issueRef = doc(db, "issues", selectedIssueId);
       await updateDoc(issueRef, { assignedTo: operative.name, status: 'In Progress' });
 
-      const taskData = {
-        title: `Resolve Issue: ${issue.title}`,
-        objective: assignment.instructions || `Please resolve this reported issue in ${issue.park}.`,
-        status: 'Todo',
-        dueDate: new Date().toISOString().split('T')[0],
-        assignedTo: operative.name,
-        park: issue.park,
-        linkedIssueId: selectedIssueId
-      };
-      await addDoc(collection(db, "tasks"), taskData);
+      // Check if task exists for this issue
+      const { getDocs } = await import("firebase/firestore");
+      const existingTasks = await getDocs(query(collection(db, "tasks"), where("linkedIssueId", "==", selectedIssueId), where("status", "!=", "Completed")));
+      
+      if (!existingTasks.empty) {
+        // Update existing task
+        const taskDoc = existingTasks.docs[0];
+        await updateDoc(doc(db, "tasks", taskDoc.id), { 
+          assignedTo: operative.name,
+          objective: assignment.instructions || taskDoc.data().objective
+        });
+      } else {
+        // Create new task
+        const taskData = {
+          title: `Resolve Issue: ${issue.title}`,
+          objective: assignment.instructions || `Please resolve this reported issue in ${issue.park}.`,
+          status: 'Todo',
+          dueDate: new Date().toISOString().split('T')[0],
+          assignedTo: operative.name,
+          park: issue.park,
+          linkedIssueId: selectedIssueId
+        };
+        await addDoc(collection(db, "tasks"), taskData);
+      }
 
       setIsAssignDialogOpen(false);
       setSelectedIssueId(null);
-      toast({ title: "Issue Assigned", description: `Task created for ${operative.name}.` });
+      toast({ title: "Issue Assigned", description: `Task updated for ${operative.name}.` });
     } catch (error) {
         toast({ title: "Error", description: "Failed to assign issue. Please try again.", variant: "destructive" });
     } finally {
@@ -302,93 +321,153 @@ export default function IssuesPage() {
       }
     >
       {issuesLoading ? (
-        <div className="flex justify-center items-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-      ) : issues.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
-          <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
-          <p className="font-bold">No active issues found</p>
-          <p className="text-xs">All reported problems are currently resolved or closed.</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+           <Clock className="h-10 w-10 text-primary animate-spin" />
+           <p className="font-headline font-bold text-muted-foreground uppercase tracking-widest animate-pulse">Loading Intelligence...</p>
         </div>
       ) : (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {filteredIssues.map((issue) => (
-            <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2 w-full">
-                <div className={`h-1.5 w-full shrink-0 ${(issue.priority as string) === 'Emergency' ? 'bg-destructive' : (issue.priority as string) === 'High' ? 'bg-yellow-500' : (issue.priority as string) === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
-              
-              {issue.imageUrl && (
-                <div className="relative w-full h-48 bg-muted shrink-0">
-                  <Image src={issue.imageUrl} alt={issue.title} fill className="object-cover" />
-                </div>
-              )}
+        <div className="space-y-6">
+          {/* Search and Filters */}
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Input 
+              placeholder="Search by site, title, category or reported by..." 
+              className="pl-10 h-12 bg-background border-2 focus-visible:ring-primary shadow-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-              <CardHeader className="pb-2 px-4 sm:px-6">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground shrink-0">{issue.category}</Badge>
-                    <div className="flex items-center gap-1 text-[9px] text-primary font-bold shrink-0"><MapPin className="h-3 w-3" />{issue.park}</div>
-                  </div>
-                  <Badge className={`${(issue.status as string) === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' : (issue.status as string) === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' : (issue.status as string) === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse' : 'bg-green-500/10 text-green-600 border-green-200'} font-bold text-[9px] shrink-0 uppercase tracking-tighter`}>{issue.status}</Badge>
-                </div>
-                <CardTitle className="font-headline text-lg sm:text-xl break-words">{issue.title}</CardTitle>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
-                  <Clock className="h-3 w-3" />
-                  <span>Reported {new Date(issue.createdAt).toLocaleDateString()} by {issue.reportedBy}</span>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 pb-4 px-4 sm:px-6">
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">{issue.description}</p>
-                {(issue.status as string) === 'Pending Approval' && (
-                  <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex flex-col gap-3">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold text-accent-foreground">Work Completed</p>
-                        <p className="text-[10px] text-muted-foreground">Operative has submitted completion proof. Please review and approve.</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full text-[10px] font-bold h-8 uppercase border-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedIssueForProof(issue);
-                        setIsProofDialogOpen(true);
-                      }}
-                    >
-                      <Eye className="mr-1.5 h-3.5 w-3.5" /> View Proof
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  {(issue.status as string) === 'Pending Approval' ? (
-                    !isOperative && <Button variant="default" size="sm" className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
-                  ) : issue.assignedTo ? (
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><UserPlus className="h-3.5 w-3.5 text-primary" /></div>
-                        <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
+          <Tabs defaultValue="not-assigned" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-8 h-12 p-1 bg-muted/50 border rounded-xl">
+              <TabsTrigger value="not-assigned" className="font-bold text-xs uppercase tracking-widest rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Not Assigned</TabsTrigger>
+              <TabsTrigger value="assigned" className="font-bold text-xs uppercase tracking-widest rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Assigned</TabsTrigger>
+              <TabsTrigger value="archived" className="font-bold text-xs uppercase tracking-widest rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Archived</TabsTrigger>
+            </TabsList>
+
+            {[
+              { id: 'not-assigned', filter: (i: Issue) => !i.assignedTo && i.status !== 'Resolved' },
+              { id: 'assigned', filter: (i: Issue) => !!i.assignedTo && i.status !== 'Resolved' },
+              { id: 'archived', filter: (i: Issue) => i.status === 'Resolved' }
+            ].map(tab => {
+              const tabIssues = filteredIssues.filter(tab.filter).filter(i => {
+                const search = searchQuery.toLowerCase();
+                return (
+                  i.title.toLowerCase().includes(search) ||
+                  i.park.toLowerCase().includes(search) ||
+                  i.category.toLowerCase().includes(search) ||
+                  i.reportedBy?.toLowerCase().includes(search) ||
+                  i.assignedTo?.toLowerCase().includes(search)
+                );
+              });
+
+              return (
+                <TabsContent key={tab.id} value={tab.id} className="mt-0">
+                  {tabIssues.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/5">
+                      <Filter className="h-12 w-12 mb-4 opacity-10" />
+                      <p className="font-bold">No issues found in this category</p>
+                      <p className="text-[10px] uppercase tracking-widest opacity-60">Adjust your search or check other tabs</p>
                     </div>
                   ) : (
-                    !isOperative && <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2" onClick={() => handleOpenAssignDialog(issue.id)}><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign</Button>
+                    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                      {tabIssues.map((issue) => (
+                        <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-xl transition-all border-2 w-full group">
+                            <div className={`h-1.5 w-full shrink-0 ${(issue.priority as string) === 'Emergency' ? 'bg-destructive' : (issue.priority as string) === 'High' ? 'bg-orange-500' : (issue.priority as string) === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
+                          
+                          {issue.imageUrl && (
+                            <div className="relative w-full h-48 bg-muted shrink-0 overflow-hidden">
+                              <Image src={issue.imageUrl} alt={issue.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                            </div>
+                          )}
+
+                          <CardHeader className="pb-2 px-4 sm:px-6">
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground shrink-0 bg-muted/20">{issue.category}</Badge>
+                                <div className="flex items-center gap-1 text-[9px] text-primary font-bold shrink-0 bg-primary/5 px-2 py-0.5 rounded-full"><MapPin className="h-3 w-3" />{issue.park}</div>
+                              </div>
+                              <Badge className={`${(issue.status as string) === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' : (issue.status as string) === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' : (issue.status as string) === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse' : 'bg-green-500/10 text-green-600 border-green-200'} font-bold text-[9px] shrink-0 uppercase tracking-tighter px-2`}>{issue.status}</Badge>
+                            </div>
+                            <CardTitle className="font-headline text-lg sm:text-xl break-words tracking-tight group-hover:text-primary transition-colors">{issue.title}</CardTitle>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1 font-medium">
+                              <Clock className="h-3 w-3" />
+                              <span>Reported {new Date(issue.createdAt).toLocaleDateString()} by {issue.reportedBy}</span>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="flex-1 pb-4 px-4 sm:px-6">
+                            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">{issue.description}</p>
+                            {(issue.status as string) === 'Pending Approval' && (
+                              <div className="mt-4 p-4 rounded-xl bg-accent/5 border border-accent/20 flex flex-col gap-3 shadow-inner">
+                                <div className="flex items-start gap-3">
+                                  <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-xs font-bold text-accent-foreground uppercase tracking-widest">Work Completed</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">Operative has submitted completion proof. Please review and approve.</p>
+                                  </div>
+                                </div>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full text-[10px] font-bold h-9 uppercase border-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground transition-all rounded-lg"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedIssueForProof(issue);
+                                    setIsProofDialogOpen(true);
+                                  }}
+                                >
+                                  <Eye className="mr-1.5 h-3.5 w-3.5" /> View Proof
+                                </Button>
+                              </div>
+                            )}
+                          </CardContent>
+                          <CardFooter className="border-t bg-muted/10 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {(issue.status as string) === 'Pending Approval' ? (
+                                !isOperative && <Button variant="default" size="sm" className="h-9 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-4 rounded-lg shadow-sm" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
+                              ) : issue.assignedTo ? (
+                                <div className="flex items-center gap-2 min-w-0 bg-primary/5 px-2 py-1 rounded-lg border border-primary/10">
+                                    <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-sm"><UserPlus className="h-3.5 w-3.5 text-white" /></div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-[8px] font-bold text-primary uppercase leading-none">Assigned To</span>
+                                      <span className="text-[10px] font-bold text-primary truncate">{issue.assignedTo}</span>
+                                    </div>
+                                    {isAdmin && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-6 w-6 ml-1 hover:bg-primary/20 text-primary rounded-full" 
+                                        onClick={() => handleOpenAssignDialog(issue.id)}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                </div>
+                              ) : (
+                                !isOperative && <Button variant="ghost" size="sm" className="h-9 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-3 rounded-lg border border-transparent hover:border-primary/20" onClick={() => handleOpenAssignDialog(issue.id)}><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign</Button>
+                              )}
+                            </div>
+                            {!isOperative && (
+                              <div className="flex gap-1">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 rounded-full" onClick={() => handleDelete(issue.id)}><Trash2 className="h-4 w-4" /></Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Delete Issue Record</p></TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            )}
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </div>
                   )}
-                </div>
-                {!isOperative && (
-                  <div className="flex gap-1">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDelete(issue.id)}><Trash2 className="h-4 w-4" /></Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Delete Issue</p></TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
+                </TabsContent>
+              );
+            })}
+          </Tabs>
         </div>
       )}
 

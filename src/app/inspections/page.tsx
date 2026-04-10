@@ -37,6 +37,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { User, Frequency, Inspection, Asset, OPERATIVE_ROLES } from "@/lib/types";
 import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { getNextBespokeOccurrence } from "@/lib/scheduling-utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 
 const InspectionCard = ({ inspection, onStart, onDelete, onEdit, isAdmin }: { 
   inspection: Inspection, 
@@ -141,40 +144,62 @@ export default function InspectionsPage() {
   const [newInspection, setNewInspection] = useState({
     assetId: "",
     frequency: "One-off" as Frequency,
-    dueDate: format(new Date(), 'yyyy-MM-dd')
+    dueDate: format(new Date(), 'yyyy-MM-dd'),
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: "",
+    daysOfWeek: [] as number[],
+    isBespoke: false
   });
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
   const [inspectionResults, setInspectionResults] = useState<{item: string, passed: boolean, notes: string}[]>([]);
 
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
-    const asset = assets.find(a => a.id === newInspection.assetId);
-    if (!asset) {
-        toast({ title: "Error", description: "Selected asset not found.", variant: "destructive" });
+    
+    const assetsToSchedule = selectedAssetIds.length > 0 
+      ? assets.filter(a => selectedAssetIds.includes(a.id))
+      : assets.filter(a => a.id === newInspection.assetId);
+
+    if (assetsToSchedule.length === 0) {
+        toast({ title: "Error", description: "No assets selected.", variant: "destructive" });
         setIsSubmitting(false);
         return;
     }
 
-    const inspectionData = {
-      assetId: asset.id,
-      assetName: asset.name,
-      park: asset.park,
-      status: 'Pending',
-      dueDate: newInspection.dueDate,
-      frequency: newInspection.frequency !== 'One-off' ? newInspection.frequency : null
-    };
-
     try {
-      await addDoc(collection(db, "inspections"), inspectionData);
+      for (const asset of assetsToSchedule) {
+        const inspectionData = {
+          assetId: asset.id,
+          assetName: asset.name,
+          park: asset.park,
+          status: 'Pending',
+          dueDate: newInspection.dueDate,
+          frequency: newInspection.isBespoke ? 'Bespoke' : (newInspection.frequency !== 'One-off' ? newInspection.frequency : null),
+          ...(newInspection.isBespoke && {
+            isBespoke: true,
+            startDate: newInspection.startDate,
+            endDate: newInspection.endDate,
+            daysOfWeek: newInspection.daysOfWeek
+          })
+        };
+        await addDoc(collection(db, "inspections"), inspectionData);
+      }
+
       setIsDialogOpen(false);
-      setNewInspection({ assetId: "", frequency: "One-off", dueDate: format(new Date(), 'yyyy-MM-dd') });
+      setNewInspection({ 
+        assetId: "", frequency: "One-off", dueDate: format(new Date(), 'yyyy-MM-dd'),
+        startDate: format(new Date(), 'yyyy-MM-dd'), endDate: "",
+        daysOfWeek: [], isBespoke: false 
+      });
+      setSelectedAssetIds([]);
       toast({ 
-        title: "Inspection Scheduled", 
-        description: `${inspectionData.frequency ? `Recurring (${inspectionData.frequency})` : 'One-off'} safety check scheduled for ${asset.name}.` 
+        title: "Inspections Scheduled", 
+        description: `Successfully scheduled ${assetsToSchedule.length} safety check(s).` 
       });
     } catch (error) {
-        toast({ title: "Error", description: "Could not schedule inspection. Please try again.", variant: "destructive" });
+        toast({ title: "Error", description: "Could not schedule inspections. Please try again.", variant: "destructive" });
     } finally {
         setIsSubmitting(false);
     }
@@ -230,7 +255,14 @@ export default function InspectionsPage() {
         });
 
         if (selectedInspection.frequency && selectedInspection.frequency !== 'One-off') {
-            const nextDate = calculateNextDueDate(selectedInspection.dueDate, selectedInspection.frequency);
+            let nextDate: string | null = null;
+            
+            if (selectedInspection.isBespoke && selectedInspection.daysOfWeek) {
+              nextDate = getNextBespokeOccurrence(selectedInspection.dueDate, selectedInspection.daysOfWeek, selectedInspection.endDate || undefined);
+            } else if (selectedInspection.frequency) {
+              nextDate = calculateNextDueDate(selectedInspection.dueDate, selectedInspection.frequency);
+            }
+
             if (nextDate) {
                 await addDoc(collection(db, "inspections"), {
                     assetId: selectedInspection.assetId,
@@ -238,7 +270,13 @@ export default function InspectionsPage() {
                     park: selectedInspection.park,
                     status: 'Pending',
                     dueDate: nextDate,
-                    frequency: selectedInspection.frequency
+                    frequency: selectedInspection.frequency,
+                    ...(selectedInspection.isBespoke && {
+                        isBespoke: true,
+                        startDate: selectedInspection.startDate,
+                        endDate: selectedInspection.endDate,
+                        daysOfWeek: selectedInspection.daysOfWeek
+                    })
                 });
             }
         }
@@ -315,39 +353,97 @@ export default function InspectionsPage() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Select Asset</Label>
-                <Select value={newInspection.assetId} onValueChange={v => setNewInspection({...newInspection, assetId: v})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Search Assets" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assets.map(asset => (
-                      <SelectItem key={asset.id} value={asset.id}>{asset.name} ({asset.park})</SelectItem>
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
+                <div className="border rounded-xl bg-muted/10 overflow-hidden">
+                  <ScrollArea className="h-[150px] p-3">
+                    {Array.from(new Set(assets.map(a => a.park))).sort().map(park => (
+                      <div key={park} className="mb-4">
+                        <h4 className="text-[10px] font-bold uppercase text-primary mb-2 border-b border-primary/10 pb-1">{park}</h4>
+                        <div className="grid gap-2">
+                          {assets.filter(a => a.park === park).map(asset => (
+                            <div key={asset.id} className="flex items-center gap-2">
+                              <Checkbox 
+                                id={`asset-${asset.id}`} 
+                                checked={selectedAssetIds.includes(asset.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) setSelectedAssetIds(prev => [...prev, asset.id]);
+                                  else setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
+                                }}
+                              />
+                              <Label htmlFor={`asset-${asset.id}`} className="text-xs font-medium cursor-pointer">{asset.name}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="i-date">Due Date</Label>
-                  <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Frequency</Label>
-                  <Select value={newInspection.frequency} onValueChange={(v: Frequency) => setNewInspection({...newInspection, frequency: v})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="One-off">One-off</SelectItem>
-                      <SelectItem value="Weekly">Weekly</SelectItem>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                      <SelectItem value="Yearly">Yearly</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  </ScrollArea>
                 </div>
               </div>
+
+              <div className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Bespoke Schedule</span>
+                  <span className="text-[10px] text-muted-foreground">Custom days and date range</span>
+                </div>
+                <Switch checked={newInspection.isBespoke} onCheckedChange={(v: boolean) => setNewInspection({...newInspection, isBespoke: v})} />
+              </div>
+
+              {newInspection.isBespoke ? (
+                <div className="p-4 border-2 border-primary/20 rounded-2xl bg-primary/5 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Start Date</Label>
+                      <Input type="date" value={newInspection.startDate} onChange={e => setNewInspection({...newInspection, startDate: e.target.value})} className="h-9" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">End Date (Optional)</Label>
+                      <Input type="date" value={newInspection.endDate} onChange={e => setNewInspection({...newInspection, endDate: e.target.value})} className="h-9" />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Frequency: Repeat Every</Label>
+                    <div className="flex flex-wrap gap-3 pt-1">
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+                        const dayValue = (idx + 1) % 7;
+                        return (
+                          <div key={idx} className="flex flex-col items-center gap-1">
+                            <Checkbox 
+                              checked={newInspection.daysOfWeek.includes(dayValue)}
+                              onCheckedChange={(checked) => {
+                                if (checked) setNewInspection(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, dayValue] }));
+                                else setNewInspection(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== dayValue) }));
+                              }}
+                            />
+                            <span className="text-[9px] font-bold opacity-60">{day}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="i-date" className="text-[10px] font-bold uppercase tracking-widest opacity-60">Due Date</Label>
+                    <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} className="h-11 shadow-sm" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Frequency</Label>
+                    <Select value={newInspection.frequency} onValueChange={(v: Frequency) => setNewInspection({...newInspection, frequency: v})}>
+                      <SelectTrigger className="h-11 shadow-sm">
+                        <SelectValue placeholder="Select Frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="One-off">One-off</SelectItem>
+                        <SelectItem value="Weekly">Weekly</SelectItem>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                        <SelectItem value="Yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button className="w-full" onClick={handleScheduleInspection} disabled={!newInspection.assetId || isSubmitting}>

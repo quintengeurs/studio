@@ -54,7 +54,7 @@ export interface Issue {
   collaborators?: string[];
 }
 
-export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthly' | 'Yearly';
+export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthly' | 'Yearly' | 'Bespoke';
 
 export interface Task {
   id: string;
@@ -70,6 +70,10 @@ export interface Task {
   collaborators?: string[];
   linkedIssueId?: string;
   isLog?: boolean;
+  startDate?: string;
+  endDate?: string;
+  daysOfWeek?: number[];
+  isBespoke?: boolean;
 }
 
 export interface RecurringSchedule {
@@ -99,6 +103,10 @@ export interface Inspection {
   inspectedBy?: string;
   notes?: string;
   checklist?: { item: string, status: 'Pass' | 'Fail' | 'N/A', notes: string }[];
+  startDate?: string;
+  endDate?: string;
+  daysOfWeek?: number[];
+  isBespoke?: boolean;
 }
 
 export interface RegistryConfig {
