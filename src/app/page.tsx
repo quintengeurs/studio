@@ -273,7 +273,7 @@ export default function Dashboard() {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-headline">Allocated To Me</CardTitle>
+                <CardTitle className="text-lg font-headline">My Assigned and Pending Tasks</CardTitle>
                 <CardDescription className="text-xs">Tasks currently assigned to you or your team</CardDescription>
               </div>
               <Badge variant="secondary" className="font-bold">{activeMyTasks.length}</Badge>
@@ -301,8 +301,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* My Open Issues */}
-          {!isManagement && (
+          {/* My Open Issues - Hidden for Contractors */}
+          {!isManagement && !isContractor && (
             <Card>
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <div>
@@ -477,7 +477,7 @@ export default function Dashboard() {
         
         <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle className="font-headline">Recent Allocated Tasks</CardTitle>
+            <CardTitle className="font-headline">My Assigned and Pending Tasks</CardTitle>
             <CardDescription>Latest tasks requiring your attention</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
