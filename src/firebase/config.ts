@@ -17,19 +17,14 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 let db;
-const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
 
 try {
-  // Try to initialize with specific settings (Force long polling for corporate firewalls)
-  db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-    ignoreUndefinedProperties: true,
-  }, DB_ID);
-  console.log(`[Firebase] Initialized Firestore: ${DB_ID}`);
+  // Use the default database instance
+  db = getFirestore(app);
+  console.log(`[Firebase] Initialized default Firestore`);
 } catch (e) {
-  // If already initialized (common during development HMR), reuse the existing instance
-  db = getFirestore(app, DB_ID);
-  console.log(`[Firebase] Reusing Firestore: ${DB_ID}`);
+  // Fallback or retry initialization if needed
+  db = getFirestore(app);
 }
 
 const auth = getAuth(app);

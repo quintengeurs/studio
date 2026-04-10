@@ -507,10 +507,9 @@ export default function UserManagement() {
       timeoutPromise
     ])
     .catch((e: any) => {
-        const dbId = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
         toast({ 
           title: "Permission Denied", 
-          description: `Could not save to ${dbId}. Verify rules. (Code: ${e.code})`, 
+          description: `Could not save registry settings. Verify rules. (Code: ${e.code})`, 
           variant: "destructive" 
         });
         // Revert optimistic state
