@@ -27,19 +27,13 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
 
-  // If we are still checking the user profile, we'll allow initial rendering 
-  // to avoid a "Blank Screen" effect. The restriction will kick in as soon 
-  // as the profile is found or if mobile detection is certain.
-  if (userLoading) return null;
-
+  const isLoading = userLoading || collectionLoading;
+  
   // By default, if the field is missing, we allow desktop view for backward compatibility
   const allowDesktop = currentUserProfile?.allowDesktopView ?? true;
   const isRestricted = !isMobile && !allowDesktop;
 
-  if (collectionLoading && !currentUserProfile) {
-    // During collection load, allow the app to show while we fetch roles
-    return <>{children}</>;
-  }
+  if (isLoading) return null;
 
   if (user && isRestricted) {
     return (

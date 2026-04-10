@@ -17,28 +17,20 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 let db;
-// Your production database ID
-const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
-
+// We are reverting to the (default) database silo to restore your legacy data
 try {
-  // Use initializeFirestore to apply critical connectivity settings (Force long polling)
-  // This is the most robust way to ensure a stable connection in production
+  // Use initializeFirestore with experimentalForceLongPolling for stability
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
-  }, DB_ID);
-  console.log(`[Firebase] Initialized Named Firestore Instance: ${DB_ID}`);
+  });
+  console.log(`[Firebase] Initialized DEFAULT Firestore Silo: (default)`);
 } catch (e: any) {
-  // If already initialized (common during Next.js Hot Module Replacement), reuse the existing instance
-  if (e.code === 'failed-precondition' || e.message?.includes('already exist')) {
-    db = getFirestore(app, DB_ID);
-  } else {
-    // Fallback attempt
-    db = getFirestore(app, DB_ID);
-  }
+  // Graceful reuse if already initialized
+  db = getFirestore(app);
 }
 
 const auth = getAuth(app);
 
-export { app, db, auth, firebaseConfig, DB_ID };
+export { app, db, auth, firebaseConfig };
 

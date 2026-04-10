@@ -65,10 +65,12 @@ export default function Dashboard() {
   };
 
   // Setup role context
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
-  const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  const { data: users = [] } = useCollection<User>(db ? query(collection(db, "users")) as any : null);
   
+  const currentUserData = useMemo(() => 
+    users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [users, user?.email]);
+
   const currentUserRoles = useMemo(() => 
     currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []),
   [currentUserData]);
@@ -80,14 +82,11 @@ export default function Dashboard() {
   // Everyone else who isn't Admin, Contractor, or Management is considered Standard
   const isStandard = !isAdmin && !isContractor && !isManagement;
 
-  const userEffectiveName = currentUserData?.name || user?.displayName || user?.email || "";
+  const userEffectiveName = currentUserData?.name || userDisplayName;
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const identities = useMemo(() => {
     const list = [userEffectiveName];
-    if (user?.email) list.push(user.email.toLowerCase());
-    if (user?.displayName) list.push(user.displayName);
-    
     const userDepots = currentUserData?.depots || (currentUserData?.depot ? [currentUserData.depot] : []);
     currentUserRoles.forEach(r => {
       userDepots.forEach(d => {
@@ -96,12 +95,12 @@ export default function Dashboard() {
     });
     // Ensure uniqueness and limit to 10 for Firestore 'in' query safety
     return Array.from(new Set(list)).slice(0, 10);
-  }, [userEffectiveName, user?.email, user?.displayName, currentUserRoles, currentUserData?.depots, currentUserData?.depot]);
+  }, [userEffectiveName, currentUserRoles, currentUserData?.depots, currentUserData?.depot]);
 
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
-    if (!db || identities.length === 0) return null;
-    return query(collection(db, "tasks"), where("assignedTo", "in", identities));
+     if (!db || users.length === 0) return null;
+     return query(collection(db, "tasks"), where("park", "in", users.map(u => u.depot).filter(Boolean)));
   }, [db, identities]);
 
   const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
@@ -210,14 +209,14 @@ export default function Dashboard() {
 
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
           <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
-          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={allUsers} />
+          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={users} />
           
           <TaskDetailModal 
             open={taskDetailOpen} 
             onOpenChange={setTaskDetailOpen} 
             task={selectedTask} 
             linkedIssue={allIssues.find(i => i.id === selectedTask?.linkedIssueId)}
-            allUsers={allUsers}
+            allUsers={users}
           />
 
           {/* Admin Quick Actions */}
