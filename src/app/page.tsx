@@ -68,27 +68,38 @@ export default function Dashboard() {
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
-  const isManagement = currentUserData ? MANAGEMENT_ROLES.includes(currentUserData.role as Role) : false;
-  const isOperative = currentUserData ? (OPERATIVE_ROLES as any).includes(currentUserData.role as Role) : false;
-  const isAdmin = currentUserData?.role === 'Admin' || user?.email === 'quinten.geurs@gmail.com';
+  
+  const currentUserRoles = useMemo(() => 
+    currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []),
+  [currentUserData]);
+
+  const isAdmin = currentUserRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
+  const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1;
+  const isManagement = currentUserRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
+  const isKeeper = currentUserRoles.includes('Keeper');
+  // Everyone else who isn't Admin, Contractor, or Management is considered Standard
+  const isStandard = !isAdmin && !isContractor && !isManagement;
 
   const userEffectiveName = currentUserData?.name || user?.displayName || user?.email || "";
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const groupIdentity = useMemo(() => {
-    if (!currentUserData?.role || !currentUserData?.depot) return null;
-    return `Group: ${currentUserData.role} @ ${currentUserData.depot}`;
-  }, [currentUserData]);
+  const identities = useMemo(() => {
+    const list = [userEffectiveName];
+    const userDepots = currentUserData?.depots || (currentUserData?.depot ? [currentUserData.depot] : []);
+    currentUserRoles.forEach(r => {
+      userDepots.forEach(d => {
+        if (d.trim()) list.push(`Group: ${r} @ ${d.trim()}`);
+      });
+    });
+    // Ensure uniqueness and limit to 10 for Firestore 'in' query safety
+    return Array.from(new Set(list)).slice(0, 10);
+  }, [userEffectiveName, currentUserRoles, currentUserData?.depots, currentUserData?.depot]);
 
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    
-    // Management still focus on their own tasks on the dashboard
-    const identities = [userEffectiveName];
-    if (groupIdentity) identities.push(groupIdentity);
+    if (!db || identities.length === 0) return null;
     return query(collection(db, "tasks"), where("assignedTo", "in", identities));
-  }, [db, userEffectiveName, groupIdentity]);
+  }, [db, identities]);
 
   const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
 
@@ -157,40 +168,42 @@ export default function Dashboard() {
       >
         <div className="flex flex-col gap-6 pb-20">
           
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-              <Link href="/issues">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
-                <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
-              </Link>
-            </Button>
-            {isOperative ? (
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                onClick={() => setLogWorkModalOpen(true)}
-              >
-                <ClipboardList className="h-6 w-6 text-accent-foreground" />
-                <span className="text-xs font-bold uppercase tracking-wider">Log Work</span>
-              </Button>
-            ) : (
+          {/* Quick Actions - Hidden for Contractors */}
+          {!isContractor && (
+            <div className="grid grid-cols-2 gap-3">
               <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                <Link href="/tasks">
-                  <ClipboardList className="h-6 w-6 text-accent-foreground" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Create Task</span>
+                <Link href="/issues">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
                 </Link>
               </Button>
-            )}
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col gap-2 justify-center col-span-2 border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-              onClick={() => setRequestModalOpen(true)}
-            >
-              <Package className="h-6 w-6 text-primary" />
-              <span className="text-xs font-bold uppercase tracking-wider">Request Something</span>
-            </Button>
-          </div>
+              {isStandard || isKeeper ? (
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                  onClick={() => setLogWorkModalOpen(true)}
+                >
+                  <ClipboardList className="h-6 w-6 text-accent-foreground" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Log Work</span>
+                </Button>
+              ) : isManagement || isAdmin ? (
+                <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                  <Link href="/tasks">
+                    <ClipboardList className="h-6 w-6 text-accent-foreground" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Create Task</span>
+                  </Link>
+                </Button>
+              ) : null}
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col gap-2 justify-center col-span-2 border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                onClick={() => setRequestModalOpen(true)}
+              >
+                <Package className="h-6 w-6 text-primary" />
+                <span className="text-xs font-bold uppercase tracking-wider">Request Something</span>
+              </Button>
+            </div>
+          )}
 
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
           <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
@@ -328,135 +341,139 @@ export default function Dashboard() {
       title="My Workspace" 
       description="Overview of your assigned tasks, issues, and requests"
     >
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Link href="/tasks" className="block">
-          <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Active Tasks" : "My Active Tasks"}</CardTitle>
-              <Clock className="h-4 w-4 text-accent-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold font-headline">{activeMyTasks.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Assigned tasks currently pending</p>
-            </CardContent>
-          </Card>
-        </Link>
+      {!isContractor && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Link href="/tasks" className="block">
+            <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Active Tasks" : "My Active Tasks"}</CardTitle>
+                <Clock className="h-4 w-4 text-accent-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-headline">{activeMyTasks.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">Assigned tasks currently pending</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Link href="/issues" className="block">
-          <Card className="border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Open Issues" : "My Open Issues"}</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold font-headline">{openMyIssues.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Issues reported by you</p>
-            </CardContent>
-          </Card>
-        </Link>
-        
-        <div className="block" onClick={() => setRequestModalOpen(true)}>
-          <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Pending Requests" : "My Pending Requests"}</CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold font-headline">{pendingRequests.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Material requests in progress</p>
-            </CardContent>
-          </Card>
-        </div>
+          <Link href="/issues" className="block">
+            <Card className="border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Open Issues" : "My Open Issues"}</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-headline">{openMyIssues.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">Issues reported by you</p>
+              </CardContent>
+            </Card>
+          </Link>
+          
+          <div className="block" onClick={() => setRequestModalOpen(true)}>
+            <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Pending Requests" : "My Pending Requests"}</CardTitle>
+                <Package className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold font-headline">{pendingRequests.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">Material requests in progress</p>
+              </CardContent>
+            </Card>
+          </div>
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <div className="block relative cursor-pointer hover:shadow-md transition-all">
-              <Card className="border-l-4 border-l-green-500 shadow-sm transition-all h-full bg-green-50/30 dark:bg-green-950/20 hover:bg-green-50/60 dark:hover:bg-green-900/30">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-green-700 uppercase tracking-wider dark:text-green-400">Ready for Collection</CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold font-headline text-green-600 dark:text-green-300">{readyRequests.length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Requests sorted and ready to pickup</p>
-                </CardContent>
-              </Card>
-            </div>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[450px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-green-700 dark:text-green-400 font-headline">
-                <CheckCircle2 className="h-5 w-5" /> Ready for Collection
-              </DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col gap-3 py-4 max-h-[400px] overflow-y-auto pr-2">
-              {readyRequests.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
-                  No items currently waiting for collection!
-                </div>
-              ) : (
-                readyRequests.map((req, i) => (
-                  <div key={req.id || i} className="flex justify-between items-center rounded bg-background p-3 shadow-md text-sm border border-green-100 dark:border-green-900/50 hover:border-green-300 transition-colors">
-                    <div>
-                      <p className="font-bold">{req.category}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="h-3 w-3" /> {req.depot}
-                      </p>
-                    </div>
-                    <Button size="sm" className="h-8 text-[11px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <div className="block relative cursor-pointer hover:shadow-md transition-all">
+                <Card className="border-l-4 border-l-green-500 shadow-sm transition-all h-full bg-green-50/30 dark:bg-green-950/20 hover:bg-green-50/60 dark:hover:bg-green-900/30">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-green-700 uppercase tracking-wider dark:text-green-400">Ready for Collection</CardTitle>
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold font-headline text-green-600 dark:text-green-300">{readyRequests.length}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Requests sorted and ready to pickup</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[450px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-700 dark:text-green-400 font-headline">
+                  <CheckCircle2 className="h-5 w-5" /> Ready for Collection
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-3 py-4 max-h-[400px] overflow-y-auto pr-2">
+                {readyRequests.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
+                    No items currently waiting for collection!
                   </div>
-                ))
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+                ) : (
+                  readyRequests.map((req, i) => (
+                    <div key={req.id || i} className="flex justify-between items-center rounded bg-background p-3 shadow-md text-sm border border-green-100 dark:border-green-900/50 hover:border-green-300 transition-colors">
+                      <div>
+                        <p className="font-bold">{req.category}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" /> {req.depot}
+                        </p>
+                      </div>
+                      <Button size="sm" className="h-8 text-[11px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
 
       <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
 
       <div className="grid gap-6 mt-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">{isManagement ? "Global Task Distribution" : "My Task Distribution"}</CardTitle>
-            <CardDescription>{isManagement ? "Breakdown of team workload" : "Breakdown of your current and completed workload"}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-             {taskData.length > 0 ? (
-               <div className="h-[250px] w-full">
-                 <ResponsiveContainer width="100%" height="100%">
-                   <PieChart>
-                     <Pie
-                       data={taskData}
-                       cx="50%"
-                       cy="50%"
-                       innerRadius={60}
-                       outerRadius={80}
-                       paddingAngle={5}
-                       dataKey="value"
-                     >
-                       {taskData.map((entry, index) => (
-                         <Cell key={`cell-${index}`} fill={entry.color} />
-                       ))}
-                     </Pie>
-                     <Tooltip />
-                   </PieChart>
-                 </ResponsiveContainer>
-               </div>
-             ) : (
-               <div className="h-[250px] w-full flex items-center justify-center text-muted-foreground">
-                 No task data available.
-               </div>
-             )}
-            <div className="grid grid-cols-3 w-full gap-4 mt-4">
-              {taskData.map((item) => (
-                <div key={item.name} className="flex flex-col items-center">
-                  <span className="text-xs text-muted-foreground uppercase font-semibold">{item.name}</span>
-                  <span className="text-lg font-bold">{item.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {!isContractor && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">{(isManagement || isAdmin) ? "Global Task Distribution" : "My Task Distribution"}</CardTitle>
+              <CardDescription>{(isManagement || isAdmin) ? "Breakdown of team workload" : "Breakdown of your current and completed workload"}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center">
+               {taskData.length > 0 ? (
+                 <div className="h-[250px] w-full">
+                   <ResponsiveContainer width="100%" height="100%">
+                     <PieChart>
+                       <Pie
+                         data={taskData}
+                         cx="50%"
+                         cy="50%"
+                         innerRadius={60}
+                         outerRadius={80}
+                         paddingAngle={5}
+                         dataKey="value"
+                       >
+                         {taskData.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={entry.color} />
+                         ))}
+                       </Pie>
+                       <Tooltip />
+                     </PieChart>
+                   </ResponsiveContainer>
+                 </div>
+               ) : (
+                 <div className="h-[250px] w-full flex items-center justify-center text-muted-foreground">
+                   No task data available.
+                 </div>
+               )}
+              <div className="grid grid-cols-3 w-full gap-4 mt-4">
+                {taskData.map((item) => (
+                  <div key={item.name} className="flex flex-col items-center">
+                    <span className="text-xs text-muted-foreground uppercase font-semibold">{item.name}</span>
+                    <span className="text-lg font-bold">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         
         <Card className="overflow-hidden">
           <CardHeader>

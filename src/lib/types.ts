@@ -3,11 +3,16 @@ export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area M
 export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor'];
 export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Officer', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Admin'];
 
+export const CONTRACTOR_ROLE: Role = 'Contractor';
+export const STANDARD_OFFICER_ROLES: Role[] = ['Tree Officer', 'Parks Development Officer', 'Bin Run', 'Litter Picker', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'Biodiversity Officer', 'Gardener', 'Keeper'];
+export const OPERATIONAL_MGMT_ROLES: Role[] = ['Head Gardener', 'Area Manager', 'Assistant Area Manager', 'Operations Manager'];
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  roles: Role[];
+  role?: Role; // Legacy fallback
   depot: string; // Primary depot
   depots?: string[]; // Multiple assigned depots
   avatar?: string;

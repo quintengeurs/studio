@@ -73,11 +73,19 @@ export default function ParksPage() {
   const [currentUpdateType, setCurrentUpdateType] = useState<string>("");
   const [updateForm, setUpdateForm] = useState<Partial<ParkUpdate>>({});
 
-  const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
-  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const currentUserData = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
+
+  const currentUserRoles = useMemo(() => 
+    currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []),
+  [currentUserData]);
+
+  const isAdmin = currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const isManagement = currentUserRoles.some((r: Role) => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
 
   const filteredParks = useMemo(() => {
-    const isGlobalRole = currentUserData && [
+    const isGlobalRole = currentUserRoles.some((r: Role) => [
       'Area Manager', 
       'Assistant Area Manager', 
       'Operations Manager', 
@@ -85,7 +93,7 @@ export default function ParksPage() {
       'Tree Officer', 
       'Biodiversity Officer', 
       'Project Manager'
-    ].includes(currentUserData.role);
+    ].includes(r));
 
     if (isAdmin || isGlobalRole || !currentUserData) return parks;
     
@@ -114,16 +122,16 @@ export default function ParksPage() {
 
   const [editForm, setEditForm] = useState<Partial<ParkDetail>>({});
 
-  const canEditProjects = isAdmin || currentUserData?.role === 'Project Manager' || currentUserData?.role === 'Parks Development Officer';
-  const canEditEvents = isAdmin || currentUserData?.role === 'Events Manager' || currentUserData?.role === 'Parks Development Officer';
-  const canEditVolunteering = isAdmin || currentUserData?.role === 'Volunteering Coordinator' || currentUserData?.role === 'Parks Development Officer';
-  const canEditSports = isAdmin || currentUserData?.role === 'Sports and Leisure Manager' || currentUserData?.role === 'Parks Development Officer';
-  const canEditUserGroups = isAdmin || currentUserData?.role === 'User Group Chair' || currentUserData?.role === 'Parks Development Officer';
-  const canEditDevelopment = isAdmin || currentUserData?.role === 'Parks Development Officer';
-  const canEditTreeWorks = isAdmin || currentUserData?.role === 'Tree Officer';
-  const canEditBiodiversity = isAdmin || currentUserData?.role === 'Biodiversity Officer';
-  const canEditContractorWorks = isAdmin || currentUserData?.role === 'Contractor';
-  const canEditMaintenance = isAdmin || currentUserData?.role === 'Area Manager';
+  const canEditProjects = isAdmin || isManagement || currentUserRoles.includes('Project Manager') || currentUserRoles.includes('Parks Development Officer');
+  const canEditEvents = isAdmin || isManagement || currentUserRoles.includes('Events Manager') || currentUserRoles.includes('Parks Development Officer');
+  const canEditVolunteering = isAdmin || isManagement || currentUserRoles.includes('Volunteering Coordinator') || currentUserRoles.includes('Parks Development Officer');
+  const canEditSports = isAdmin || isManagement || currentUserRoles.includes('Sports and Leisure Manager') || currentUserRoles.includes('Parks Development Officer');
+  const canEditUserGroups = isAdmin || isManagement || currentUserRoles.includes('User Group Chair') || currentUserRoles.includes('Parks Development Officer');
+  const canEditDevelopment = isAdmin || isManagement || currentUserRoles.includes('Parks Development Officer');
+  const canEditTreeWorks = isAdmin || isManagement || currentUserRoles.includes('Tree Officer');
+  const canEditBiodiversity = isAdmin || isManagement || currentUserRoles.includes('Biodiversity Officer');
+  const canEditContractorWorks = isAdmin || isManagement || currentUserRoles.includes('Contractor');
+  const canEditMaintenance = isAdmin || isManagement;
 
   const handleOpenUpdateModal = (type: string, existingUpdate?: ParkUpdate) => {
     setCurrentUpdateType(type);
@@ -482,14 +490,14 @@ export default function ParksPage() {
                   {/* Diagnostic Debug Info - Only visible for admin troubleshooting */}
                   {(user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || isAdmin) && (
                     <div className="mt-2 py-1 px-2 bg-black/5 rounded text-[9px] font-mono text-primary/40 flex gap-3 w-fit">
-                      <span>ROLE: {currentUserData?.role || 'NOT FOUND'}</span>
+                    <span>ROLES: {currentUserRoles.join(', ') || 'NOT FOUND'}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="shrink-0 flex items-center gap-2">
-                {isAdmin && !isEditing && !isMobile && (
+                {(isAdmin || isManagement) && !isEditing && !isMobile && (
                   <Button 
                     variant="secondary" 
                     size="sm" 

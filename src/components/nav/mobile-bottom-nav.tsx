@@ -35,16 +35,28 @@ export function MobileBottomNav() {
   const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
   const profile = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
   
-  const isOperative = profile?.role === 'Keeper' || profile?.role === 'Gardener' || profile?.role === 'Litter Picker';
-  const isAdmin = profile?.role === 'Admin' || user?.email === 'quinten.geurs@gmail.com';
+  const profileRoles = profile?.roles || (profile?.role ? [profile.role] : []);
+  const isAdmin = profileRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
+  const isContractor = profileRoles.includes('Contractor') && profileRoles.length === 1;
+  const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
+  const isKeeper = profileRoles.includes('Keeper');
 
-  const filteredItems = isOperative 
-    ? items.filter(item => ["Dashboard", "Inspections", "Issues", "Parks", "Depots"].includes(item.title))
-    : items.filter(item => {
-        const allowed = ["Dashboard", "Inspections", "Issues", "Parks", "Depots"];
-        if (!isAdmin) allowed.push("Assets");
-        return allowed.includes(item.title);
-      });
+  const filteredItems = items.filter(item => {
+    if (isAdmin) return ["Dashboard", "Inspections", "Issues", "Parks", "Depots"].includes(item.title);
+    
+    if (isContractor) {
+      return ["Dashboard", "Parks", "Depots"].includes(item.title);
+    }
+    
+    if (isManagement) {
+      return ["Dashboard", "Inspections", "Issues", "Parks", "Depots"].includes(item.title);
+    }
+    
+    // Standard Officers
+    const allowed = ["Dashboard", "Parks", "Depots", "Issues"];
+    if (isKeeper) allowed.push("Inspections");
+    return allowed.includes(item.title);
+  });
 
   return (
     <>

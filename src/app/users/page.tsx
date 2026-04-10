@@ -181,7 +181,7 @@ export default function UserManagement() {
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: '',
     email: '',
-    role: 'Gardener',
+    roles: ['Gardener'],
     depot: '',
     depots: [],
     training: '',
@@ -197,9 +197,10 @@ export default function UserManagement() {
       }
       if (user.isArchived) return false;
 
+      const userRoles = user.roles || (user.role ? [user.role] : []);
       if (roleFilter === 'all') return true;
-      if (roleFilter === 'operative') return OPERATIVE_ROLES.includes(user.role as Role);
-      if (roleFilter === 'management') return MANAGEMENT_ROLES.includes(user.role as Role);
+      if (roleFilter === 'operative') return userRoles.some(r => OPERATIVE_ROLES.includes(r));
+      if (roleFilter === 'management') return userRoles.some(r => MANAGEMENT_ROLES.includes(r));
       return true;
     });
   }, [users, roleFilter]);
@@ -225,7 +226,8 @@ export default function UserManagement() {
   const getRoleColor = (role: string) => {
     if (OPERATIVE_ROLES.includes(role as Role)) return 'bg-accent text-accent-foreground border-accent';
     if (MANAGEMENT_ROLES.includes(role as Role)) return 'bg-primary/10 text-primary border-primary/20';
-    return '';
+    if (role === 'Contractor') return 'bg-orange-100 text-orange-700 border-orange-200';
+    return 'bg-muted text-muted-foreground border-border';
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
@@ -287,7 +289,7 @@ export default function UserManagement() {
         depots: userDepots,
         depot: userDepots[0] || "",
         isArchived: false,
-        role: newUser.role || 'Gardener',
+        roles: newUser.roles || [],
         createdAt: new Date().toISOString(),
     };
 
@@ -302,12 +304,15 @@ export default function UserManagement() {
         await setDoc(doc(db, "users", tempId), sanitizedUser);
 
         // Auto-fill Parks logic
-        if (userToSave.depot && ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(userToSave.role)) {
-            const roleField = userToSave.role === 'Head Gardener' ? 'headGardener' : 
-                             userToSave.role === 'Area Manager' ? 'areaManager' : 'parkOfficer';
+        const userRoles = userToSave.roles || [];
+        if (userToSave.depot && userRoles.some(r => ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(r))) {
+            const isHeadGardener = userRoles.includes('Head Gardener');
+            const isAreaManager = userRoles.includes('Area Manager');
+            const isParksOfficer = userRoles.includes('Parks Development Officer');
+
+            const roleField = isHeadGardener ? 'headGardener' : 
+                             isAreaManager ? 'areaManager' : 'parkOfficer';
             
-            const parksRef = collection(db, "parks_details");
-            const q = query(parksRef, where("depot", "in", userToSave.depots));
             const parksToUpdate = allDetails.filter(p => userToSave.depots.includes(p.depot || ""));
             
             for (const park of parksToUpdate) {
@@ -345,9 +350,12 @@ export default function UserManagement() {
         await updateDoc(doc(db, "users", selectedUser.id), updatedData);
 
         // 1. Sync management role assignments for the current depot(s)
-        if (updatedData.depot && ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(updatedData.role || "")) {
-            const roleField = updatedData.role === 'Head Gardener' ? 'headGardener' : 
-                             updatedData.role === 'Area Manager' ? 'areaManager' : 'parkOfficer';
+        const userRoles = updatedData.roles || [];
+        if (updatedData.depot && userRoles.some(r => ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(r))) {
+            const isHeadGardener = userRoles.includes('Head Gardener');
+            const isAreaManager = userRoles.includes('Area Manager');
+            const roleField = isHeadGardener ? 'headGardener' : 
+                             isAreaManager ? 'areaManager' : 'parkOfficer';
             
             const parksToUpdate = allDetails.filter(p => updatedData.depots?.includes(p.depot || ""));
             for (const park of parksToUpdate) {
@@ -647,12 +655,16 @@ export default function UserManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge className={`${getRoleColor(user.role)} font-bold text-[9px] uppercase w-fit`} variant="outline">
-                          {user.role}
-                        </Badge>
-                        <span className="text-[10px] font-bold text-muted-foreground">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {(user.roles || [user.role]).map((r, i) => (
+                          <Badge key={i} className={`${getRoleColor(r)} font-bold text-[9px] uppercase`} variant="outline">
+                            {r}
+                          </Badge>
+                        ))}
                       </div>
+                      <span className="text-[10px] font-bold text-muted-foreground mt-1 block">
+                        {user.depots?.length ? user.depots.join(', ') : (user.depot || 'No Depot')}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <span className="text-[10px] font-bold text-foreground line-clamp-2">
@@ -779,17 +791,23 @@ export default function UserManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-              <div className="grid gap-2 text-left">
-                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Staff Role</Label>
-                <Select value={newUser.role} onValueChange={(v: Role) => setNewUser({...newUser, role: v})}>
-                  <SelectTrigger className="font-medium"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(role => (
-                      <SelectItem key={role} value={role}>{role}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="grid gap-3">
+              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Staff Roles (Select all that apply)</Label>
+              <div className="grid grid-cols-2 gap-3 border rounded-xl p-4 bg-muted/10">
+                {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].filter((v, i, a) => a.indexOf(v) === i).map(role => (
+                  <div 
+                    key={role} 
+                    className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1 rounded transition-colors"
+                    onClick={() => {
+                      const current = newUser.roles || [];
+                      const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
+                      setNewUser({...newUser, roles: next});
+                    }}
+                  >
+                    <Checkbox checked={(newUser.roles || []).includes(role)} onCheckedChange={() => {}} />
+                    <Label className="text-xs font-medium cursor-pointer">{role}</Label>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -852,8 +870,10 @@ export default function UserManagement() {
                 </Avatar>
                 <div>
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge className={getRoleColor(selectedUser?.role || '')} variant="outline">{selectedUser?.role}</Badge>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    {(selectedUser?.roles || (selectedUser?.role ? [selectedUser.role] : [])).map((r, i) => (
+                      <Badge key={i} className={getRoleColor(r)} variant="outline">{r}</Badge>
+                    ))}
                     <span className="text-xs font-medium text-muted-foreground">• {selectedUser?.depots?.length ? selectedUser.depots.join(', ') : selectedUser?.depot}</span>
                   </div>
                 </div>
@@ -956,44 +976,52 @@ export default function UserManagement() {
                     
                     <Separator className="my-2" />
 
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-                      <div className="grid gap-2 text-left">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Designation</Label>
-                        <Select value={selectedUser?.role} onValueChange={(v: Role) => selectedUser && setSelectedUser({...selectedUser, role: v})}>
-                          <SelectTrigger className="font-medium"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(role => (
-                              <SelectItem key={role} value={role}>{role}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    <div className="grid gap-3">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Designations</Label>
+                      <div className="grid grid-cols-2 gap-3 border rounded-xl p-4 bg-muted/10">
+                        {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].filter((v, i, a) => a.indexOf(v) === i).map(role => (
+                          <div 
+                            key={role} 
+                            className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1 rounded transition-colors"
+                            onClick={() => {
+                              if (!selectedUser) return;
+                              const current = selectedUser.roles || (selectedUser.role ? [selectedUser.role] : []);
+                              const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
+                              setSelectedUser({...selectedUser, roles: next});
+                            }}
+                          >
+                            <Checkbox checked={(selectedUser?.roles || (selectedUser?.role ? [selectedUser.role] : [])).includes(role)} onCheckedChange={() => {}} />
+                            <Label className="text-xs font-medium cursor-pointer">{role}</Label>
+                          </div>
+                        ))}
                       </div>
-                      <div className="grid gap-2 text-left">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignment</Label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start font-medium border-input">
-                               {selectedUser?.depots?.length ? <span className="text-foreground">{selectedUser.depots.length} Selected</span> : (selectedUser?.depot || "Select Depots...")}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-56" align="start">
-                            {teams.map(t => (
-                              <DropdownMenuCheckboxItem 
-                                key={t}
-                                checked={(selectedUser?.depots || []).some(d => d.trim() === t.trim()) || (selectedUser?.depot?.trim() === t.trim() && selectedUser?.depots?.length !== 0)}
-                                onCheckedChange={(checked) => {
-                                   if (!selectedUser) return;
-                                   const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
-                                   const newDepots = checked ? [...current, t] : current.filter(x => x !== t);
-                                   setSelectedUser({...selectedUser, depots: newDepots, depot: newDepots[0] || ''});
-                                }}
-                              >
-                                {t}
-                              </DropdownMenuCheckboxItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                    </div>
+                    
+                    <div className="grid gap-2 text-left mt-4">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignment</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start font-medium border-input">
+                             {selectedUser?.depots?.length ? <span className="text-foreground">{selectedUser.depots.length} Selected</span> : (selectedUser?.depot || "Select Depots...")}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" align="start">
+                          {teams.map(t => (
+                            <DropdownMenuCheckboxItem 
+                              key={t}
+                              checked={(selectedUser?.depots || []).some(d => d.trim() === t.trim()) || (selectedUser?.depot?.trim() === t.trim() && selectedUser?.depots?.length !== 0)}
+                              onCheckedChange={(checked) => {
+                                 if (!selectedUser) return;
+                                 const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
+                                 const newDepots = checked ? [...current, t] : current.filter(x => x !== t);
+                                 setSelectedUser({...selectedUser, depots: newDepots, depot: newDepots[0] || ''});
+                              }}
+                            >
+                              {t}
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     
                     <div className="grid gap-4 pt-4">

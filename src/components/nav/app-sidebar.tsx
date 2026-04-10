@@ -76,17 +76,35 @@ export function AppSidebar() {
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
 
-  const isOperational = useMemo(() => 
-    currentUserProfile?.role && OPERATIVE_ROLES.includes(currentUserProfile.role),
-  [currentUserProfile]);
+  const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
+  const isAdmin = profileRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
+  const isContractor = profileRoles.includes('Contractor') && profileRoles.length === 1;
+  const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
+  const isStandard = profileRoles.some(r => !['Admin', 'Contractor', 'Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
 
   const filteredNavItems = useMemo(() => {
-    if (!isOperational) return navItems;
+    if (isAdmin) return navItems;
     
-    // Hide management items for operational staff
-    const hiddenHrefs = ["/tasks", "/archived-tasks", "/users", "/archived-users", "/resolved-issues"];
-    return navItems.filter(item => !hiddenHrefs.includes(item.href));
-  }, [isOperational]);
+    if (isContractor) {
+      return navItems.filter(item => ["Dashboard", "Parks", "Depots"].includes(item.title));
+    }
+    
+    if (isManagement) {
+      // Management sees all except specific admin items
+      const adminOnly = ["Users", "Archived Staff", "Archived Tasks"];
+      return navItems.filter(item => !adminOnly.includes(item.title));
+    }
+    
+    // Standard Officers
+    const standardAllowed = ["Dashboard", "My Tasks", "Parks", "Depots", "Staff Requests"];
+    return navItems.filter(item => standardAllowed.includes(item.title));
+  }, [isAdmin, isContractor, isManagement, navItems]);
+
+  const showNewRequest = useMemo(() => {
+    if (isAdmin || isManagement) return true;
+    if (isContractor) return false;
+    return true; // Standard Officers see it too
+  }, [isAdmin, isManagement, isContractor]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -129,16 +147,18 @@ export function AppSidebar() {
               
               <SidebarSeparator className="my-2" />
               
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  tooltip="Quick Request" 
-                  onClick={() => setIsRequestOpen(true)}
-                  className="text-primary hover:text-primary font-bold"
-                >
-                  <PackagePlus className="h-4 w-4" />
-                  <span>New Staff Request</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {showNewRequest && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    tooltip="Quick Request" 
+                    onClick={() => setIsRequestOpen(true)}
+                    className="text-primary hover:text-primary font-bold"
+                  >
+                    <PackagePlus className="h-4 w-4" />
+                    <span>New Staff Request</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
