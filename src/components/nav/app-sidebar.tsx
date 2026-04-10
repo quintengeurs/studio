@@ -82,6 +82,8 @@ export function AppSidebar() {
   const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
   const isStandard = profileRoles.some(r => !['Admin', 'Contractor', 'Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
 
+  const canViewRequests = isAdmin || profileRoles.includes('Area Manager') || profileRoles.includes('Operations Manager');
+
   const filteredNavItems = useMemo(() => {
     if (isAdmin) return navItems;
     
@@ -92,13 +94,27 @@ export function AppSidebar() {
     if (isManagement) {
       // Management sees all except specific admin items
       const adminOnly = ["Users", "Archived Staff", "Archived Tasks"];
-      return navItems.filter(item => !adminOnly.includes(item.title));
+      let items = navItems.filter(item => !adminOnly.includes(item.title));
+      
+      // Additional restriction for Staff Requests
+      if (!canViewRequests) {
+        items = items.filter(item => item.title !== "Staff Requests");
+      }
+      return items;
     }
     
     // Standard Officers
-    const standardAllowed = ["Dashboard", "My Tasks", "Parks", "Depots", "Staff Requests"];
-    return navItems.filter(item => standardAllowed.includes(item.title));
-  }, [isAdmin, isContractor, isManagement, navItems]);
+    const standardAllowed = ["Dashboard", "My Tasks", "Parks", "Depots"];
+    let items = navItems.filter(item => standardAllowed.includes(item.title));
+    
+    if (canViewRequests) {
+      // Unlikely for standard but for completeness
+      const requestsItem = navItems.find(i => i.title === "Staff Requests");
+      if (requestsItem) items.push(requestsItem);
+    }
+    
+    return items;
+  }, [isAdmin, isContractor, isManagement, canViewRequests, navItems]);
 
   const showNewRequest = useMemo(() => {
     if (isAdmin || isManagement) return true;

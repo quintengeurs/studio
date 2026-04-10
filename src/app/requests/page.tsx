@@ -16,27 +16,55 @@ import {
   Info,
   Truck
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, doc, updateDoc } from "firebase/firestore";
 import Image from "next/image";
-import { MaterialRequest } from "@/lib/types";
+import { MaterialRequest, User as UserProfile } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function RequestsManagementPage() {
   const { toast } = useToast();
   const db = useFirestore();
+  const { user } = useUser();
+  const router = useRouter();
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "users"));
+  }, [db]);
+  const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
+  
+  const currentUserProfile = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
+
+  const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
+  const isAdmin = profileRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
+  const canViewRequests = isAdmin || profileRoles.includes('Area Manager') || profileRoles.includes('Operations Manager');
 
   const requestsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !canViewRequests) return null;
     return query(
       collection(db, "requests"),
       where("status", "!=", "Archived"),
       orderBy("status"),
       orderBy("createdAt", "desc")
     );
-  }, [db]);
+  }, [db, canViewRequests]);
 
-  const { data: requests = [], loading } = useCollection<MaterialRequest>(requestsQuery);
+  const { data: requests = [], loading } = useCollection<MaterialRequest>(requestsQuery as any);
+
+  useEffect(() => {
+    if (!loading && !canViewRequests && allUsers.length > 0) {
+      router.push("/");
+    }
+  }, [canViewRequests, loading, allUsers.length, router]);
+
+  if (!canViewRequests && allUsers.length > 0) {
+      return null; // Will redirect via useEffect
+  }
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     if (!db) return;
