@@ -85,7 +85,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from "@/firebase";
 import { firebaseConfig } from "@/firebase/config";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
@@ -94,6 +94,7 @@ import { collection, query, where, doc, updateDoc, arrayUnion, arrayRemove, setD
 export default function UserManagement() {
   const { toast } = useToast();
   const db = useFirestore();
+  const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
@@ -191,18 +192,25 @@ export default function UserManagement() {
     password: ''
   });
 
+  const currentUserProfile = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
+  const isAdmin = profileRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const isContractor = profileRoles.includes('Contractor') && profileRoles.length === 1;
+  const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r)) || isAdmin;
+  const isStandard = !isAdmin && !isContractor && !isManagement;
+
   const filteredUsers = useMemo(() => {
-    return users.filter(user => {
-      // DEBUG: If a user has no name or email, they might be corrupted
-      if (!user.name && !user.email) return false;
+    return users.filter(u => {
+      // Show any record that has at least a name or an email
+      if (!u.name && !u.email) return false;
 
       if (roleFilter === 'archived') {
-          return user.isArchived === true;
+          return u.isArchived === true;
       }
-      if (user.isArchived) return false;
+      if (u.isArchived) return false;
 
       // Ensure userRoles is always an array
-      const userRoles = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
+      const userRoles = Array.isArray(u.roles) ? u.roles : (u.role ? [u.role] : []);
       
       if (roleFilter === 'all') return true;
       if (roleFilter === 'operative') return userRoles.some(r => OPERATIVE_ROLES.includes(r as Role));

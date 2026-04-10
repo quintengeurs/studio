@@ -77,10 +77,10 @@ export function AppSidebar() {
   [allUsers, user?.email]);
 
   const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
-  const isAdmin = profileRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
+  const isAdmin = profileRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   const isContractor = profileRoles.includes('Contractor') && profileRoles.length === 1;
-  const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
-  const isStandard = profileRoles.some(r => !['Admin', 'Contractor', 'Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
+  const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r)) || isAdmin;
+  const isStandard = !isAdmin && !isContractor && !isManagement;
 
   const canViewRequests = isAdmin || profileRoles.includes('Area Manager') || profileRoles.includes('Operations Manager');
 

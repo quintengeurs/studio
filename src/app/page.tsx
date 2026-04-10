@@ -73,9 +73,9 @@ export default function Dashboard() {
     currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []),
   [currentUserData]);
 
-  const isAdmin = currentUserRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
+  const isAdmin = currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1;
-  const isManagement = currentUserRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
+  const isManagement = currentUserRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r)) || isAdmin;
   const isKeeper = currentUserRoles.includes('Keeper');
   // Everyone else who isn't Admin, Contractor, or Management is considered Standard
   const isStandard = !isAdmin && !isContractor && !isManagement;

@@ -6,7 +6,7 @@ import { initializeFirestore, getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: "studio-4537887383-23869",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "studio-4537887383-23869",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
@@ -17,18 +17,25 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 let db;
+// Your production database ID
 const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
 
 try {
-  // Use initializeFirestore to apply critical connectivity settings
+  // Use initializeFirestore to apply critical connectivity settings (Force long polling)
+  // This is the most robust way to ensure a stable connection in production
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
   }, DB_ID);
-  console.log(`[Firebase] Initialized Firestore with Long Polling: ${DB_ID}`);
-} catch (e) {
-  // If already initialized, reuse the existing instance
-  db = getFirestore(app, DB_ID);
+  console.log(`[Firebase] Initialized Named Firestore Instance: ${DB_ID}`);
+} catch (e: any) {
+  // If already initialized (common during Next.js Hot Module Replacement), reuse the existing instance
+  if (e.code === 'failed-precondition' || e.message?.includes('already exist')) {
+    db = getFirestore(app, DB_ID);
+  } else {
+    // Fallback attempt
+    db = getFirestore(app, DB_ID);
+  }
 }
 
 const auth = getAuth(app);
