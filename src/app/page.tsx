@@ -99,8 +99,8 @@ export default function Dashboard() {
 
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
-     if (!db || users.length === 0) return null;
-     return query(collection(db, "tasks"), where("park", "in", users.map(u => u.depot).filter(Boolean)));
+    if (!db || identities.length === 0) return null;
+    return query(collection(db, "tasks"), where("assignedTo", "in", identities));
   }, [db, identities]);
 
   const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);

@@ -16,18 +16,20 @@ const firebaseConfig = {
 // Initialize Firebase only once
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-let db;
-// We are reverting to the (default) database silo to restore your legacy data
+const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
+let db: any;
+
 try {
-  // Use initializeFirestore with experimentalForceLongPolling for stability
+  // Try to initialize with specific settings (Force long polling for corporate firewalls)
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
-  });
-  console.log(`[Firebase] Initialized DEFAULT Firestore Silo: (default)`);
-} catch (e: any) {
-  // Graceful reuse if already initialized
-  db = getFirestore(app);
+  }, DB_ID);
+  console.log(`[Firebase] Initialized Firestore: ${DB_ID}`);
+} catch (e) {
+  // If already initialized (common during development HMR), reuse the existing instance
+  db = getFirestore(app, DB_ID);
+  console.log(`[Firebase] Reusing Firestore: ${DB_ID}`);
 }
 
 const auth = getAuth(app);
