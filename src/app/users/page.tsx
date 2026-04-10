@@ -187,6 +187,7 @@ export default function UserManagement() {
     training: '',
     avatar: '',
     isArchived: false,
+    allowDesktopView: true,
     password: ''
   });
 
@@ -849,6 +850,17 @@ export default function UserManagement() {
                 ))}
               </div>
             </div>
+
+            <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-bold tracking-tight">Desktop Version Access</span>
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Toggle desktop-optimized page view</span>
+              </div>
+              <Checkbox 
+                checked={newUser.allowDesktopView ?? true} 
+                onCheckedChange={(checked) => setNewUser({...newUser, allowDesktopView: !!checked})}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button className="w-full font-bold" onClick={handleAddUser} disabled={!newUser.name || !newUser.email || isUserSubmitting}>
@@ -1045,6 +1057,18 @@ export default function UserManagement() {
                         })}
                       </div>
                     </div>
+
+                    <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10 mt-6">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-bold tracking-tight">Desktop Version Access</span>
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Toggle desktop-optimized page view</span>
+                      </div>
+                      <Checkbox 
+                        checked={selectedUser?.allowDesktopView ?? true} 
+                        onCheckedChange={(checked) => selectedUser && setSelectedUser({...selectedUser, allowDesktopView: !!checked})}
+                      />
+                    </div>
+
                     <div className="pt-6 pb-12">
                       <Button onClick={handleUpdateUser} className="w-full font-bold h-12 text-lg shadow-lg" disabled={isUserSubmitting}>
                         {isUserSubmitting ? "Saving..." : "Save Profile Changes"}

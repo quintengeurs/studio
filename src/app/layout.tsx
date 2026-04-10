@@ -3,6 +3,7 @@ import './globals.css';
 import {SidebarProvider} from '@/components/ui/sidebar';
 import {Toaster} from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
+import { DesktopGuard } from '@/components/auth/desktop-guard';
 
 export const metadata: Metadata = {
   title: 'Parks and Green Spaces | Hackney Parks Management',
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <SidebarProvider defaultOpen={true}>
-            {children}
+            <DesktopGuard>
+              {children}
+            </DesktopGuard>
           </SidebarProvider>
         </FirebaseClientProvider>
         <Toaster />

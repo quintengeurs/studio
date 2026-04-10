@@ -20,6 +20,7 @@ export interface User {
   phone?: string;
   radioCallSign?: string;
   password?: string;
+  allowDesktopView?: boolean;
   isArchived?: boolean;
   createdAt?: string;
 }
