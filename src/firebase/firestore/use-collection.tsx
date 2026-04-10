@@ -32,6 +32,7 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         setLoading(false);
       },
       async (err) => {
+        console.error(`[Firestore Error] Failed to fetch collection:`, err);
         const permissionError = new FirestorePermissionError({
           path: 'query',
           operation: 'list',
