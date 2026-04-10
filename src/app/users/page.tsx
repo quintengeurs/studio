@@ -193,15 +193,20 @@ export default function UserManagement() {
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
+      // DEBUG: If a user has no name or email, they might be corrupted
+      if (!user.name && !user.email) return false;
+
       if (roleFilter === 'archived') {
           return user.isArchived === true;
       }
       if (user.isArchived) return false;
 
-      const userRoles = user.roles || (user.role ? [user.role] : []);
+      // Ensure userRoles is always an array
+      const userRoles = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
+      
       if (roleFilter === 'all') return true;
-      if (roleFilter === 'operative') return userRoles.some(r => OPERATIVE_ROLES.includes(r));
-      if (roleFilter === 'management') return userRoles.some(r => MANAGEMENT_ROLES.includes(r));
+      if (roleFilter === 'operative') return userRoles.some(r => OPERATIVE_ROLES.includes(r as Role));
+      if (roleFilter === 'management') return userRoles.some(r => MANAGEMENT_ROLES.includes(r as Role));
       return true;
     });
   }, [users, roleFilter]);
@@ -278,12 +283,13 @@ export default function UserManagement() {
 
     const trainingString = getFinalTrainingString() || "None";
     const userEmail = newUser.email?.trim() || "";
-    const tempId = `user_${Date.now()}`;
+    // Clean email for ID use
+    const emailId = userEmail.toLowerCase().replace(/[.#$[\]]/g, "_");
     const userDepots = newUser.depots || (newUser.depot ? [newUser.depot] : []);
     
     const userToSave = {
         ...newUser,
-        id: tempId,
+        id: emailId,
         name: newUser.name || "Unknown User",
         email: userEmail,
         training: trainingString,
@@ -301,8 +307,8 @@ export default function UserManagement() {
         // Step 1: Register in Firebase Authentication
         await registerUserInAuth(userEmail, newUser.password);
 
-        // Step 2: Save to Firestore
-        await setDoc(doc(db, "users", tempId), sanitizedUser);
+        // Step 2: Save to Firestore - using emailId as the document reference
+        await setDoc(doc(db, "users", emailId), sanitizedUser);
 
         // Auto-fill Parks logic
         const userRoles = userToSave.roles || [];
@@ -339,16 +345,22 @@ export default function UserManagement() {
     const oldName = selectedUser.name;
     const trainingString = getFinalTrainingString() || "None";
     
-    // Combine existing user with potential updates (if any specific state is used, otherwise values come from current selectedUser modifications)
-    const updatedData: Partial<User> = {
+    // Ensure we are syncing and cleaning data
+    const finalDepots = selectedUser.depots?.length ? selectedUser.depots : (selectedUser.depot ? [selectedUser.depot] : []);
+    const finalRoles = selectedUser.roles?.length ? selectedUser.roles : (selectedUser.role ? [selectedUser.role] : ['Gardener' as Role]);
+
+    const updatedData: User = {
       ...selectedUser,
       training: trainingString,
-      depots: selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []),
-      depot: selectedUser.depots?.[0] || selectedUser.depot || ""
+      depots: finalDepots,
+      depot: finalDepots[0] || "",
+      roles: finalRoles,
+      role: finalRoles[0] as Role // Sync legacy field
     };
 
     try {
-        await updateDoc(doc(db, "users", selectedUser.id), updatedData);
+        // Use setDoc with merge to ensure we don't accidentally lose fields if updating with a Partial
+        await setDoc(doc(db, "users", selectedUser.id), updatedData, { merge: true });
 
         // 1. Sync management role assignments for the current depot(s)
         const userRoles = updatedData.roles || [];
@@ -768,8 +780,9 @@ export default function UserManagement() {
             <DialogTitle>Add New System User</DialogTitle>
             <DialogDescription>Create a new profile for a staff member to grant them access to the studio dashboard.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+          <ScrollArea className="max-h-[70vh] px-1">
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-6">
               <div className="grid gap-2">
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Full Name</Label>
                 <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" className="font-medium" />
@@ -792,48 +805,49 @@ export default function UserManagement() {
               </div>
             </div>
 
-            <div className="grid gap-3">
-              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Staff Roles (Select all that apply)</Label>
+            <div className="grid gap-4">
+              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Primary Staff Role</Label>
               <div className="grid grid-cols-2 gap-3 border rounded-xl p-4 bg-muted/10">
                 {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].filter((v, i, a) => a.indexOf(v) === i).map(role => (
                   <div 
                     key={role} 
-                    className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1 rounded transition-colors"
-                    onClick={() => {
-                      const current = newUser.roles || [];
-                      const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
-                      setNewUser({...newUser, roles: next});
-                    }}
+                    className={cn(
+                      "flex items-center space-x-2 p-2 rounded-lg transition-all cursor-pointer border",
+                      newUser.roles?.includes(role) ? "bg-primary/10 border-primary" : "bg-card border-transparent hover:border-primary/20"
+                    )}
+                    onClick={() => setNewUser({...newUser, roles: [role], role: role})}
                   >
-                    <Checkbox checked={(newUser.roles || []).includes(role)} onCheckedChange={() => {}} />
-                    <Label className="text-xs font-medium cursor-pointer">{role}</Label>
+                    <div className={cn(
+                      "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                      newUser.roles?.includes(role) ? "border-primary" : "border-muted-foreground/30"
+                    )}>
+                      {newUser.roles?.includes(role) && <div className="h-2 w-2 rounded-full bg-primary" />}
+                    </div>
+                    <Label className="text-xs font-bold cursor-pointer">{role}</Label>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="grid gap-4">
-              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignment</Label>
+              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Primary Depot Assignment</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border rounded-xl p-4 bg-muted/10">
                 {teams.map(t => (
                   <div 
                     key={t} 
-                    className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer"
-                    onClick={() => {
-                      const current = newUser.depots || (newUser.depot ? [newUser.depot] : []);
-                      const isChecked = current.includes(t);
-                      const newDepots = isChecked ? current.filter(x => x !== t) : [...current, t];
-                      setNewUser({...newUser, depots: newDepots, depot: newDepots[0] || ''});
-                    }}
+                    className={cn(
+                      "flex items-center space-x-3 p-2.5 rounded-lg transition-all cursor-pointer border",
+                      (newUser.depots || []).includes(t) ? "bg-primary/10 border-primary" : "bg-card border-transparent hover:border-primary/20"
+                    )}
+                    onClick={() => setNewUser({...newUser, depots: [t], depot: t})}
                   >
-                    <Checkbox 
-                      id={`new-depot-${t}`} 
-                      checked={(newUser.depots || []).some(d => d.trim() === t.trim()) || (newUser.depot?.trim() === t.trim() && newUser.depots?.length !== 0)}
-                      onCheckedChange={() => {}} // Handled by div onClick
-                    />
-                    <label htmlFor={`new-depot-${t}`} className="text-xs font-medium cursor-pointer flex-1">
-                      {t}
-                    </label>
+                    <div className={cn(
+                      "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                      (newUser.depots || []).includes(t) ? "border-primary" : "border-muted-foreground/30"
+                    )}>
+                      {(newUser.depots || []).includes(t) && <div className="h-2 w-2 rounded-full bg-primary" />}
+                    </div>
+                    <Label className="text-xs font-bold cursor-pointer flex-1">{t}</Label>
                   </div>
                 ))}
               </div>
@@ -854,14 +868,15 @@ export default function UserManagement() {
             <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-bold tracking-tight">Desktop Version Access</span>
-                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Toggle desktop-optimized page view</span>
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Enable desktop-optimized page view</span>
               </div>
-              <Checkbox 
+              <Switch 
                 checked={newUser.allowDesktopView ?? true} 
-                onCheckedChange={(checked) => setNewUser({...newUser, allowDesktopView: !!checked})}
+                onCheckedChange={(checked: boolean) => setNewUser({...newUser, allowDesktopView: checked})}
               />
             </div>
-          </div>
+            </div>
+          </ScrollArea>
           <DialogFooter>
             <Button className="w-full font-bold" onClick={handleAddUser} disabled={!newUser.name || !newUser.email || isUserSubmitting}>
               {isUserSubmitting ? "Creating..." : "Create User Profile"}
@@ -989,20 +1004,26 @@ export default function UserManagement() {
                     <Separator className="my-2" />
 
                     <div className="grid gap-3">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Designations (Multi-select)</Label>
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Primary Role Designation</Label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border rounded-xl p-4 bg-muted/10">
                         {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].filter((v, i, a) => a.indexOf(v) === i).map(role => (
                           <div 
                             key={role} 
-                            className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1.5 rounded-md transition-colors"
+                            className={cn(
+                              "flex items-center space-x-2 p-2 rounded-lg transition-all cursor-pointer border",
+                              (selectedUser?.roles || []).includes(role) ? "bg-primary/10 border-primary" : "bg-card border-transparent hover:border-primary/20"
+                            )}
                             onClick={() => {
                               if (!selectedUser) return;
-                              const current = selectedUser.roles || (selectedUser.role ? [selectedUser.role] : []);
-                              const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
-                              setSelectedUser({...selectedUser, roles: next});
+                              setSelectedUser({...selectedUser, roles: [role], role: role});
                             }}
                           >
-                            <Checkbox checked={(selectedUser?.roles || (selectedUser?.role ? [selectedUser.role] : [])).includes(role)} onCheckedChange={() => {}} />
+                            <div className={cn(
+                              "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                              (selectedUser?.roles || []).includes(role) ? "border-primary" : "border-muted-foreground/30"
+                            )}>
+                              {(selectedUser?.roles || []).includes(role) && <div className="h-2 w-2 rounded-full bg-primary" />}
+                            </div>
                             <Label className="text-[10px] font-bold cursor-pointer leading-tight">{role}</Label>
                           </div>
                         ))}
@@ -1010,27 +1031,27 @@ export default function UserManagement() {
                     </div>
                     
                     <div className="grid gap-3 mt-4">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot Assignments</Label>
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Primary Depot Assignment</Label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border rounded-xl p-4 bg-muted/10">
                         {teams.map(t => (
                           <div 
                             key={t} 
-                            className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer"
+                            className={cn(
+                              "flex items-center space-x-3 p-2.5 rounded-lg transition-all cursor-pointer border",
+                              (selectedUser?.depots || []).includes(t) ? "bg-primary/10 border-primary" : "bg-card border-transparent hover:border-primary/20"
+                            )}
                             onClick={() => {
                               if (!selectedUser) return;
-                              const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
-                              const checked = current.some(d => d.trim() === t.trim());
-                              const newDepots = checked ? current.filter(x => x.trim() !== t.trim()) : [...current, t];
-                              setSelectedUser({...selectedUser, depots: newDepots, depot: newDepots[0] || ''});
+                              setSelectedUser({...selectedUser, depots: [t], depot: t});
                             }}
                           >
-                            <Checkbox 
-                              checked={(selectedUser?.depots || []).some(d => d.trim() === t.trim()) || (selectedUser?.depot?.trim() === t.trim() && selectedUser?.depots?.length !== 0)}
-                              onCheckedChange={() => {}} // Handled by div onClick
-                            />
-                            <label className="text-xs font-medium cursor-pointer flex-1">
-                              {t}
-                            </label>
+                            <div className={cn(
+                              "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                              (selectedUser?.depots || []).includes(t) ? "border-primary" : "border-muted-foreground/30"
+                            )}>
+                              {(selectedUser?.depots || []).includes(t) && <div className="h-2 w-2 rounded-full bg-primary" />}
+                            </div>
+                            <label className="text-xs font-bold cursor-pointer flex-1">{t}</label>
                           </div>
                         ))}
                       </div>
@@ -1061,11 +1082,11 @@ export default function UserManagement() {
                     <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10 mt-6">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-bold tracking-tight">Desktop Version Access</span>
-                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Toggle desktop-optimized page view</span>
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Enable desktop-optimized page view</span>
                       </div>
-                      <Checkbox 
+                      <Switch 
                         checked={selectedUser?.allowDesktopView ?? true} 
-                        onCheckedChange={(checked) => selectedUser && setSelectedUser({...selectedUser, allowDesktopView: !!checked})}
+                        onCheckedChange={(checked) => selectedUser && setSelectedUser({...selectedUser, allowDesktopView: checked})}
                       />
                     </div>
 
