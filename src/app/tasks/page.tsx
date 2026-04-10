@@ -129,8 +129,15 @@ export default function TasksPage() {
       
       // Direct assignment
       const identities = [currentUserName];
+      if (user?.email) identities.push(user.email.toLowerCase());
+      if (user?.displayName) identities.push(user.displayName);
       if (groupIdentity) identities.push(groupIdentity);
-      if (identities.includes(t.assignedTo)) return true;
+      
+      const isDirectlyAssigned = identities.some(ident => 
+        t.assignedTo?.toLowerCase() === ident.toLowerCase() || t.assignedTo === ident
+      );
+      
+      if (isDirectlyAssigned) return true;
 
       // Depot containment
       const parkDetail = allDetails.find(d => d.name === t.park);

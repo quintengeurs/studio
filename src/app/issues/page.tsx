@@ -67,7 +67,9 @@ export default function IssuesPage() {
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
+  const userEmail = user?.email || "";
+  const emailId = userEmail.toLowerCase().replace(/[.#$[\]]/g, "_");
+  const userProfileRef = (user && db) ? doc(db, "users", emailId) : null;
   const { data: profile } = useDoc<User>(userProfileRef as any);
   
   const isOperative = profile?.role && OPERATIVE_ROLES.includes(profile.role);
@@ -94,8 +96,11 @@ export default function IssuesPage() {
 
     // Filter by reports, depot, or assignment
     return issues.filter(issue => {
-        if (issue.reportedBy === userIdent) return true;
-        if (issue.assignedTo === userName) return true;
+        // Lowercase comparison for IDs/emails, case-insensitive for names
+        const matchesReporter = issue.reportedBy?.toLowerCase() === userIdent.toLowerCase() || issue.reportedBy === userName;
+        const matchesAssignee = issue.assignedTo?.toLowerCase() === userIdent.toLowerCase() || issue.assignedTo === userName;
+        
+        if (matchesReporter || matchesAssignee) return true;
         
         const parkDetail = allDetails.find(d => d.name === issue.park);
         if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
