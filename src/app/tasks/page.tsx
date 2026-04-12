@@ -59,12 +59,12 @@ export default function TasksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tasksQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status"), limit(300)) : null, 
+    db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), limit(300)) : null, 
   [db]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
 
   const assetsQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "assets"), orderBy("name"), limit(500)) : null, 
+    db ? query(collection(db, "assets"), limit(500)) : null, 
   [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 

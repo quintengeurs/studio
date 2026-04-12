@@ -120,12 +120,12 @@ export default function InspectionsPage() {
   const { user } = useUser();
   
   const assetsQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "assets"), orderBy("name"), limit(500)) : null, 
+    db ? query(collection(db, "assets"), limit(500)) : null, 
   [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
   const inspectionsQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "inspections"), orderBy("dueDate", "desc"), limit(300)) : null, 
+    db ? query(collection(db, "inspections"), limit(300)) : null, 
   [db]);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
 

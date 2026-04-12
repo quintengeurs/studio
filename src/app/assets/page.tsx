@@ -77,21 +77,21 @@ export default function AssetRegister() {
   // Live Assets
   const assetsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "assets"), orderBy("name"));
+    return query(collection(db, "assets"), limit(100));
   }, [db]);
   const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery as any);
 
   // Live All Inspections (for history)
   const inspectionsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "inspections"), orderBy("dueDate", "desc"));
+    return query(collection(db, "inspections"), limit(500));
   }, [db]);
   const { data: allInspections = [] } = useCollection<Inspection>(inspectionsQuery as any);
 
   // Live All Tasks (for history)
   const tasksQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "tasks"), orderBy("dueDate", "desc"));
+    return query(collection(db, "tasks"), limit(500));
   }, [db]);
   const { data: allTasks = [] } = useCollection<Task>(tasksQuery as any);
 

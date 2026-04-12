@@ -48,8 +48,6 @@ export default function RequestsManagementPage() {
     return query(
       collection(db, "requests"),
       where("status", "!=", "Archived"),
-      orderBy("status"),
-      orderBy("createdAt", "desc"),
       limit(200)
     );
   }, [db, canViewRequests]);

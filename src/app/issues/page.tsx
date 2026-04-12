@@ -79,7 +79,7 @@ export default function IssuesPage() {
 
   const issuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "issues"), where("status", "!=", "Resolved"), orderBy("status"), orderBy("createdAt", "desc"));
+    return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(200));
   }, [db]);
 
   const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
