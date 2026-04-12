@@ -18,14 +18,12 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
   const db = useFirestore();
 
   const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "users"));
-  }, [db]);
-  const { data: allUsers = [], loading: collectionLoading } = useCollection<UserProfile>(usersQuery as any);
+    if (!db || !user?.email) return null;
+    return query(collection(db, "users"), where("email", "==", user.email));
+  }, [db, user?.email]);
+  const { data: profileResults = [], loading: collectionLoading } = useCollection<UserProfile>(usersQuery as any);
   
-  const currentUserProfile = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
+  const currentUserProfile = profileResults[0];
 
   const isLoading = userLoading || collectionLoading;
   
