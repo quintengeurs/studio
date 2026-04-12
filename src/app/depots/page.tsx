@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
-import { collection, doc, setDoc, query } from "firebase/firestore";
+import { collection, doc, setDoc, query, where, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { RegistryConfig, DepotDetail, User, Role, DepotUpdate, ParkDetail } from "@/lib/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -59,13 +59,13 @@ export default function DepotsPage() {
   const depots = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
 
   // Firestore Queries
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users")) : null, [db]);
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false), limit(100)) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "depots_details")) : null, [db]);
+  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "depots_details"), limit(100)) : null, [db]);
   const { data: allDetails = [] } = useCollection<DepotDetail>(detailsQuery as any);
 
-  const parksQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
+  const parksQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(100)) : null, [db]);
   const { data: allParks = [] } = useCollection<ParkDetail>(parksQuery as any);
 
   const [selectedDepotName, setSelectedDepotName] = useState<string | null>(null);

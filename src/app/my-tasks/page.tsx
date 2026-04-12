@@ -37,8 +37,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, updateDoc, doc, query, where } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
+import { collection, updateDoc, doc, query, where, limit } from "firebase/firestore";
 import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
 import { format } from "date-fns";
 
@@ -51,7 +51,7 @@ export default function MyTasksPage() {
   // Fetch all users to find colleagues and current profile
   const usersQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "users"));
+    return query(collection(db, "users"), limit(100));
   }, [db]);
   const { data: allUsers = [] } = useCollection<UserType>(usersQuery as any);
 
@@ -104,13 +104,11 @@ export default function MyTasksPage() {
 
   const { data: tasks = [], loading } = useCollection<any>(tasksQuery);
 
-  const issuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues")) : null, [db]);
-  const { data: allIssues = [] } = useCollection<any>(issuesQuery);
-
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
-  const linkedIssue = allIssues.find(i => i.id === selectedTask?.linkedIssueId);
+  const linkedIssueRef = useMemo(() => db && selectedTask?.linkedIssueId ? doc(db, "issues", selectedTask.linkedIssueId) : null, [db, selectedTask?.linkedIssueId]);
+  const { data: linkedIssue } = useDoc<any>(linkedIssueRef as any);
 
   const [showColleagueSelection, setShowColleagueSelection] = useState(false);
   const [selectedColleagues, setSelectedColleagues] = useState<string[]>([]);

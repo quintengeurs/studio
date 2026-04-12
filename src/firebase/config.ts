@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, getFirestore } from "firebase/firestore";
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 // IMPORTANT: projectId is hardcoded because Firebase App Hosting overrides
@@ -23,10 +23,11 @@ const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
 let db: any;
 
 try {
-  // Use initializeFirestore with named silo
+  // Use initializeFirestore with named silo and persistent caching
   db = initializeFirestore(app, {
     experimentalAutoDetectLongPolling: true,
     ignoreUndefinedProperties: true,
+    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
   }, DB_ID);
   console.log(`[Firebase] Initialized NAMED Firestore Silo: ${DB_ID}`);
 } catch (e: any) {

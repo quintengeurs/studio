@@ -77,7 +77,7 @@ export default function TasksPage() {
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
 
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
+  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(100)) : null, [db]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
   
   // Optimized current user lookup
