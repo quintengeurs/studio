@@ -30,11 +30,23 @@ export function MobileTopHeader() {
   const db = useFirestore();
   const router = useRouter();
 
+  const emailId = user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "";
+  
+  // 1. Check by UID
+  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
+  const { data: profileByUid } = useDoc<UserProfile>(profileByUidRef as any);
+  
+  // 2. Check by Email ID (legacy/sync pattern)
+  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
+  const { data: profileByEmail } = useDoc<UserProfile>(profileByEmailRef as any);
+
+  // 3. Check by Email Field (search pattern)
   const userProfileQuery = useMemoFirebase(() => 
     db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
   [db, user?.email]);
   const { data: profileResults = [] } = useCollection<UserProfile>(userProfileQuery as any);
-  const profile = profileResults[0];
+  
+  const profile = profileByEmail || profileByUid || profileResults[0];
   
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 

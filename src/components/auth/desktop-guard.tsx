@@ -2,7 +2,7 @@
 
 import { useUser, useCollection, useMemoFirebase, useFirestore } from "@/firebase";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { useMemo } from "react";
 import { User as UserProfile } from "@/lib/types";
 import { AlertCircle, Smartphone } from "lucide-react";
@@ -17,15 +17,26 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const db = useFirestore();
 
+  const emailId = user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "";
+  
+  // 1. Check by UID
+  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
+  const { data: profileByUid, loading: loadingUid } = useDoc<UserProfile>(profileByUidRef as any);
+  
+  // 2. Check by Email ID (legacy/sync pattern)
+  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
+  const { data: profileByEmail, loading: loadingEmailId } = useDoc<UserProfile>(profileByEmailRef as any);
+
+  // 3. Check by Email Field (search pattern)
   const usersQuery = useMemoFirebase(() => {
     if (!db || !user?.email) return null;
     return query(collection(db, "users"), where("email", "==", user.email));
   }, [db, user?.email]);
-  const { data: profileResults = [], loading: collectionLoading } = useCollection<UserProfile>(usersQuery as any);
+  const { data: profileByQuery = [], loading: loadingQuery } = useCollection<UserProfile>(usersQuery as any);
   
-  const currentUserProfile = profileResults[0];
+  const currentUserProfile = profileByEmail || profileByUid || profileByQuery[0];
 
-  const isLoading = userLoading || collectionLoading;
+  const isLoading = userLoading || loadingUid || loadingEmailId || loadingQuery;
   
   // By default, if the field is missing, we allow desktop view for backward compatibility
   const allowDesktop = currentUserProfile?.allowDesktopView ?? true;

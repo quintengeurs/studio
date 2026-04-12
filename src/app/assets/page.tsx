@@ -71,7 +71,9 @@ export default function AssetRegister() {
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   
-  const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  const currentUserData = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   
   // Live Assets
@@ -97,7 +99,9 @@ export default function AssetRegister() {
 
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef as any);
-  const parks = registryConfig?.parks?.sort() ?? [];
+  const parks = useMemo(() => 
+    registryConfig?.parks ? [...registryConfig.parks].sort() : [], 
+  [registryConfig?.parks]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -117,11 +121,14 @@ export default function AssetRegister() {
     inspectionStartDate: format(new Date(), 'yyyy-MM-dd')
   });
 
-  const filteredAssets = assets.filter(a => 
-    a.name.toLowerCase().includes(search.toLowerCase()) || 
-    a.park.toLowerCase().includes(search.toLowerCase()) ||
-    a.type.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredAssets = useMemo(() => assets.filter(a => {
+    const s = search.toLowerCase();
+    return (
+      (a.name?.toLowerCase() || "").includes(s) || 
+      (a.park?.toLowerCase() || "").includes(s) ||
+      (a.type?.toLowerCase() || "").includes(s)
+    );
+  }), [assets, search]);
 
   const getConditionColor = (condition: string) => {
     switch (condition) {
@@ -197,10 +204,14 @@ export default function AssetRegister() {
     setIsDetailsDialogOpen(true);
   };
 
-  const assetTasks = useMemo(() => 
-    selectedAsset ? allTasks.filter(t => t.park === selectedAsset.park && t.title.toLowerCase().includes(selectedAsset.name.toLowerCase().split(' ')[0])) : [],
-    [selectedAsset, allTasks]
-  );
+  const assetTasks = useMemo(() => {
+    if (!selectedAsset) return [];
+    const firstNamePart = (selectedAsset.name || "").split(' ')[0].toLowerCase();
+    return allTasks.filter(t => 
+      t.park === selectedAsset.park && 
+      (t.title?.toLowerCase() || "").includes(firstNamePart)
+    );
+  }, [selectedAsset, allTasks]);
 
   const assetInspections = useMemo(() => 
     selectedAsset ? allInspections.filter(i => i.assetId === selectedAsset.id) : [],

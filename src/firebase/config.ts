@@ -23,6 +23,7 @@ try {
   // Use initializeFirestore with named silo
   db = initializeFirestore(app, {
     databaseId: DB_ID,
+    experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
   });
   console.log(`[Firebase] Initialized NAMED Firestore Silo: ${DB_ID}`);

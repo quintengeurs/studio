@@ -65,25 +65,37 @@ export default function Dashboard() {
   };
 
   // Optimized user lookup: Targeted query instead of fetching the entire collection
-  const userQuery = useMemoFirebase(() => 
+  const emailId = user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "";
+  
+  // 1. Check by UID
+  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
+  const { data: profileByUid } = useDoc<User>(profileByUidRef as any);
+  
+  // 2. Check by Email ID (legacy/sync pattern)
+  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
+  const { data: profileByEmail } = useDoc<User>(profileByEmailRef as any);
+
+  // 3. Check by Email Field (search pattern)
+  const userProfileQuery = useMemoFirebase(() => 
     db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
   [db, user?.email]);
+  const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
   
-  const { data: userSearchResults = [] } = useCollection<User>(userQuery as any);
-  const currentUserData = userSearchResults[0];
+  const profile = profileByEmail || profileByUid || profileResults[0];
+  
+  const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 
   const currentUserRoles = useMemo(() => 
-    currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []),
-  [currentUserData]);
+    profile?.roles || (profile?.role ? [profile.role] : []),
+  [profile]);
 
   const isAdmin = currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
-  const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1;
-  const isManagement = currentUserRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r)) || isAdmin;
+  const isManagement = currentUserRoles.some((r: Role) => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r)) || isAdmin;
   const isKeeper = currentUserRoles.includes('Keeper');
-  // Everyone else who isn't Admin, Contractor, or Management is considered Standard
+  const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1;
   const isStandard = !isAdmin && !isContractor && !isManagement;
 
-  const userEffectiveName = currentUserData?.name || userDisplayName;
+  const userEffectiveName = profile?.name || userDisplayName;
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const identities = useMemo(() => {
@@ -91,15 +103,15 @@ export default function Dashboard() {
     if (user?.email) list.push(user.email.toLowerCase());
     if (user?.displayName) list.push(user.displayName);
 
-    const userDepots = currentUserData?.depots || (currentUserData?.depot ? [currentUserData.depot] : []);
+    const userDepots = profile?.depots || (profile?.depot ? [profile.depot] : []);
     currentUserRoles.forEach(r => {
       userDepots.forEach(d => {
-        if (d.trim()) list.push(`Group: ${r} @ ${d.trim()}`);
+        if (d?.trim?.()) list.push(`Group: ${r} @ ${d.trim()}`);
       });
     });
     // Ensure uniqueness and limit to 10 for Firestore 'in' query safety
     return Array.from(new Set(list)).slice(0, 10);
-  }, [userEffectiveName, user?.email, user?.displayName, currentUserRoles, currentUserData?.depots, currentUserData?.depot]);
+  }, [userEffectiveName, user?.email, user?.displayName, currentUserRoles, profile?.depots, profile?.depot]);
 
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
