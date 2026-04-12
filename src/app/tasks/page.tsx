@@ -58,13 +58,20 @@ export default function TasksPage() {
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const tasksQuery = useMemoFirebase(() => db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status")) : null, [db]);
+  const tasksQuery = useMemoFirebase(() => 
+    db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), orderBy("status"), limit(300)) : null, 
+  [db]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
 
-  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
+  const assetsQuery = useMemoFirebase(() => 
+    db ? query(collection(db, "assets"), orderBy("name"), limit(500)) : null, 
+  [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  // Optimized user fetching: Fetch only active staff for assignment, and use a targeted lookup for current user
+  const usersQuery = useMemoFirebase(() => 
+    db ? query(collection(db, "users"), where("isArchived", "==", false), limit(100)) : null, 
+  [db]);
   const { data: users = [] } = useCollection<User>(usersQuery as any);
 
   const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
@@ -73,7 +80,13 @@ export default function TasksPage() {
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
   
-  const currentUserData = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  // Optimized current user lookup
+  const userProfileQuery = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
+  [db, user?.email]);
+  const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
+  const currentUserData = profileResults[0];
+
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   const isOperational = useMemo(() => 
     currentUserData?.role && OPERATIVE_ROLES.includes(currentUserData.role),

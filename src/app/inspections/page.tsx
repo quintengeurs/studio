@@ -119,16 +119,23 @@ export default function InspectionsPage() {
   const db = useFirestore();
   const { user } = useUser();
   
-  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), orderBy("name")) : null, [db]);
+  const assetsQuery = useMemoFirebase(() => 
+    db ? query(collection(db, "assets"), orderBy("name"), limit(500)) : null, 
+  [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
-  const inspectionsQuery = useMemoFirebase(() => db ? query(collection(db, "inspections"), orderBy("dueDate", "desc")) : null, [db]);
+  const inspectionsQuery = useMemoFirebase(() => 
+    db ? query(collection(db, "inspections"), orderBy("dueDate", "desc"), limit(300)) : null, 
+  [db]);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
 
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: users = [] } = useCollection<User>(usersQuery as any);
-  
-  const currentUserData = users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  // Optimized: Targeted current user lookup
+  const userProfileQuery = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
+  [db, user?.email]);
+  const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
+  const currentUserData = profileResults[0];
+
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   const isOperational = useMemo(() => 
     currentUserData?.role && OPERATIVE_ROLES.includes(currentUserData.role),

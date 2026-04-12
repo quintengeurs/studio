@@ -20,13 +20,12 @@ const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
 let db: any;
 
 try {
-  // Use initializeFirestore with experimentalForceLongPolling for stability
-  // Defaulting to (default) silo as it was flagged as restoring data in commit 4571839
+  // Use initializeFirestore with named silo
   db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
+    databaseId: DB_ID,
     ignoreUndefinedProperties: true,
   });
-  console.log(`[Firebase] Initialized DEFAULT Firestore Silo: (default)`);
+  console.log(`[Firebase] Initialized NAMED Firestore Silo: ${DB_ID}`);
 } catch (e: any) {
   // Graceful reuse if already initialized
   db = getFirestore(app);
@@ -35,4 +34,3 @@ try {
 const auth = getAuth(app);
 
 export { app, db, auth, firebaseConfig };
-

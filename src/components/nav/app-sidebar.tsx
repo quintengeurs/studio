@@ -65,16 +65,14 @@ export function AppSidebar() {
   const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  // Fetch all users to find current profile
-  const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "users"));
-  }, [db]);
-  const { data: allUsers = [] } = useCollection<UserType>(usersQuery as any);
+  // Optimized: Targeted current user lookup
+  const userProfileQuery = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
+  [db, user?.email]);
+  const { data: profileResults = [] } = useCollection<UserType>(userProfileQuery as any);
+  const currentUserProfile = profileResults[0];
 
-  const currentUserProfile = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
+  const allUsers = profileResults; // Keep variable for compatibility where count is checked
 
   const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
   const isAdmin = profileRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';

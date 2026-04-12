@@ -64,12 +64,13 @@ export default function Dashboard() {
     }
   };
 
-  // Setup role context
-  const { data: users = [] } = useCollection<User>(db ? query(collection(db, "users")) as any : null);
+  // Optimized user lookup: Targeted query instead of fetching the entire collection
+  const userQuery = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
+  [db, user?.email]);
   
-  const currentUserData = useMemo(() => 
-    users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [users, user?.email]);
+  const { data: userSearchResults = [] } = useCollection<User>(userQuery as any);
+  const currentUserData = userSearchResults[0];
 
   const currentUserRoles = useMemo(() => 
     currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []),
@@ -110,7 +111,8 @@ export default function Dashboard() {
 
   const myIssuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    if (isManagement) return query(collection(db, "issues"));
+    // Optimized: Only fetch the 100 most recent issues for management dashboard
+    if (isManagement) return query(collection(db, "issues"), orderBy("createdAt", "desc"), limit(100));
     if (userEffectiveName) return query(collection(db, "issues"), where("reportedBy", "==", userEffectiveName));
     return null;
   }, [db, userEffectiveName, isManagement]);
@@ -119,15 +121,15 @@ export default function Dashboard() {
 
   const myRequestsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    if (isManagement) return query(collection(db, "requests"));
+    // Management still needs more data, but we should limit it for dashboard summaries
+    if (isManagement) return query(collection(db, "requests"), orderBy("createdAt", "desc"), limit(50));
     if (userEffectiveName) return query(collection(db, "requests"), where("requestedBy", "==", userEffectiveName));
     return null;
   }, [db, userEffectiveName, isManagement]);
 
   const { data: myRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
 
-  const allIssuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues")) : null, [db]);
-  const { data: allIssues = [] } = useCollection<Issue>(allIssuesQuery as any);
+  // Optimized: Removed the global allIssuesQuery fetch, as summaries can be derived from myIssues
 
   // Computed Values
   const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);

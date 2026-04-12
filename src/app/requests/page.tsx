@@ -30,15 +30,14 @@ export default function RequestsManagementPage() {
   const { user } = useUser();
   const router = useRouter();
 
-  const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "users"));
-  }, [db]);
-  const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
-  
-  const currentUserProfile = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
+  // Optimized: Targeted current user lookup
+  const userProfileQuery = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
+  [db, user?.email]);
+  const { data: profileResults = [] } = useCollection<UserProfile>(userProfileQuery as any);
+  const currentUserProfile = profileResults[0];
+
+  const allUsers = profileResults; // Keep variable for compatibility where count is checked
 
   const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
   const isAdmin = profileRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
@@ -50,7 +49,8 @@ export default function RequestsManagementPage() {
       collection(db, "requests"),
       where("status", "!=", "Archived"),
       orderBy("status"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(200)
     );
   }, [db, canViewRequests]);
 
