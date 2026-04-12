@@ -51,7 +51,7 @@ export default function ResolvedIssuesPage() {
     );
   }, [db]);
 
-  const { data: issues = [], loading, error } = useCollection(resolvedIssuesQuery);
+  const { data: issues = [], loading, error } = useCollection<Issue>(resolvedIssuesQuery);
 
   const filteredIssues = issues.filter(issue => 
     issue.title.toLowerCase().includes(search.toLowerCase()) ||

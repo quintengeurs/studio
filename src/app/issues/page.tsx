@@ -52,7 +52,7 @@ import {
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit } from "firebase/firestore";
 import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role, ParkDetail } from "@/lib/types";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
