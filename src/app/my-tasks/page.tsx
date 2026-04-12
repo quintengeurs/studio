@@ -221,20 +221,6 @@ export default function MyTasksPage() {
       title={isOperational ? "Your Tasks" : "My Daily Tasks"} 
       description={isOperational ? "Active work queue" : `Personal work queue for ${currentUserName}`}
     >
-      {/* Diagnostic Debug - Visible for troubleshooting */}
-      {isAdmin && (
-        <div className="mb-4 py-1 px-3 bg-black/5 rounded text-[10px] font-mono text-primary/40 flex flex-wrap gap-4 items-center">
-           <span className="font-bold text-accent-foreground uppercase tracking-tight">Diagnostic Mode:</span>
-           <span>EMAIL: {user?.email}</span>
-           <span>PROF_NAME: {currentUserProfile?.name || 'NOT FOUND'}</span>
-           <span>QUERY_NAME: {currentUserName}</span>
-           <span>GROUP: {groupIdentity || 'NONE'}</span>
-           <span>TASKS_LOADED: {tasks.length}</span>
-           <span>VISIBLE: {activeTasks.length + archivedTasks.length}</span>
-           {!currentUserProfile && <span className="text-destructive font-bold">MISSING DB RECORD</span>}
-           <span>ROLE: {currentUserProfile?.role}</span>
-        </div>
-      )}
 
       <div className="space-y-6">
         {/* Search Bar */}
