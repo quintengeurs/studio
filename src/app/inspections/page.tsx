@@ -124,9 +124,10 @@ export default function InspectionsPage() {
   [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
+  const [inspectionLimit, setInspectionLimit] = useState(25);
   const inspectionsQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "inspections"), limit(300)) : null, 
-  [db]);
+    db ? query(collection(db, "inspections"), limit(inspectionLimit)) : null, 
+  [db, inspectionLimit]);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
 
   // Optimized: Targeted current user lookup
@@ -554,6 +555,14 @@ export default function InspectionsPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {inspections.length >= inspectionLimit && !loading && (
+        <div className="flex justify-center pt-6 pb-2">
+          <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setInspectionLimit(p => p + 25)}>
+            Load More Inspections
+          </Button>
         </div>
       )}
 

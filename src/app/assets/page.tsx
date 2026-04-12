@@ -77,10 +77,11 @@ export default function AssetRegister() {
   const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   
   // Live Assets
+  const [assetLimit, setAssetLimit] = useState(25);
   const assetsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "assets"), limit(100));
-  }, [db]);
+    return query(collection(db, "assets"), limit(assetLimit));
+  }, [db, assetLimit]);
   const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery as any);
 
   // Live All Inspections (for history)
@@ -395,6 +396,15 @@ export default function AssetRegister() {
           </Table>
         </div>
       </Card>
+
+      {assets.length >= assetLimit && !assetsLoading && (
+        <div className="flex justify-center pt-6 pb-2">
+          <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setAssetLimit(p => p + 25)}>
+            Load More Assets
+          </Button>
+        </div>
+      )}
+
 
       {/* Asset Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>

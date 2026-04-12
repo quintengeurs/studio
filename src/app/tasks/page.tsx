@@ -58,9 +58,10 @@ export default function TasksPage() {
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [taskLimit, setTaskLimit] = useState(25);
   const tasksQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), limit(300)) : null, 
-  [db]);
+    db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), limit(taskLimit)) : null, 
+  [db, taskLimit]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
 
   const assetsQuery = useMemoFirebase(() => 
@@ -575,6 +576,14 @@ export default function TasksPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {tasks.length >= taskLimit && !tasksLoading && (
+        <div className="flex justify-center pt-6 pb-2">
+          <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setTaskLimit(p => p + 25)}>
+            Load More Assignments
+          </Button>
         </div>
       )}
 

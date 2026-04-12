@@ -77,10 +77,11 @@ export default function IssuesPage() {
   
   const isOperative = profile?.role && OPERATIVE_ROLES.includes(profile.role);
 
+  const [issueLimit, setIssueLimit] = useState(25);
   const issuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(200));
-  }, [db]);
+    return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(issueLimit));
+  }, [db, issueLimit]);
 
   const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
 
@@ -408,6 +409,15 @@ export default function IssuesPage() {
           ))}
         </div>
       )}
+
+      {issues.length >= issueLimit && !issuesLoading && (
+        <div className="flex justify-center pt-6 pb-2">
+          <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setIssueLimit(p => p + 25)}>
+            Load More Issues
+          </Button>
+        </div>
+      )}
+
 
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
