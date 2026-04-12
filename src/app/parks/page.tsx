@@ -34,7 +34,7 @@ import {
   Clock
 } from "lucide-react";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
-import { collection, doc, setDoc, arrayUnion, arrayRemove, query } from "firebase/firestore";
+import { collection, doc, setDoc, arrayUnion, arrayRemove, query, where, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";

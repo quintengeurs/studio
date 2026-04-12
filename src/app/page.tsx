@@ -22,7 +22,7 @@ import {
   Pie
 } from "recharts";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
-import { collection, query, where, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Issue, Task, User, MANAGEMENT_ROLES, OPERATIVE_ROLES, Role } from "@/lib/types";
 import Link from "next/link";

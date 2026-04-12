@@ -19,7 +19,7 @@ import {
   Edit2
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,

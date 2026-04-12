@@ -17,7 +17,7 @@ import {
   Truck
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, doc, updateDoc, limit } from "firebase/firestore";
 import Image from "next/image";
 import { MaterialRequest, User as UserProfile } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";

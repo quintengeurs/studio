@@ -38,7 +38,7 @@ import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "
 import { signOut } from "firebase/auth";
 import { useState, useMemo } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
-import { collection, query } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
 
 const navItems = [

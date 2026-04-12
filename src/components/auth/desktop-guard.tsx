@@ -2,7 +2,7 @@
 
 import { useUser, useCollection, useMemoFirebase, useFirestore } from "@/firebase";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { collection, query } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { useMemo } from "react";
 import { User as UserProfile } from "@/lib/types";
 import { AlertCircle, Smartphone } from "lucide-react";

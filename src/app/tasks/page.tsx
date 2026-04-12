@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig, ParkDetail } from "@/lib/types";
