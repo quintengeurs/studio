@@ -1,9 +1,9 @@
 "use client";
 
-import { useUser, useCollection, useMemoFirebase, useFirestore } from "@/firebase";
+import { useUser, useCollection, useMemoFirebase, useFirestore, useDoc } from "@/firebase";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { collection, query, where, doc } from "firebase/firestore";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { User as UserProfile } from "@/lib/types";
 import { AlertCircle, Smartphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +36,13 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
   
   const currentUserProfile = profileByEmail || profileByUid || profileByQuery[0];
 
-  const isLoading = userLoading || loadingUid || loadingEmailId || loadingQuery;
+  const [bootTimeout, setBootTimeout] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setBootTimeout(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isLoading = (userLoading || loadingUid || loadingEmailId || loadingQuery) && !bootTimeout;
   
   // By default, if the field is missing, we allow desktop view for backward compatibility
   const allowDesktop = currentUserProfile?.allowDesktopView ?? true;
