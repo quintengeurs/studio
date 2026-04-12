@@ -111,8 +111,7 @@ export default function Dashboard() {
 
   const myIssuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    // Optimized: Only fetch the 100 most recent issues for management dashboard
-    if (isManagement) return query(collection(db, "issues"), orderBy("createdAt", "desc"), limit(100));
+    if (isManagement) return query(collection(db, "issues"), limit(100));
     if (userEffectiveName) return query(collection(db, "issues"), where("reportedBy", "==", userEffectiveName));
     return null;
   }, [db, userEffectiveName, isManagement]);
@@ -121,8 +120,8 @@ export default function Dashboard() {
 
   const myRequestsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    // Management still needs more data, but we should limit it for dashboard summaries
-    if (isManagement) return query(collection(db, "requests"), orderBy("createdAt", "desc"), limit(50));
+    // Management still needs data, but we should limit it for dashboard summaries
+    if (isManagement) return query(collection(db, "requests"), limit(50));
     if (userEffectiveName) return query(collection(db, "requests"), where("requestedBy", "==", userEffectiveName));
     return null;
   }, [db, userEffectiveName, isManagement]);

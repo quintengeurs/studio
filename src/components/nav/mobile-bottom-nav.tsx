@@ -28,12 +28,11 @@ export function MobileBottomNav() {
   const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "users"));
-  }, [db]);
-  const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
-  const profile = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
+  const userProfileQuery = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
+  [db, user?.email]);
+  const { data: profileResults = [] } = useCollection<UserProfile>(userProfileQuery as any);
+  const profile = profileResults[0];
   
   const profileRoles = profile?.roles || (profile?.role ? [profile.role] : []);
   const isAdmin = profileRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
