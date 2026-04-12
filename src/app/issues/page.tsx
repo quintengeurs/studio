@@ -66,11 +66,11 @@ export default function IssuesPage() {
   const userEmail = user?.email || "";
   const emailId = userEmail.toLowerCase().replace(/[.#$[\]]/g, "_");
   
-  // Resilient profile lookup: try UID first, then emailIdId
-  const userProfileRef = (user && db) ? doc(db, "users", user.uid) : null;
+  // Resilient profile lookup: try UID first, then emailId
+  const userProfileRef = useMemo(() => (user && db) ? doc(db, "users", user.uid) : null, [user?.uid, db]);
   const { data: profileByUid } = useDoc<User>(userProfileRef as any);
   
-  const emailProfileRef = (user && db) ? doc(db, "users", emailId) : null;
+  const emailProfileRef = useMemo(() => (user && db && emailId) ? doc(db, "users", emailId) : null, [emailId, db]);
   const { data: profileByEmail } = useDoc<User>(emailProfileRef as any);
   
   const profile = profileByEmail || profileByUid;

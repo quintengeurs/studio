@@ -59,7 +59,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit } from "firebase/firestore";
 import { format } from "date-fns";
 
 export default function AssetRegister() {

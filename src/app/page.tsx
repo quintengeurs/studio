@@ -225,14 +225,14 @@ export default function Dashboard() {
 
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
           <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
-          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={users} />
+          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={profileResults} />
           
           <TaskDetailModal 
             open={taskDetailOpen} 
             onOpenChange={setTaskDetailOpen} 
             task={selectedTask} 
-            linkedIssue={allIssues.find(i => i.id === selectedTask?.linkedIssueId)}
-            allUsers={users}
+            linkedIssue={myIssues.find((i: Issue) => i.id === selectedTask?.linkedIssueId)}
+            allUsers={profileResults}
           />
 
           {/* Admin Quick Actions */}

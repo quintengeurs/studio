@@ -19,7 +19,6 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, query, where, limit, doc } from "firebase/firestore";
-import { db } from "@/firebase/config"; // Assuming db is exported from config
 import { Task, User as UserProfile, OPERATIVE_ROLES } from "@/lib/types";
 import { useDoc } from "@/firebase/firestore/use-doc";
 

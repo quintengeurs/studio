@@ -89,7 +89,7 @@ import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth } from "@
 import { firebaseConfig } from "@/firebase/config";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { collection, query, where, doc, updateDoc, arrayUnion, arrayRemove, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -298,26 +298,9 @@ export default function UserManagement() {
         // Step 2: Save to Firestore
         await setDoc(doc(db, "users", tempId), sanitizedUser);
 
-        // Auto-fill Parks logic
-        const userRoles = userToSave.roles || [];
-        if (userToSave.depot && userRoles.some(r => ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(r))) {
-            const isHeadGardener = userRoles.includes('Head Gardener');
-            const isAreaManager = userRoles.includes('Area Manager');
-            const isParksOfficer = userRoles.includes('Parks Development Officer');
-
-            const roleField = isHeadGardener ? 'headGardener' : 
-                             isAreaManager ? 'areaManager' : 'parkOfficer';
-            
-            const parksToUpdate = allDetails.filter(p => userToSave.depots.includes(p.depot || ""));
-            
-            for (const park of parksToUpdate) {
-                await updateDoc(doc(db, "parks_details", park.id), { [roleField]: userToSave.name });
-            }
-        }
-
-        toast({ title: "User Added", description: `${userToSave.name} has been added and relevant parks updated.` });
+        toast({ title: "User Added", description: `${userToSave.name} has been added.` });
         setIsAddDialogOpen(false);
-        setNewUser({ name: '', email: '', role: 'Gardener', depot: '', depots: [], training: '', avatar: '', isArchived: false, password: '' });
+        setNewUser({ name: '', email: '', roles: ['Gardener'], depot: '', depots: [], training: '', avatar: '', isArchived: false, password: '' });
         setSelectedTrainings([]);
     } catch (e: any) {
         toast({ title: "Error", description: `Could not save user record. (Code: ${e.code})`, variant: "destructive" });
@@ -330,10 +313,8 @@ export default function UserManagement() {
     if (!db || !selectedUser || isUserSubmitting) return;
 
     setIsUserSubmitting(true);
-    const oldName = selectedUser.name;
     const trainingString = getFinalTrainingString() || "None";
     
-    // Combine existing user with potential updates (if any specific state is used, otherwise values come from current selectedUser modifications)
     const updatedData: Partial<User> = {
       ...selectedUser,
       training: trainingString,
@@ -343,41 +324,9 @@ export default function UserManagement() {
 
     try {
         await updateDoc(doc(db, "users", selectedUser.id), updatedData);
-
-        // 1. Sync management role assignments for the current depot(s)
-        const userRoles = updatedData.roles || [];
-        if (updatedData.depot && userRoles.some(r => ['Head Gardener', 'Area Manager', 'Parks Development Officer'].includes(r))) {
-            const isHeadGardener = userRoles.includes('Head Gardener');
-            const isAreaManager = userRoles.includes('Area Manager');
-            const roleField = isHeadGardener ? 'headGardener' : 
-                             isAreaManager ? 'areaManager' : 'parkOfficer';
-            
-            const parksToUpdate = allDetails.filter(p => updatedData.depots?.includes(p.depot || ""));
-            for (const park of parksToUpdate) {
-                await updateDoc(doc(db, "parks_details", park.id), { [roleField]: updatedData.name });
-            }
-        }
-
-        // 2. Propagation: If the name changed, find all parks where this person was listed under ANY role and update them
-        if (updatedData.name && updatedData.name !== oldName) {
-            const parksWithOldName = allDetails.filter(p => 
-                p.headGardener === oldName || 
-                p.areaManager === oldName || 
-                p.parkOfficer === oldName
-            );
-            
-            for (const park of parksWithOldName) {
-                const updates: any = {};
-                if (park.headGardener === oldName) updates.headGardener = updatedData.name;
-                if (park.areaManager === oldName) updates.areaManager = updatedData.name;
-                if (park.parkOfficer === oldName) updates.parkOfficer = updatedData.name;
-                await updateDoc(doc(db, "parks_details", park.id), updates);
-            }
-        }
-
         setSelectedUser(updatedData as User);
         setIsEditing(false);
-        toast({ title: "Profile Updated", description: "Changes saved and management registry updated." });
+        toast({ title: "Profile Updated", description: "Changes saved." });
     } catch (e: any) {
         toast({ title: "Error", description: "Could not update profile.", variant: "destructive" });
     } finally {
@@ -385,21 +334,16 @@ export default function UserManagement() {
     }
   };
 
-
-
   const performArchiveToggle = async (archiveState: boolean) => {
     if (!db || !selectedUser || isUserSubmitting) return;
 
     setIsUserSubmitting(true);
     try {
         await updateDoc(doc(db, "users", selectedUser.id), { isArchived: archiveState });
-        // Sequence to avoid UI lock: Close confirmed dialog first
         setIsArchiveConfirmOpen(false);
         
-        // Wait for first dialog to clear before closing parent
         setTimeout(() => {
           setIsProfileDialogOpen(false);
-          // Small final delay before clearing state to ensure smooth transition
           setTimeout(() => {
             setSelectedUser(null);
             setIsEditing(false);
@@ -423,14 +367,12 @@ export default function UserManagement() {
 
     try {
         // 1. Queue assigned tasks for deletion
-        const userTasksToDelete = allTasks.filter(t => t.assignedTo === userName);
-        userTasksToDelete.forEach(task => {
+        selectedUserTasks.forEach(task => {
             batch.delete(doc(db, "tasks", task.id));
         });
 
         // 2. Queue related issues for UNASSIGNMENT (not deletion)
-        const userIssuesToUpdate = allIssues.filter(i => i.assignedTo === userName);
-        userIssuesToUpdate.forEach(issue => {
+        selectedUserIssues.forEach(issue => {
             batch.update(doc(db, "issues", issue.id), { assignedTo: "" });
         });
 
@@ -480,22 +422,9 @@ export default function UserManagement() {
         [field]: operation === 'add' ? arrayUnion(value) : arrayRemove(value)
     };
 
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Registry update timed out.")), 15000)
-    );
-
-    Promise.race([
-      setDoc(registryRef, updatePayload, { merge: true }),
-      timeoutPromise
-    ])
+    setDoc(registryRef, updatePayload, { merge: true })
     .catch((e: any) => {
-        const dbId = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
-        toast({ 
-          title: "Permission Denied", 
-          description: `Could not save to ${dbId}. Verify rules. (Code: ${e.code})`, 
-          variant: "destructive" 
-        });
-        // Revert optimistic state
+        toast({ title: "Permission Denied", description: "Could not save changes.", variant: "destructive" });
         if (operation === 'add') {
             if (field === 'teams') setConfigTeams(current => current.filter(t => t !== value));
             else setConfigTrainingOptions(current => current.filter(t => t !== value));
@@ -514,24 +443,19 @@ export default function UserManagement() {
     setIsEditing(false);
     setIsProfileDialogOpen(true);
     
-    // Fetch user-specific data only when profile is opened to save read units
     if (db) {
         setIsStatsLoading(true);
         try {
-            // We use a query instead of a collection-wide filter
-            const tQuery = query(collection(db, "tasks"), where("assignedTo", "==", user.name), limit(50));
-            const iQuery = query(collection(db, "issues"), where("assignedTo", "==", user.name), limit(50));
-            
-            // Note: Since our useCollection is a hook, we can't call it here. 
-            // In a real fix we'd use getDocs, but for now I'll use a local state and a simple fetch.
-            // (Assuming getDocs is available or using a simplified approach)
+            const tQuery = query(collection(db, "tasks"), where("assignedTo", "==", user.name));
+            const iQuery = query(collection(db, "issues"), where("assignedTo", "==", user.name));
+            const [tSnap, iSnap] = await Promise.all([getDocs(tQuery), getDocs(iQuery)]);
+            setSelectedUserTasks(tSnap.docs.map(d => ({ ...d.data(), id: d.id } as Task)));
+            setSelectedUserIssues(iSnap.docs.map(d => ({ ...d.data(), id: d.id } as Issue)));
         } finally {
             setIsStatsLoading(false);
         }
     }
   };
-
-  // We'll refine the statistics cards to use the local 'users' array which we've already fetched.
 
   return (
     <DashboardShell 
@@ -578,7 +502,7 @@ export default function UserManagement() {
               <Briefcase className={cn("h-4 w-4", roleFilter === 'operative' ? "text-accent-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
-              {users.filter(u => !u.isArchived && OPERATIVE_ROLES.includes(u.role as Role)).length}
+              {users.filter(u => !u.isArchived && (u.roles || []).some(r => OPERATIVE_ROLES.includes(r))).length}
             </div>
           </div>
         </Card>
@@ -596,7 +520,7 @@ export default function UserManagement() {
               <Shield className={cn("h-4 w-4", roleFilter === 'management' ? "text-foreground" : "text-muted-foreground")} />
             </div>
             <div className="text-3xl font-bold font-headline">
-              {users.filter(u => !u.isArchived && MANAGEMENT_ROLES.includes(u.role as Role)).length}
+              {users.filter(u => !u.isArchived && (u.roles || []).some(r => MANAGEMENT_ROLES.includes(r))).length}
             </div>
           </div>
         </Card>
@@ -665,7 +589,7 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1 max-w-[200px]">
-                        {(user.roles || [user.role]).map((r, i) => (
+                        {(user.roles || []).map((r, i) => (
                           <Badge key={i} className={`${getRoleColor(r)} font-bold text-[9px] uppercase`} variant="outline">
                             {r}
                           </Badge>
@@ -682,8 +606,8 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {(user.training?.includes('Fleet Driver') || (user as any).isDriver) && <Car className="h-4 w-4 text-primary" />}
-                        {(user.training?.includes('RoSPA') || (user as any).isRoSPATrained) && <Award className="h-4 w-4 text-accent-foreground" />}
+                        {(user.training?.includes('Fleet Driver')) && <Car className="h-4 w-4 text-primary" />}
+                        {(user.training?.includes('RoSPA')) && <Award className="h-4 w-4 text-accent-foreground" />}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -790,14 +714,6 @@ export default function UserManagement() {
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Initial Password</Label>
                 <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Min 6 characters" className="font-medium" />
               </div>
-              <div className="grid gap-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Work Phone</Label>
-                <Input value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} placeholder="07xxx xxxxxx" className="font-medium" />
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Radio Call Sign</Label>
-                <Input value={newUser.radioCallSign} onChange={e => setNewUser({...newUser, radioCallSign: e.target.value})} placeholder="e.g. Victor 1" className="font-medium" />
-              </div>
             </div>
 
             <div className="grid gap-3">
@@ -828,18 +744,17 @@ export default function UserManagement() {
                     key={t} 
                     className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer"
                     onClick={() => {
-                      const current = newUser.depots || (newUser.depot ? [newUser.depot] : []);
+                      const current = newUser.depots || [];
                       const isChecked = current.includes(t);
                       const newDepots = isChecked ? current.filter(x => x !== t) : [...current, t];
                       setNewUser({...newUser, depots: newDepots, depot: newDepots[0] || ''});
                     }}
                   >
                     <Checkbox 
-                      id={`new-depot-${t}`} 
-                      checked={(newUser.depots || []).some(d => d.trim() === t.trim()) || (newUser.depot?.trim() === t.trim() && newUser.depots?.length !== 0)}
-                      onCheckedChange={() => {}} // Handled by div onClick
+                      checked={(newUser.depots || []).some(d => d.trim() === t.trim())}
+                      onCheckedChange={() => {}}
                     />
-                    <label htmlFor={`new-depot-${t}`} className="text-xs font-medium cursor-pointer flex-1">
+                    <label className="text-xs font-medium cursor-pointer flex-1">
                       {t}
                     </label>
                   </div>
@@ -857,17 +772,6 @@ export default function UserManagement() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-bold tracking-tight">Desktop Version Access</span>
-                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Toggle desktop-optimized page view</span>
-              </div>
-              <Checkbox 
-                checked={newUser.allowDesktopView ?? true} 
-                onCheckedChange={(checked) => setNewUser({...newUser, allowDesktopView: !!checked})}
-              />
             </div>
           </div>
           <DialogFooter>
@@ -890,7 +794,7 @@ export default function UserManagement() {
                 <div>
                   <DialogTitle className="text-2xl font-headline font-bold">{selectedUser?.name}</DialogTitle>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
-                    {(selectedUser?.roles || (selectedUser?.role ? [selectedUser.role] : [])).map((r, i) => (
+                    {(selectedUser?.roles || []).map((r, i) => (
                       <Badge key={i} className={getRoleColor(r)} variant="outline">{r}</Badge>
                     ))}
                     <span className="text-xs font-medium text-muted-foreground">• {selectedUser?.depots?.length ? selectedUser.depots.join(', ') : selectedUser?.depot}</span>
@@ -923,29 +827,6 @@ export default function UserManagement() {
                       {selectedUser?.isArchived ? "Unarchive Staff" : "Archive Staff Account"}
                     </DropdownMenuItem>
                     
-                    {selectedUser && (
-                      <DropdownMenuItem 
-                        className="font-bold cursor-pointer text-accent-foreground"
-                        onClick={async () => {
-                            if (!selectedUser.password || selectedUser.password.length < 6) {
-                                toast({ title: "Sync Failed", description: "This user needs a valid password (min 6 chars) set in their profile first.", variant: "destructive" });
-                                return;
-                            }
-                            setIsUserSubmitting(true);
-                            try {
-                                await registerUserInAuth(selectedUser.email, selectedUser.password);
-                                toast({ title: "Sync Successful", description: "User can now log in to the system." });
-                            } catch (e: any) {
-                                toast({ title: "Sync Failed", description: e.message, variant: "destructive" });
-                            } finally {
-                                setIsUserSubmitting(false);
-                            }
-                        }}
-                      >
-                        <Check className="mr-2 h-4 w-4" /> Sync Login Service
-                      </DropdownMenuItem>
-                    )}
-                    
                     <DropdownMenuSeparator />
                     
                     <DropdownMenuItem 
@@ -963,7 +844,8 @@ export default function UserManagement() {
           <Tabs defaultValue="overview" className="flex-1 overflow-hidden flex flex-col mt-4">
             <TabsList className="mx-6 justify-start h-10 bg-transparent border-b rounded-none p-0 gap-6">
               <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Overview</TabsTrigger>
-              <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Tasks ({userTasks.length})</TabsTrigger>
+              <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Tasks ({selectedUserTasks.length})</TabsTrigger>
+              <TabsTrigger value="issues" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Issues ({selectedUserIssues.length})</TabsTrigger>
             </TabsList>
 
             <ScrollArea className="flex-1 w-full h-full">
@@ -980,18 +862,6 @@ export default function UserManagement() {
                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Email Identity</Label>
                         <Input value={selectedUser?.email} onChange={e => selectedUser && setSelectedUser({...selectedUser, email: e.target.value})} className="font-medium" />
                       </div>
-                       <div className="grid gap-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Access Password</Label>
-                        <Input type="password" value={selectedUser?.password || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, password: e.target.value})} placeholder="Enter 6+ characters to update" className="font-medium" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Work Phone</Label>
-                        <Input value={selectedUser?.phone || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, phone: e.target.value})} className="font-medium" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Radio Call Sign</Label>
-                        <Input value={selectedUser?.radioCallSign || ''} onChange={e => selectedUser && setSelectedUser({...selectedUser, radioCallSign: e.target.value})} className="font-medium" />
-                      </div>
                     </div>
                     
                     <Separator className="my-2" />
@@ -1005,12 +875,12 @@ export default function UserManagement() {
                             className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1.5 rounded-md transition-colors"
                             onClick={() => {
                               if (!selectedUser) return;
-                              const current = selectedUser.roles || (selectedUser.role ? [selectedUser.role] : []);
+                              const current = selectedUser.roles || [];
                               const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
                               setSelectedUser({...selectedUser, roles: next});
                             }}
                           >
-                            <Checkbox checked={(selectedUser?.roles || (selectedUser?.role ? [selectedUser.role] : [])).includes(role)} onCheckedChange={() => {}} />
+                            <Checkbox checked={(selectedUser?.roles || []).includes(role)} onCheckedChange={() => {}} />
                             <Label className="text-[10px] font-bold cursor-pointer leading-tight">{role}</Label>
                           </div>
                         ))}
@@ -1026,15 +896,15 @@ export default function UserManagement() {
                             className="flex items-center space-x-3 group hover:bg-white/50 p-1.5 rounded-md transition-colors cursor-pointer"
                             onClick={() => {
                               if (!selectedUser) return;
-                              const current = selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []);
+                              const current = selectedUser.depots || [];
                               const checked = current.some(d => d.trim() === t.trim());
                               const newDepots = checked ? current.filter(x => x.trim() !== t.trim()) : [...current, t];
                               setSelectedUser({...selectedUser, depots: newDepots, depot: newDepots[0] || ''});
                             }}
                           >
                             <Checkbox 
-                              checked={(selectedUser?.depots || []).some(d => d.trim() === t.trim()) || (selectedUser?.depot?.trim() === t.trim() && selectedUser?.depots?.length !== 0)}
-                              onCheckedChange={() => {}} // Handled by div onClick
+                              checked={(selectedUser?.depots || []).some(d => d.trim() === t.trim())}
+                              onCheckedChange={() => {}}
                             />
                             <label className="text-xs font-medium cursor-pointer flex-1">
                               {t}
@@ -1050,7 +920,6 @@ export default function UserManagement() {
                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Training & System Certifications</Label>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-xl p-6 bg-muted/10">
-                        {/* Display both registry options AND any existing data that doesn't match registry */}
                         {Array.from(new Set([...trainingOptions.map(t => t.trim()), ...selectedTrainings.map(t => t.trim())])).sort().map((option) => {
                           const isUnregistered = !trainingOptions.some(ref => ref.trim() === option.trim());
                           return (
@@ -1064,17 +933,6 @@ export default function UserManagement() {
                           );
                         })}
                       </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10 mt-6">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-bold tracking-tight">Desktop Version Access</span>
-                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Toggle desktop-optimized page view</span>
-                      </div>
-                      <Checkbox 
-                        checked={selectedUser?.allowDesktopView ?? true} 
-                        onCheckedChange={(checked) => selectedUser && setSelectedUser({...selectedUser, allowDesktopView: !!checked})}
-                      />
                     </div>
 
                     <div className="pt-6 pb-12">
@@ -1108,9 +966,9 @@ export default function UserManagement() {
               </TabsContent>
 
               <TabsContent value="tasks" className="mt-0 h-full outline-none">
-                {userTasks.length > 0 ? (
+                {selectedUserTasks.length > 0 ? (
                   <div className="grid gap-3 p-1">
-                    {userTasks.map(task => (
+                    {selectedUserTasks.map(task => (
                       <div key={task.id} className="p-4 border rounded-lg group hover:border-primary/30 transition-colors flex justify-between items-start">
                         <div>
                           <h5 className="font-bold text-sm">{task.title}</h5>

@@ -51,7 +51,7 @@ export default function ResolvedIssuesPage() {
     );
   }, [db]);
 
-  const { data: issues = [], loading, error } = useCollection<Issue>(resolvedIssuesQuery);
+  const { data: issues = [], loading, error } = useCollection<Issue>(resolvedIssuesQuery as any);
 
   const filteredIssues = issues.filter(issue => 
     issue.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -134,7 +134,7 @@ export default function ResolvedIssuesPage() {
                   <TableCell className="text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5" />
-                      {issue.resolvedAt ? new Date(issue.resolvedAt).toLocaleDateString() : new Date(issue.createdAt).toLocaleDateString()}
+                      {(issue as any).resolvedAt ? new Date((issue as any).resolvedAt).toLocaleDateString() : new Date(issue.createdAt).toLocaleDateString()}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">

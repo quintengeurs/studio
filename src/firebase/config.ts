@@ -22,14 +22,13 @@ let db: any;
 try {
   // Use initializeFirestore with named silo
   db = initializeFirestore(app, {
-    databaseId: DB_ID,
     experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
-  });
+  }, DB_ID);
   console.log(`[Firebase] Initialized NAMED Firestore Silo: ${DB_ID}`);
 } catch (e: any) {
   // Graceful reuse if already initialized
-  db = getFirestore(app);
+  db = getFirestore(app, DB_ID);
 }
 
 const auth = getAuth(app);
