@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, AlertTriangle, ListTodo, MapPin, ClipboardCheck, PackagePlus, ClipboardList, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { User as UserProfile } from "@/lib/types";
 
 const items = [
