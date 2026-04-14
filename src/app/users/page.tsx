@@ -658,7 +658,7 @@ export default function UserManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading ? (
+                  {usersLoading ? (
                     <TableRow><TableCell colSpan={4} className="text-center py-10"><Clock className="animate-spin h-6 w-6 mx-auto text-primary" /></TableCell></TableRow>
                   ) : users.filter(u => u.isArchived).length === 0 ? (
                     <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground"><p className="font-bold">No Archived Staff</p></TableCell></TableRow>
