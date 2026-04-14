@@ -50,6 +50,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, l
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig, ParkDetail } from "@/lib/types";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { addDays, addMonths, format } from "date-fns";
 
 export default function TasksPage() {
@@ -88,10 +89,9 @@ export default function TasksPage() {
   const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
   const currentUserData = profileResults[0];
 
-  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
-  const isOperational = useMemo(() => 
-    currentUserData?.role && OPERATIVE_ROLES.includes(currentUserData.role),
-  [currentUserData]);
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+  const isAdmin = permissions.approveResolution; // Used for some super-user checks down the line
+  const isOperational = !permissions.viewAllTasks;
 
   const currentUserName = useMemo(() => {
     if (currentUserData?.name) return currentUserData.name;
@@ -277,7 +277,7 @@ export default function TasksPage() {
     <DashboardShell 
       title={isOperational ? "Active Tasks" : "Tasks Management"} 
       description={isOperational ? "Operational work queue" : "Operational tasking and progress monitoring"}
-      actions={!isOperational && (
+      actions={permissions.createTask && (
         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
           <DialogTrigger asChild>
             <Button className="font-headline font-bold w-full md:w-auto">

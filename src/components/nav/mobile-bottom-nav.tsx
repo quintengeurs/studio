@@ -10,6 +10,7 @@ import { RequestModal } from "@/components/modals/request-modal";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { User as UserProfile } from "@/lib/types";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
 
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -46,27 +47,20 @@ export function MobileBottomNav() {
   
   const profile = profileByEmail || profileByUid || profileResults[0];
   
-  const profileRoles = profile?.roles || (profile?.role ? [profile.role] : []);
-  const isAdmin = profileRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
-  const isContractor = profileRoles.includes('Contractor') && profileRoles.length === 1;
-  const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
-  const isKeeper = profileRoles.includes('Keeper');
+  const permissions = useMemo(() => getDefaultPermissionsForUser(profile), [profile]);
 
   const filteredItems = items.filter(item => {
-    if (isAdmin) return ["Dashboard", "Inspections", "Issues", "Parks", "Depots"].includes(item.title);
-    
-    if (isContractor) {
-      return ["Dashboard", "Parks", "Depots"].includes(item.title);
+    switch(item.title) {
+        case "Dashboard": return permissions.viewDashboard;
+        case "My Tasks": return permissions.viewMyTasks;
+        case "All Tasks": return permissions.viewAllTasks;
+        case "Inspections": return permissions.viewInspections;
+        case "Issues": return permissions.viewIssues;
+        case "Assets": return permissions.viewAssets;
+        case "Parks": return permissions.viewParks;
+        case "Depots": return permissions.viewDepots;
+        default: return false;
     }
-    
-    if (isManagement) {
-      return ["Dashboard", "Inspections", "Issues", "Parks", "Depots"].includes(item.title);
-    }
-    
-    // Standard Officers
-    const allowed = ["Dashboard", "Parks", "Depots", "Issues"];
-    if (isKeeper) allowed.push("Inspections");
-    return allowed.includes(item.title);
   });
 
   return (

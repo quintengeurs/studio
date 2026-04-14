@@ -7,6 +7,36 @@ export const CONTRACTOR_ROLE: Role = 'Contractor';
 export const STANDARD_OFFICER_ROLES: Role[] = ['Tree Officer', 'Parks Development Officer', 'Bin Run', 'Litter Picker', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'Biodiversity Officer', 'Gardener', 'Keeper'];
 export const OPERATIONAL_MGMT_ROLES: Role[] = ['Head Gardener', 'Area Manager', 'Assistant Area Manager', 'Operations Manager'];
 
+export interface AccessPermissions {
+  // Page Visibility
+  viewDashboard: boolean;
+  viewMyTasks: boolean;
+  viewAssets: boolean;
+  viewParks: boolean;
+  viewDepots: boolean;
+  viewInspections: boolean;
+  viewIssues: boolean;
+  viewResolvedIssues: boolean;
+  viewStaffRequests: boolean;
+  viewAllTasks: boolean;
+  viewArchivedTasks: boolean;
+  viewUsers: boolean;
+  viewArchivedStaff: boolean;
+
+  // Core Functions
+  createTask: boolean;
+  assignTask: boolean;
+  createIssue: boolean;
+  scheduleInspection: boolean;
+  manageAssets: boolean;
+  approveResolution: boolean;
+
+  // Granular Edits
+  editParksFull: boolean;
+  editParkDevelopment: boolean; // Just projects/groups
+  editDepotsFull: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -23,6 +53,7 @@ export interface User {
   allowDesktopView?: boolean;
   isArchived?: boolean;
   createdAt?: string;
+  permissions?: AccessPermissions;
 }
 
 export interface Asset {

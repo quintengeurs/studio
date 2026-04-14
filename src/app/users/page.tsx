@@ -90,6 +90,7 @@ import { firebaseConfig } from "@/firebase/config";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
+import { PermissionsMatrix } from "@/components/users/permissions-matrix";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -472,7 +473,13 @@ export default function UserManagement() {
         </div>
       }
     >
-      <div className="grid gap-6 md:grid-cols-4 mb-8">
+      <Tabs defaultValue="registry" className="w-full">
+        <TabsList className="mb-6 bg-muted/50 border">
+          <TabsTrigger value="registry" className="font-bold">User Registry</TabsTrigger>
+          <TabsTrigger value="permissions" className="font-bold">Access Permissions</TabsTrigger>
+        </TabsList>
+        <TabsContent value="registry" className="mt-0 space-y-0">
+          <div className="grid gap-6 md:grid-cols-4 mb-8">
         <Card 
           className={cn(
             "transition-all cursor-pointer border-2 hover:shadow-md",
@@ -622,6 +629,11 @@ export default function UserManagement() {
           </Table>
         </div>
       </Card>
+        </TabsContent>
+        <TabsContent value="permissions" className="mt-0 pt-2">
+          <PermissionsMatrix users={users.filter(u => !u.isArchived)} />
+        </TabsContent>
+      </Tabs>
 
       {/* Configuration Dialog */}
       <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>

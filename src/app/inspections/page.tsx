@@ -36,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { User, Frequency, Inspection, Asset, OPERATIVE_ROLES } from "@/lib/types";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 import { getNextBespokeOccurrence } from "@/lib/scheduling-utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -137,10 +138,9 @@ export default function InspectionsPage() {
   const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
   const currentUserData = profileResults[0];
 
-  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
-  const isOperational = useMemo(() => 
-    currentUserData?.role && OPERATIVE_ROLES.includes(currentUserData.role),
-  [currentUserData]);
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+  const isAdmin = permissions.approveResolution;
+  const isOperational = !permissions.scheduleInspection;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);

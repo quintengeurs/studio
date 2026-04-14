@@ -40,6 +40,7 @@ import { useState, useMemo } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
 import { collection, query, where } from "firebase/firestore";
 import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -74,51 +75,37 @@ export function AppSidebar() {
 
   const allUsers = profileResults; // Keep variable for compatibility where count is checked
 
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserProfile), [currentUserProfile]);
+  
   const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
   const isAdmin = profileRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
-  const isContractor = profileRoles.includes('Contractor') && profileRoles.length === 1;
-  const isManagement = profileRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r)) || isAdmin;
-  const isStandard = !isAdmin && !isContractor && !isManagement;
-
-  const canViewRequests = isAdmin || profileRoles.includes('Area Manager') || profileRoles.includes('Operations Manager');
 
   const filteredNavItems = useMemo(() => {
-    if (isAdmin) return navItems;
-    
-    if (isContractor) {
-      return navItems.filter(item => ["Dashboard", "Parks", "Depots"].includes(item.title));
-    }
-    
-    if (isManagement) {
-      // Management sees all except specific admin items
-      const adminOnly = ["Users", "Archived Staff", "Archived Tasks"];
-      let items = navItems.filter(item => !adminOnly.includes(item.title));
-      
-      // Additional restriction for Staff Requests
-      if (!canViewRequests) {
-        items = items.filter(item => item.title !== "Staff Requests");
+    return navItems.filter(item => {
+      switch(item.title) {
+        case "Dashboard": return permissions.viewDashboard;
+        case "My Tasks": return permissions.viewMyTasks;
+        case "Asset Register": return permissions.viewAssets;
+        case "Parks": return permissions.viewParks;
+        case "Depots": return permissions.viewDepots;
+        case "Inspections": return permissions.viewInspections;
+        case "Issues": return permissions.viewIssues;
+        case "Resolved Issues": return permissions.viewResolvedIssues;
+        case "Staff Requests": return permissions.viewStaffRequests;
+        case "All Tasks": return permissions.viewAllTasks;
+        case "Archived Tasks": return permissions.viewArchivedTasks;
+        case "Users": return permissions.viewUsers;
+        case "Archived Staff": return permissions.viewArchivedStaff;
+        default: return false;
       }
-      return items;
-    }
-    
-    // Standard Officers
-    const standardAllowed = ["Dashboard", "My Tasks", "Parks", "Depots"];
-    let items = navItems.filter(item => standardAllowed.includes(item.title));
-    
-    if (canViewRequests) {
-      // Unlikely for standard but for completeness
-      const requestsItem = navItems.find(i => i.title === "Staff Requests");
-      if (requestsItem) items.push(requestsItem);
-    }
-    
-    return items;
-  }, [isAdmin, isContractor, isManagement, canViewRequests, navItems]);
+    });
+  }, [permissions]);
 
   const showNewRequest = useMemo(() => {
-    if (isAdmin || isManagement) return true;
-    if (isContractor) return false;
-    return true; // Standard Officers see it too
-  }, [isAdmin, isManagement, isContractor]);
+    // If they can't see the staff requests view at all, they likely shouldn't be posting new requests
+    // but typically standard officers CAN make requests. Let's allow everyone except purely contractors.
+    return !profileRoles.includes('Contractor');
+  }, [profileRoles]);
 
   const handleLogout = async () => {
     await signOut(auth);

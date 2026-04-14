@@ -39,6 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate } from "@/lib/types";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function ParksPage() {
@@ -127,16 +128,19 @@ export default function ParksPage() {
 
   const [editForm, setEditForm] = useState<Partial<ParkDetail>>({});
 
-  const canEditProjects = isAdmin || isManagement || currentUserRoles.includes('Project Manager') || currentUserRoles.includes('Parks Development Officer');
-  const canEditEvents = isAdmin || isManagement || currentUserRoles.includes('Events Manager') || currentUserRoles.includes('Parks Development Officer');
-  const canEditVolunteering = isAdmin || isManagement || currentUserRoles.includes('Volunteering Coordinator') || currentUserRoles.includes('Parks Development Officer');
-  const canEditSports = isAdmin || isManagement || currentUserRoles.includes('Sports and Leisure Manager') || currentUserRoles.includes('Parks Development Officer');
-  const canEditUserGroups = isAdmin || isManagement || currentUserRoles.includes('User Group Chair') || currentUserRoles.includes('Parks Development Officer');
-  const canEditDevelopment = isAdmin || isManagement || currentUserRoles.includes('Parks Development Officer');
-  const canEditTreeWorks = isAdmin || isManagement || currentUserRoles.includes('Tree Officer');
-  const canEditBiodiversity = isAdmin || isManagement || currentUserRoles.includes('Biodiversity Officer');
-  const canEditContractorWorks = isAdmin || isManagement || currentUserRoles.includes('Contractor');
-  const canEditMaintenance = isAdmin || isManagement;
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+
+  const canEditProjects = permissions.editParksFull || permissions.editParkDevelopment;
+  const canEditEvents = permissions.editParksFull || permissions.editParkDevelopment;
+  const canEditVolunteering = permissions.editParksFull || permissions.editParkDevelopment;
+  const canEditSports = permissions.editParksFull || permissions.editParkDevelopment;
+  const canEditUserGroups = permissions.editParksFull || permissions.editParkDevelopment;
+  const canEditDevelopment = permissions.editParksFull || permissions.editParkDevelopment;
+  
+  const canEditTreeWorks = permissions.editParksFull;
+  const canEditBiodiversity = permissions.editParksFull;
+  const canEditContractorWorks = permissions.editParksFull;
+  const canEditMaintenance = permissions.editParksFull;
 
   const handleOpenUpdateModal = (type: string, existingUpdate?: ParkUpdate) => {
     setCurrentUpdateType(type);

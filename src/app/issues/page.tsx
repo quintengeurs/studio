@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { 
   CheckCircle2, 
   UserPlus, 
@@ -75,7 +76,8 @@ export default function IssuesPage() {
   
   const profile = profileByEmail || profileByUid;
   
-  const isOperative = profile?.role && OPERATIVE_ROLES.includes(profile.role);
+  const permissions = useMemo(() => getDefaultPermissionsForUser(profile), [profile]);
+  const isOperative = !permissions.assignTask;
 
   const [issueLimit, setIssueLimit] = useState(25);
   const issuesQuery = useMemoFirebase(() => {

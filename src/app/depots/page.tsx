@@ -45,6 +45,7 @@ import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@
 import { collection, doc, setDoc, query, where, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { RegistryConfig, DepotDetail, User, Role, DepotUpdate, ParkDetail } from "@/lib/types";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function DepotsPage() {
@@ -85,7 +86,9 @@ export default function DepotsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
-  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+  const isAdmin = permissions.editDepotsFull; // Use granular role for component gates
+  const canEditMaintenance = permissions.editDepotsFull;
 
   const selectedDepotDetail = useMemo(() => {
     return allDetails.find(d => d.name === selectedDepotName || d.id === selectedDepotName) || {

@@ -61,6 +61,7 @@ import {
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit } from "firebase/firestore";
 import { format } from "date-fns";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
 
 export default function AssetRegister() {
   const { toast } = useToast();
@@ -74,8 +75,10 @@ export default function AssetRegister() {
   const currentUserData = useMemo(() => 
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
-  const isAdmin = currentUserData?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+  const isAdmin = permissions.manageAssets; // Proxy for top level controls
+
   // Live Assets
   const [assetLimit, setAssetLimit] = useState(25);
   const assetsQuery = useMemoFirebase(() => {
