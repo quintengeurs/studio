@@ -258,134 +258,136 @@ export default function AssetRegister() {
               <DialogTitle className="font-headline">Add New Asset</DialogTitle>
               <DialogDescription>Register a new piece of infrastructure.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>Asset Name</Label>
-                <Input value={newAsset.name} onChange={e => setNewAsset({...newAsset, name: e.target.value})} placeholder="e.g. South End Play Frame" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            <ScrollArea className="max-h-[80vh] px-1">
+              <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label>Category</Label>
-                  <Select value={newAsset.type} onValueChange={v => setNewAsset({...newAsset, type: v})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Playground Equipment">Playground Equipment</SelectItem>
-                      <SelectItem value="Park Furniture">Park Furniture</SelectItem>
-                      <SelectItem value="Lighting">Lighting</SelectItem>
-                      <SelectItem value="Waste Management">Waste Management</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Asset Name</Label>
+                  <Input value={newAsset.name} onChange={e => setNewAsset({...newAsset, name: e.target.value})} placeholder="e.g. South End Play Frame" />
                 </div>
-                <div className="grid gap-2">
-                  <Label>Park</Label>
-                   <Select value={newAsset.park} onValueChange={v => setNewAsset({...newAsset, park: v})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {parks.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="p-4 border-2 border-muted rounded-lg bg-muted/20 space-y-4">
-                <h4 className="text-xs font-bold uppercase text-primary tracking-widest flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4" /> Schedule Setup
-                </h4>
-                <div className="flex items-start space-x-3">
-                  <Checkbox id="insp" checked={newAsset.setupInspection} onCheckedChange={(v) => setNewAsset({...newAsset, setupInspection: !!v})} />
-                  <div className="grid gap-1.5 leading-none">
-                    <label htmlFor="insp" className="text-sm font-semibold leading-none cursor-pointer">Generate regular inspection</label>
-                    <p className="text-xs text-muted-foreground">Automatically create inspection tasks based on asset type.</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Category</Label>
+                    <Select value={newAsset.type} onValueChange={v => setNewAsset({...newAsset, type: v})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Playground Equipment">Playground Equipment</SelectItem>
+                        <SelectItem value="Park Furniture">Park Furniture</SelectItem>
+                        <SelectItem value="Lighting">Lighting</SelectItem>
+                        <SelectItem value="Waste Management">Waste Management</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Park</Label>
+                     <Select value={newAsset.park} onValueChange={v => setNewAsset({...newAsset, park: v})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {parks.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-
-                {newAsset.setupInspection && (
-                  <div className="space-y-4 pt-2 animate-in slide-in-from-top-2 duration-200">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Start Date</Label>
-                         <Input type="date" value={newAsset.inspectionStartDate} onChange={e => setNewAsset({...newAsset, inspectionStartDate: e.target.value})} className="h-9" />
-                      </div>
-                      <div className="grid gap-2">
-                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Frequency</Label>
-                         <Select value={newAsset.inspectionFrequency} onValueChange={(v: Frequency) => setNewAsset({...newAsset, inspectionFrequency: v})}>
-                           <SelectTrigger className="h-9">
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="Weekly">Weekly</SelectItem>
-                             <SelectItem value="Monthly">Monthly</SelectItem>
-                             <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                             <SelectItem value="Yearly">Yearly</SelectItem>
-                           </SelectContent>
-                         </Select>
-                      </div>
+                
+                <div className="p-4 border-2 border-muted rounded-lg bg-muted/20 space-y-4">
+                  <h4 className="text-xs font-bold uppercase text-primary tracking-widest flex items-center gap-2">
+                    <CalendarCheck className="h-4 w-4" /> Schedule Setup
+                  </h4>
+                  <div className="flex items-start space-x-3">
+                    <Checkbox id="insp" checked={newAsset.setupInspection} onCheckedChange={(v) => setNewAsset({...newAsset, setupInspection: !!v})} />
+                    <div className="grid gap-1.5 leading-none">
+                      <label htmlFor="insp" className="text-sm font-semibold leading-none cursor-pointer">Generate regular inspection</label>
+                      <p className="text-xs text-muted-foreground">Automatically create inspection tasks based on asset type.</p>
                     </div>
+                  </div>
 
-                    <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Specific Inspection Notes</Label>
-                      <Textarea 
-                        placeholder="e.g. Check the playground for needles or sharp objects." 
-                        value={newAsset.inspectionNotes} 
-                        onChange={e => setNewAsset({...newAsset, inspectionNotes: e.target.value})}
-                        className="text-xs min-h-[60px]"
-                      />
-                    </div>
+                  {newAsset.setupInspection && (
+                    <div className="space-y-4 pt-2 animate-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Start Date</Label>
+                           <Input type="date" value={newAsset.inspectionStartDate} onChange={e => setNewAsset({...newAsset, inspectionStartDate: e.target.value})} className="h-9" />
+                        </div>
+                        <div className="grid gap-2">
+                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Frequency</Label>
+                           <Select value={newAsset.inspectionFrequency} onValueChange={(v: Frequency) => setNewAsset({...newAsset, inspectionFrequency: v})}>
+                             <SelectTrigger className="h-9">
+                               <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="Weekly">Weekly</SelectItem>
+                               <SelectItem value="Monthly">Monthly</SelectItem>
+                               <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                               <SelectItem value="Yearly">Yearly</SelectItem>
+                             </SelectContent>
+                           </Select>
+                        </div>
+                      </div>
 
-                    <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Additional Custom Checks</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Add a specific check..." 
-                          value={newCustomCheck} 
-                          onChange={e => setNewCustomCheck(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Specific Inspection Notes</Label>
+                        <Textarea 
+                          placeholder="e.g. Check the playground for needles or sharp objects." 
+                          value={newAsset.inspectionNotes} 
+                          onChange={e => setNewAsset({...newAsset, inspectionNotes: e.target.value})}
+                          className="text-xs min-h-[60px]"
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Additional Custom Checks</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="Add a specific check..." 
+                            value={newCustomCheck} 
+                            onChange={e => setNewCustomCheck(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (newCustomCheck.trim()) {
+                                  setNewAsset({...newAsset, customChecks: [...newAsset.customChecks, newCustomCheck.trim()]});
+                                  setNewCustomCheck("");
+                                }
+                              }
+                            }}
+                            className="h-8 text-xs"
+                          />
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => {
                               if (newCustomCheck.trim()) {
                                 setNewAsset({...newAsset, customChecks: [...newAsset.customChecks, newCustomCheck.trim()]});
                                 setNewCustomCheck("");
                               }
-                            }
-                          }}
-                          className="h-8 text-xs"
-                        />
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 w-8 p-0"
-                          onClick={() => {
-                            if (newCustomCheck.trim()) {
-                              setNewAsset({...newAsset, customChecks: [...newAsset.customChecks, newCustomCheck.trim()]});
-                              setNewCustomCheck("");
-                            }
-                          }}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {newAsset.customChecks.map((check, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-[9px] py-0 px-2 flex items-center gap-1 group">
-                            {check}
-                            <X 
-                              className="h-3 w-3 cursor-pointer opacity-50 hover:opacity-100" 
-                              onClick={() => setNewAsset({...newAsset, customChecks: newAsset.customChecks.filter((_, i) => i !== idx)})} 
-                            />
-                          </Badge>
-                        ))}
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {newAsset.customChecks.map((check, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-[9px] py-0 px-2 flex items-center gap-1 group">
+                              {check}
+                              <X 
+                                className="h-3 w-3 cursor-pointer opacity-50 hover:opacity-100" 
+                                onClick={() => setNewAsset({...newAsset, customChecks: newAsset.customChecks.filter((_, i) => i !== idx)})} 
+                              />
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            </ScrollArea>
             <DialogFooter>
               <Button className="w-full" onClick={handleAddAsset} disabled={!newAsset.name || !newAsset.park || isSubmitting}>
                 {isSubmitting ? "Adding Asset..." : "Complete Registration"}
