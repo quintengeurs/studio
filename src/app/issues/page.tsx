@@ -57,6 +57,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, l
 import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role, ParkDetail } from "@/lib/types";
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { FolderArchive } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
 

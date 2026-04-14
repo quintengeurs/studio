@@ -33,7 +33,8 @@ import {
   ChevronDown,
   Clock,
   Users as UsersIcon,
-  Settings2
+  Settings2,
+  RotateCcw
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
