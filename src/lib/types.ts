@@ -64,6 +64,8 @@ export interface Asset {
   location: string;
   condition: string;
   lastInspected: string;
+  inspectionNotes?: string;
+  customChecks?: string[];
 }
 
 export interface Issue {
@@ -135,7 +137,14 @@ export interface Inspection {
   completedAt?: string;
   inspectedBy?: string;
   notes?: string;
-  checklist?: { item: string, status: 'Pass' | 'Fail' | 'N/A', notes: string }[];
+  assetNotes?: string;
+  customChecks?: string[];
+  checklist?: { 
+    item: string, 
+    status: 'Pass' | 'Fail' | 'N/A', 
+    notes: string,
+    imageUrl?: string 
+  }[];
   startDate?: string;
   endDate?: string;
   daysOfWeek?: number[];

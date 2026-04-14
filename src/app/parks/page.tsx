@@ -365,8 +365,8 @@ export default function ParksPage() {
 
   return (
     <DashboardShell
-      title="Park Management"
-      description="View and manage the list of registered parks."
+      title="Parks and Green Spaces"
+      description="View and manage all parks and green spaces."
       actions={
         !isMobile && (
           <Button
@@ -382,7 +382,7 @@ export default function ParksPage() {
     >
       <Card>
         <CardHeader>
-          <CardTitle>Registered Parks ({filteredParks.length})</CardTitle>
+          <CardTitle>Parks and Green Spaces ({filteredParks.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {configLoading ? (
@@ -409,7 +409,7 @@ export default function ParksPage() {
                         <span className="truncate">{park}</span>
                         {detail?.greenflag && <Badge variant="outline" className="text-[7px] h-3 px-1 uppercase font-bold border-green-600/30 text-green-700 bg-white">Awarded</Badge>}
                       </span>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">View Intelligence</span>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">View Park Info</span>
                     </div>
                   </button>
                 );

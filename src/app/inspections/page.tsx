@@ -16,11 +16,16 @@ import {
   RefreshCcw,
   AlertCircle,
   Trash2,
-  Edit2
+  Edit2,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { compressImage } from "@/lib/image-compress";
 import {
   Dialog,
   DialogContent,
@@ -160,7 +165,12 @@ export default function InspectionsPage() {
   });
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
-  const [inspectionResults, setInspectionResults] = useState<{item: string, passed: boolean, notes: string}[]>([]);
+  const [inspectionResults, setInspectionResults] = useState<{ 
+    item: string, 
+    passed: boolean, 
+    notes: string,
+    imageUrl?: string 
+  }[]>([]);
 
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
@@ -231,12 +241,46 @@ export default function InspectionsPage() {
 
   const openCompleteDialog = (inspection: Inspection) => {
     setSelectedInspection(inspection);
-    setInspectionResults([
-      { item: "General Structural Integrity", passed: true, notes: "" },
-      { item: "Cleanliness and Hygiene", passed: true, notes: "" },
-      { item: "Safe for Public Use", passed: true, notes: "" }
-    ]);
+    
+    // Check if we already have a checklist in the inspection object (from custom fields)
+    if (inspection.checklist && inspection.checklist.length > 0) {
+      setInspectionResults(inspection.checklist.map(c => ({
+        item: c.item,
+        passed: c.status === 'Pass',
+        notes: c.notes,
+        imageUrl: c.imageUrl
+      })));
+    } else {
+      setInspectionResults([
+        { item: "General Structural Integrity", passed: true, notes: "" },
+        { item: "Cleanliness and Hygiene", passed: true, notes: "" },
+        { item: "Safe for Public Use", passed: true, notes: "" }
+      ]);
+    }
     setIsCompleteDialogOpen(true);
+  };
+
+  const [isUploading, setIsUploading] = useState<number | null>(null);
+
+  const handleCheckImageUpload = async (file: File, index: number) => {
+    if (!db) return;
+    setIsUploading(index);
+    try {
+      const compressed = await compressImage(file);
+      const storage = getStorage();
+      const storageRef = ref(storage, `inspections/${selectedInspection?.id}/check_${index}_${Date.now()}.jpg`);
+      await uploadBytes(storageRef, compressed);
+      const url = await getDownloadURL(storageRef);
+      
+      const newResults = [...inspectionResults];
+      newResults[index].imageUrl = url;
+      setInspectionResults(newResults);
+      toast({ title: "Image Uploaded", description: "Reference photo attached to this check." });
+    } catch (error) {
+      toast({ title: "Upload Error", description: "Failed to upload inspection image.", variant: "destructive" });
+    } finally {
+      setIsUploading(null);
+    }
   };
 
   const calculateNextDueDate = (currentDate: string, frequency: Frequency) => {
@@ -258,8 +302,13 @@ export default function InspectionsPage() {
         await updateDoc(doc(db, "inspections", selectedInspection.id), {
             status: 'Completed',
             completedAt: new Date().toISOString(),
-            inspectedBy: user.displayName || user.email,
-            results: inspectionResults
+            inspectedBy: currentUserData?.name || user.email,
+            checklist: inspectionResults.map(res => ({
+                item: res.item,
+                status: res.passed ? 'Pass' : 'Fail',
+                notes: res.notes,
+                imageUrl: res.imageUrl || null
+            }))
         });
 
         if (selectedInspection.frequency && selectedInspection.frequency !== 'One-off') {
@@ -567,49 +616,139 @@ export default function InspectionsPage() {
       )}
 
       <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="font-headline">Perform Asset Inspection</DialogTitle>
-            <DialogDescription>Recording separate instance log for: {selectedInspection?.assetName}</DialogDescription>
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-6 pb-2 bg-gradient-to-br from-primary/5 to-primary/10 border-b">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <DialogTitle className="font-headline text-xl">Perform Safety Check</DialogTitle>
+                <DialogDescription className="text-xs font-medium opacity-70">Log instance for asset: {selectedInspection?.assetName}</DialogDescription>
+              </div>
+            </div>
+            
+            {(selectedInspection as any)?.assetNotes && (
+               <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary/60">Specific Inspection Instructions</p>
+                    <p className="text-xs font-semibold leading-relaxed">{(selectedInspection as any).assetNotes}</p>
+                  </div>
+               </div>
+            )}
           </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="space-y-4">
+
+          <ScrollArea className="flex-1 px-6 py-4">
+            <div className="space-y-6 pb-6">
               {inspectionResults.map((res, idx) => (
-                <div key={idx} className="p-4 border rounded-lg bg-muted/20 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="font-bold">{res.item}</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium">{res.passed ? 'Pass' : 'Fail'}</span>
-                      <Checkbox 
-                        checked={res.passed} 
-                        onCheckedChange={(v) => {
+                <div key={idx} className={`p-5 rounded-2xl border-2 transition-all ${res.passed ? 'bg-background border-primary/5' : 'bg-destructive/5 border-destructive/20 shadow-sm'}`}>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-1">
+                       <Label className="font-bold text-sm tracking-tight">{res.item}</Label>
+                       <p className="text-[10px] text-muted-foreground font-medium">Verified condition of this specific component.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        variant={res.passed ? 'default' : 'outline'}
+                        className={`h-12 font-bold transition-all ${res.passed ? 'shadow-lg shadow-primary/20' : 'opacity-60'}`}
+                        onClick={() => {
                           const newRes = [...inspectionResults];
-                          newRes[idx].passed = !!v;
+                          newRes[idx].passed = true;
                           setInspectionResults(newRes);
-                        }} 
-                      />
+                        }}
+                      >
+                        <CheckCircle2 className="mr-2 h-4 w-4" /> PASS
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={!res.passed ? 'destructive' : 'outline'}
+                        className={`h-12 font-bold transition-all ${!res.passed ? 'shadow-lg shadow-destructive/20' : 'opacity-60'}`}
+                        onClick={() => {
+                          const newRes = [...inspectionResults];
+                          newRes[idx].passed = false;
+                          setInspectionResults(newRes);
+                        }}
+                      >
+                        <AlertCircle className="mr-2 h-4 w-4" /> FAIL
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3 pt-1">
+                      <div className="flex items-center gap-3">
+                         <div className="relative flex-1">
+                            <Input 
+                              placeholder="Add observation notes..." 
+                              className="h-10 text-xs pl-4 bg-muted/40 border-none rounded-lg" 
+                              value={res.notes}
+                              onChange={(e) => {
+                                const newRes = [...inspectionResults];
+                                newRes[idx].notes = e.target.value;
+                                setInspectionResults(newRes);
+                              }}
+                            />
+                         </div>
+                         <div className="shrink-0">
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              id={`upload-${idx}`} 
+                              className="hidden" 
+                              capture="environment"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleCheckImageUpload(file, idx);
+                              }}
+                            />
+                            <Button 
+                              type="button" 
+                              variant="secondary" 
+                              size="icon" 
+                              className={`h-10 w-10 rounded-lg ${res.imageUrl ? 'bg-primary/20 text-primary border-primary/20' : ''}`}
+                              disabled={isUploading === idx}
+                              asChild
+                            >
+                               <label htmlFor={`upload-${idx}`} className="cursor-pointer">
+                                  {isUploading === idx ? <Clock className="h-4 w-4 animate-spin" /> : 
+                                   res.imageUrl ? <ImageIcon className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                               </label>
+                            </Button>
+                         </div>
+                      </div>
+                      
+                      {res.imageUrl && (
+                        <div className="relative h-32 w-full rounded-xl overflow-hidden border bg-muted animate-in zoom-in-95 duration-200">
+                           <img src={res.imageUrl} className="h-full w-full object-cover" alt="Verification" />
+                           <Button 
+                              type="button"
+                              variant="destructive" 
+                              size="icon" 
+                              className="absolute top-2 right-2 h-6 w-6 rounded-full"
+                              onClick={() => {
+                                const newRes = [...inspectionResults];
+                                delete newRes[idx].imageUrl;
+                                setInspectionResults(newRes);
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                           </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <Input 
-                    placeholder="Notes (optional)" 
-                    className="h-8 text-xs" 
-                    value={res.notes}
-                    onChange={(e) => {
-                      const newRes = [...inspectionResults];
-                      newRes[idx].notes = e.target.value;
-                      setInspectionResults(newRes);
-                    }}
-                  />
                 </div>
               ))}
             </div>
-          </div>
-          <DialogFooter>
-            <Button className="w-full font-bold" onClick={handleFinishInspection} disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Finish Inspection"}
-              <CheckCircle2 className="ml-2 h-4 w-4" />
+          </ScrollArea>
+
+          <div className="p-6 bg-muted/30 border-t mt-auto">
+            <Button className="w-full font-bold h-12 text-md shadow-xl" onClick={handleFinishInspection} disabled={isSubmitting || isUploading !== null}>
+              {isSubmitting ? "Finalizing Report..." : "Complete Overall Safety Check"}
+              <CheckCircle2 className="ml-2 h-5 w-5" />
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

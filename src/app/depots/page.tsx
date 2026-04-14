@@ -283,7 +283,7 @@ export default function DepotsPage() {
   };
 
   const rolesInOrder: Role[] = [
-    'Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Gardener', 'Keeper', 'Litter Picker'
+    'Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Gardener', 'Keeper', 'Litter Picker', 'Bin Run'
   ];
 
   return (
@@ -355,7 +355,7 @@ export default function DepotsPage() {
                     {selectedDepotName}
                   </DialogTitle>
                   <DialogDescription className="text-sm text-primary/60 font-medium tracking-tight">
-                    Depot Operational Hub & Staff Registry
+                    Depot Details and Info
                   </DialogDescription>
                 </div>
               </div>
