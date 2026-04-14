@@ -3,7 +3,6 @@ import { User, AccessPermissions } from "@/lib/types";
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { doc, updateDoc } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -98,9 +97,9 @@ export function PermissionsMatrix({ users }: PermissionsMatrixProps) {
         </Button>
       </div>
       
-      <ScrollArea className="w-[calc(100vw-300px)] rounded-md border bg-card shadow-sm max-h-[70vh]">
-        <Table className="relative">
-          <TableHeader className="bg-muted/50 sticky top-0 z-20 shadow-sm border-b">
+      <div className="w-full overflow-auto rounded-md border bg-card shadow-sm max-h-[70vh]">
+        <Table className="relative min-w-max">
+          <TableHeader className="bg-muted/50 sticky top-0 z-20 shadow-sm">
             <TableRow>
               <TableHead className="w-[200px] min-w-[200px] sticky left-0 z-30 bg-muted/95 border-r shadow-sm">
                 Staff Member
@@ -137,9 +136,7 @@ export function PermissionsMatrix({ users }: PermissionsMatrixProps) {
             ))}
           </TableBody>
         </Table>
-        <ScrollBar orientation="horizontal" />
-        <ScrollBar orientation="vertical" />
-      </ScrollArea>
+      </div>
     </div>
   );
 }

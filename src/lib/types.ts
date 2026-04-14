@@ -83,6 +83,7 @@ export interface Issue {
   resolutionImageUrl?: string;
   resolutionDate?: string;
   collaborators?: string[];
+  isArchived?: boolean;
 }
 
 export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthly' | 'Yearly' | 'Bespoke';
@@ -105,6 +106,7 @@ export interface Task {
   endDate?: string;
   daysOfWeek?: number[];
   isBespoke?: boolean;
+  isArchived?: boolean;
 }
 
 export interface RecurringSchedule {

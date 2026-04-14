@@ -65,6 +65,12 @@ export default function TasksPage() {
   [db, taskLimit]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
 
+  const [archivedLimit, setArchivedLimit] = useState(25);
+  const archivedTasksQuery = useMemoFirebase(() => 
+    db ? query(collection(db, "tasks"), where("status", "==", "Completed"), limit(archivedLimit)) : null, 
+  [db, archivedLimit]);
+  const { data: archivedTasks = [], loading: archivedTasksLoading } = useCollection<Task>(archivedTasksQuery as any);
+
   const assetsQuery = useMemoFirebase(() => 
     db ? query(collection(db, "assets"), limit(500)) : null, 
   [db]);
@@ -379,6 +385,7 @@ export default function TasksPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="recurring" className="flex items-center gap-2"><RotateCcw className="h-4 w-4" /> Recurring Schedules</TabsTrigger>
+            <TabsTrigger value="archived" className="flex items-center gap-2"><FolderArchive className="h-4 w-4" /> Archived Log</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active">
@@ -541,6 +548,55 @@ export default function TasksPage() {
                ))}
                {tasks.filter(t => t.frequency).length === 0 && <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50"><p className="text-sm font-bold">No recurring task schedules active.</p></div>}
             </div>
+          </TabsContent>
+          <TabsContent value="archived">
+            <Card className="overflow-hidden border-2">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-headline font-bold">Task Detail</TableHead>
+                    <TableHead className="font-headline font-bold">Park</TableHead>
+                    <TableHead className="font-headline font-bold">Operative</TableHead>
+                    <TableHead className="font-headline font-bold">Completed Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {archivedTasksLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
+                        <Clock className="h-6 w-6 animate-spin mx-auto mb-2" />
+                        Loading archives...
+                      </TableCell>
+                    </TableRow>
+                  ) : archivedTasks.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
+                        No archived tasks found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    archivedTasks.map((task) => (
+                      <TableRow key={task.id} className="hover:bg-accent/5 transition-colors">
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold line-clamp-1">{task.title}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 text-xs"><MapPin className="h-3.5 w-3.5 text-primary" />{task.park}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2"><UserIcon className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs font-medium">{task.assignedTo}</span></div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {task.completedAt ? new Date(task.completedAt).toLocaleDateString() : task.dueDate}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
           </TabsContent>
         </Tabs>
       ) : (

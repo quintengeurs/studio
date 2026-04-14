@@ -50,12 +50,9 @@ const navItems = [
   { title: "Depots", icon: Building2, href: "/depots" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
-  { title: "Resolved Issues", icon: Archive, href: "/resolved-issues" },
   { title: "Staff Requests", icon: Truck, href: "/requests" },
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
-  { title: "Archived Tasks", icon: FolderArchive, href: "/archived-tasks" },
   { title: "Users", icon: Users, href: "/users" },
-  { title: "Archived Staff", icon: UserX, href: "/archived-users" },
 ];
 
 export function AppSidebar() {
@@ -90,12 +87,9 @@ export function AppSidebar() {
         case "Depots": return permissions.viewDepots;
         case "Inspections": return permissions.viewInspections;
         case "Issues": return permissions.viewIssues;
-        case "Resolved Issues": return permissions.viewResolvedIssues;
         case "Staff Requests": return permissions.viewStaffRequests;
         case "All Tasks": return permissions.viewAllTasks;
-        case "Archived Tasks": return permissions.viewArchivedTasks;
         case "Users": return permissions.viewUsers;
-        case "Archived Staff": return permissions.viewArchivedStaff;
         default: return false;
       }
     });

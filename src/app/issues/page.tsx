@@ -55,6 +55,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit } from "firebase/firestore";
 import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role, ParkDetail } from "@/lib/types";
+import { getDefaultPermissionsForUser } from "@/lib/permissions";
+import { FolderArchive } from "lucide-react";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
 
@@ -84,8 +86,21 @@ export default function IssuesPage() {
     if (!db) return null;
     return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(issueLimit));
   }, [db, issueLimit]);
-
   const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
+
+  const [resolvedLimit, setResolvedLimit] = useState(25);
+  const resolvedQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "issues"), where("status", "==", "Resolved"), limit(resolvedLimit));
+  }, [db, resolvedLimit]);
+  const { data: resolvedIssuesRaw = [], loading: resolvedLoading } = useCollection<Issue>(resolvedQuery as any);
+
+  const [archivedLimit, setArchivedLimit] = useState(25);
+  const archivedQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "issues"), where("isArchived", "==", true), limit(archivedLimit));
+  }, [db, archivedLimit]);
+  const { data: archivedIssuesRaw = [], loading: archivedLoading } = useCollection<Issue>(archivedQuery as any);
 
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
@@ -93,16 +108,11 @@ export default function IssuesPage() {
   const isAdmin = profile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
 
   const filteredIssues = useMemo(() => {
-    if (isAdmin) return issues;
-    
-    // Using both legacy and new depot fields
-    const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
-    const userIdent = user?.displayName || user?.email || "";
-    const userName = profile?.name || userIdent;
+    const baseList = isAdmin ? issues : issues.filter(issue => {
+        const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
+        const userIdent = user?.displayName || user?.email || "";
+        const userName = profile?.name || userIdent;
 
-    // Filter by reports, depot, or assignment
-    return issues.filter(issue => {
-        // Direct attribution (Reporting or Assigned)
         const matchesReporter = issue.reportedBy?.toLowerCase() === userIdent.toLowerCase() || 
                                issue.reportedBy?.toLowerCase() === user?.email?.toLowerCase() ||
                                issue.reportedBy === userName;
@@ -118,7 +128,15 @@ export default function IssuesPage() {
         
         return false;
     });
+    
+    // Safety check that what we show in active UI is not archived (in case issuesQuery drops isArchived index in future)
+    return baseList.filter(i => i.isArchived !== true);
   }, [issues, profile, user, allDetails, isAdmin]);
+
+  const unassignedIssues = useMemo(() => filteredIssues.filter(i => !i.assignedTo), [filteredIssues]);
+  const assignedIssues = useMemo(() => filteredIssues.filter(i => i.assignedTo), [filteredIssues]);
+  const resolvedIssues = useMemo(() => resolvedIssuesRaw.filter(i => i.isArchived !== true), [resolvedIssuesRaw]);
+  const archivedIssues = archivedIssuesRaw;
 
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: users = [] } = useCollection<User>(usersQuery as any);
@@ -249,9 +267,120 @@ export default function IssuesPage() {
     }
   };
 
+  const handleArchiveIssue = async (id: string) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, "issues", id), { isArchived: true });
+      toast({ title: "Issue Archived", description: "Moved to the permanent archive." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to archive issue.", variant: "destructive" });
+    }
+  };
+
+  const renderIssueList = (listToRender: Issue[], loadingState: boolean) => {
+    if (loadingState) return <div className="flex justify-center items-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>;
+    if (listToRender.length === 0) return (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
+          <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
+          <p className="font-bold">No issues found in this view</p>
+        </div>
+    );
+    return (
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {listToRender.map((issue) => (
+            <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2 w-full">
+                <div className={`h-1.5 w-full shrink-0 ${(issue.priority as string) === 'Emergency' ? 'bg-destructive' : (issue.priority as string) === 'High' ? 'bg-yellow-500' : (issue.priority as string) === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
+              
+              {issue.imageUrl && (
+                <div className="relative w-full h-48 bg-muted shrink-0">
+                  <Image src={issue.imageUrl} alt={issue.title} fill className="object-cover" />
+                </div>
+              )}
+
+              <CardHeader className="pb-2 px-4 sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground shrink-0">{issue.category}</Badge>
+                    <div className="flex items-center gap-1 text-[9px] text-primary font-bold shrink-0"><MapPin className="h-3 w-3" />{issue.park}</div>
+                  </div>
+                  <Badge className={`${(issue.status as string) === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' : (issue.status as string) === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' : (issue.status as string) === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse' : 'bg-green-500/10 text-green-600 border-green-200'} font-bold text-[9px] shrink-0 uppercase tracking-tighter`}>{issue.status}</Badge>
+                </div>
+                <CardTitle className="font-headline text-lg sm:text-xl break-words">{issue.title}</CardTitle>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
+                  <Clock className="h-3 w-3" />
+                  <span>Reported {new Date(issue.createdAt).toLocaleDateString()} by {issue.reportedBy}</span>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 pb-4 px-4 sm:px-6">
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">{issue.description}</p>
+                {(issue.status as string) === 'Pending Approval' && (
+                  <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-bold text-accent-foreground">Work Completed</p>
+                        <p className="text-[10px] text-muted-foreground">Operative has submitted completion proof. Please review and approve.</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-[10px] font-bold uppercase tracking-widest bg-background"
+                      onClick={() => {
+                        setSelectedIssueForProof(issue);
+                        setIsProofDialogOpen(true);
+                      }}
+                    >
+                      <ImageIcon className="h-3.5 w-3.5 mr-1.5" /> View Proof
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  {(issue.status as string) === 'Pending Approval' ? (
+                    permissions.approveResolution && <Button variant="default" size="sm" className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
+                  ) : issue.assignedTo ? (
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><UserPlus className="h-3.5 w-3.5 text-primary" /></div>
+                        <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
+                    </div>
+                  ) : (
+                    permissions.assignTask && <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2" onClick={() => handleOpenAssignDialog(issue.id)}><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign</Button>
+                  )}
+                </div>
+                <div className="flex gap-1 items-center">
+                  {(issue.status as string) === 'Resolved' && permissions.assignTask && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0" onClick={() => handleArchiveIssue(issue.id)}><FolderArchive className="h-4 w-4" /></Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Archive Issue</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  {permissions.assignTask && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDelete(issue.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Delete Issue</p></TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+    );
+  };
+
   return (
     <DashboardShell 
-      title="Active Issues" 
+      title="Issues Management" 
       description="Track and resolve park infrastructure problems"
       actions={
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -321,105 +450,48 @@ export default function IssuesPage() {
         </Dialog>
       }
     >
-      {issuesLoading ? (
-        <div className="flex justify-center items-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-      ) : issues.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
-          <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
-          <p className="font-bold">No active issues found</p>
-          <p className="text-xs">All reported problems are currently resolved or closed.</p>
-        </div>
-      ) : (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {filteredIssues.map((issue) => (
-            <Card key={issue.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-2 w-full">
-                <div className={`h-1.5 w-full shrink-0 ${(issue.priority as string) === 'Emergency' ? 'bg-destructive' : (issue.priority as string) === 'High' ? 'bg-yellow-500' : (issue.priority as string) === 'Medium' ? 'bg-accent' : 'bg-primary'}`} />
-              
-              {issue.imageUrl && (
-                <div className="relative w-full h-48 bg-muted shrink-0">
-                  <Image src={issue.imageUrl} alt={issue.title} fill className="object-cover" />
-                </div>
-              )}
+      <Tabs defaultValue={isOperative ? "assigned" : "unassigned"} className="w-full">
+        <TabsList className="mb-6">
+          {!isOperative && (
+            <TabsTrigger value="unassigned" className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" /> Unassigned
+              {unassignedIssues.length > 0 && <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">{unassignedIssues.length}</span>}
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="assigned" className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4" /> Actively Working
+            {assignedIssues.length > 0 && <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">{assignedIssues.length}</span>}
+          </TabsTrigger>
+          <TabsTrigger value="resolved" className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Resolved</TabsTrigger>
+          {!isOperative && <TabsTrigger value="archived" className="flex items-center gap-2"><FolderArchive className="h-4 w-4" /> Archive Log</TabsTrigger>}
+        </TabsList>
 
-              <CardHeader className="pb-2 px-4 sm:px-6">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground shrink-0">{issue.category}</Badge>
-                    <div className="flex items-center gap-1 text-[9px] text-primary font-bold shrink-0"><MapPin className="h-3 w-3" />{issue.park}</div>
-                  </div>
-                  <Badge className={`${(issue.status as string) === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' : (issue.status as string) === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' : (issue.status as string) === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse' : 'bg-green-500/10 text-green-600 border-green-200'} font-bold text-[9px] shrink-0 uppercase tracking-tighter`}>{issue.status}</Badge>
-                </div>
-                <CardTitle className="font-headline text-lg sm:text-xl break-words">{issue.title}</CardTitle>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
-                  <Clock className="h-3 w-3" />
-                  <span>Reported {new Date(issue.createdAt).toLocaleDateString()} by {issue.reportedBy}</span>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 pb-4 px-4 sm:px-6">
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 break-words">{issue.description}</p>
-                {(issue.status as string) === 'Pending Approval' && (
-                  <div className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/20 flex flex-col gap-3">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-accent-foreground shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold text-accent-foreground">Work Completed</p>
-                        <p className="text-[10px] text-muted-foreground">Operative has submitted completion proof. Please review and approve.</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full text-[10px] font-bold h-8 uppercase border-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedIssueForProof(issue);
-                        setIsProofDialogOpen(true);
-                      }}
-                    >
-                      <Eye className="mr-1.5 h-3.5 w-3.5" /> View Proof
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="border-t bg-muted/20 p-4 flex flex-wrap justify-between items-center mt-auto gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  {(issue.status as string) === 'Pending Approval' ? (
-                    !isOperative && <Button variant="default" size="sm" className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
-                  ) : issue.assignedTo ? (
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><UserPlus className="h-3.5 w-3.5 text-primary" /></div>
-                        <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
-                    </div>
-                  ) : (
-                    !isOperative && <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2" onClick={() => handleOpenAssignDialog(issue.id)}><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign</Button>
-                  )}
-                </div>
-                {!isOperative && (
-                  <div className="flex gap-1">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDelete(issue.id)}><Trash2 className="h-4 w-4" /></Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Delete Issue</p></TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
+        <TabsContent value="unassigned">
+          {renderIssueList(unassignedIssues, issuesLoading)}
+        </TabsContent>
 
-      {issues.length >= issueLimit && !issuesLoading && (
-        <div className="flex justify-center pt-6 pb-2">
-          <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setIssueLimit(p => p + 25)}>
-            Load More Issues
-          </Button>
-        </div>
-      )}
+        <TabsContent value="assigned">
+          {renderIssueList(assignedIssues, issuesLoading)}
+        </TabsContent>
 
+        <TabsContent value="resolved">
+          {renderIssueList(resolvedIssues, resolvedLoading)}
+          {resolvedIssuesRaw.length >= resolvedLimit && !resolvedLoading && (
+            <div className="flex justify-center pt-6 pb-2">
+              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setResolvedLimit(p => p + 25)}>Load More Resolved</Button>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="archived">
+          {renderIssueList(archivedIssues, archivedLoading)}
+          {archivedIssuesRaw.length >= archivedLimit && !archivedLoading && (
+            <div className="flex justify-center pt-6 pb-2">
+              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setArchivedLimit(p => p + 25)}>Load More Archives</Button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">

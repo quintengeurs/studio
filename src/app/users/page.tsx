@@ -359,6 +359,16 @@ export default function UserManagement() {
     }
   };
 
+  const handleRestore = async (id: string) => {
+    if (!db) return;
+    try {
+        await updateDoc(doc(db, "users", id), { isArchived: false });
+        toast({ title: "Staff Restored", description: "User has been successfully un-archived." });
+    } catch (e: any) {
+        toast({ title: "Error", description: "Failed to restore user.", variant: "destructive" });
+    }
+  };
+
   const performPermanentDelete = async () => {
     if (!db || !selectedUser || isUserSubmitting) return;
 
@@ -477,6 +487,7 @@ export default function UserManagement() {
         <TabsList className="mb-6 bg-muted/50 border">
           <TabsTrigger value="registry" className="font-bold">User Registry</TabsTrigger>
           <TabsTrigger value="permissions" className="font-bold">Access Permissions</TabsTrigger>
+          <TabsTrigger value="archived" className="font-bold">Archived Staff</TabsTrigger>
         </TabsList>
         <TabsContent value="registry" className="mt-0 space-y-0">
           <div className="grid gap-6 md:grid-cols-4 mb-8">
@@ -632,6 +643,58 @@ export default function UserManagement() {
         </TabsContent>
         <TabsContent value="permissions" className="mt-0 pt-2">
           <PermissionsMatrix users={users.filter(u => !u.isArchived)} />
+        </TabsContent>
+        <TabsContent value="archived" className="mt-0 pt-2">
+          <Card className="overflow-hidden border-2 mb-6 shadow-sm">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-headline font-bold text-xs">Profile</TableHead>
+                    <TableHead className="font-headline font-bold text-xs">Legacy Role/Depot</TableHead>
+                    <TableHead className="font-headline font-bold text-xs">Archived Status</TableHead>
+                    <TableHead className="text-right text-xs">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-10"><Clock className="animate-spin h-6 w-6 mx-auto text-primary" /></TableCell></TableRow>
+                  ) : users.filter(u => u.isArchived).length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground"><p className="font-bold">No Archived Staff</p></TableCell></TableRow>
+                  ) : (
+                    users.filter(u => u.isArchived).map((user) => (
+                      <TableRow key={user.id} className="hover:bg-accent/5 transition-colors cursor-pointer opacity-50 grayscale hover:grayscale-0" onClick={() => handleEditClick(user)}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border-2 border-primary/10">
+                              <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col min-w-0">
+                              <div className="font-bold text-sm truncate">{user.name}</div>
+                              <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {user.email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">{(user.roles || []).map((r, i) => <Badge key={i} className="font-bold text-[9px] uppercase" variant="outline">{r}</Badge>)}</div>
+                          <span className="text-[10px] font-bold text-muted-foreground mt-1 block">{user.depots?.length ? user.depots.join(', ') : (user.depot || 'No Depot')}</span>
+                        </TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs uppercase font-bold text-muted-foreground bg-muted/20">Archived</Badge></TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={(e) => {
+                            e.stopPropagation();
+                            handleRestore(user.id);
+                          }}>
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
         </TabsContent>
       </Tabs>
 
