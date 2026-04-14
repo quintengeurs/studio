@@ -433,6 +433,19 @@ export default function Dashboard() {
         <Button 
           variant="outline" 
           className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+          onClick={() => setLogWorkModalOpen(true)}
+        >
+          <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
+            <ClipboardList className="h-5 w-5 text-accent-foreground" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-bold">Log Ad-Hoc Work</div>
+            <div className="text-[10px] text-muted-foreground uppercase font-bold">Report completed task</div>
+          </div>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
           onClick={() => setRequestModalOpen(true)}
         >
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
