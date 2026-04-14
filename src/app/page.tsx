@@ -12,7 +12,10 @@ import {
   Clock,
   Package,
   PlusCircle,
-  ClipboardList
+  ClipboardList,
+  ListTodo,
+  ClipboardCheck,
+  Building2
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -187,39 +190,77 @@ export default function Dashboard() {
         <div className="flex flex-col gap-6 pb-20">
           
           {/* Quick Actions - Hidden for Contractors */}
+          {/* Quick Actions Sections */}
           {!isContractor && (
-            <div className="grid grid-cols-2 gap-3">
-              <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                <Link href="/issues">
-                  <AlertTriangle className="h-6 w-6 text-destructive" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
-                </Link>
-              </Button>
-              {isStandard || isKeeper ? (
-                <Button 
-                  variant="outline" 
-                  className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                  onClick={() => setLogWorkModalOpen(true)}
-                >
-                  <ClipboardList className="h-6 w-6 text-accent-foreground" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Log Work</span>
-                </Button>
-              ) : isManagement || isAdmin ? (
-                <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                  <Link href="/tasks">
+            <div className="space-y-6">
+              {/* Operations Section */}
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Operational Checks</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                    <Link href="/my-tasks">
+                      <ListTodo className="h-6 w-6 text-primary" />
+                      <span className="text-xs font-bold uppercase tracking-wider">My Tasks</span>
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                    <Link href="/inspections">
+                      <ClipboardCheck className="h-6 w-6 text-green-600" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Inspections</span>
+                    </Link>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col gap-2 justify-center col-span-2 border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                    onClick={() => setLogWorkModalOpen(true)}
+                  >
                     <ClipboardList className="h-6 w-6 text-accent-foreground" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Create Task</span>
-                  </Link>
-                </Button>
-              ) : null}
-              <Button 
-                variant="outline" 
-                className="h-20 flex flex-col gap-2 justify-center col-span-2 border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                onClick={() => setRequestModalOpen(true)}
-              >
-                <Package className="h-6 w-6 text-primary" />
-                <span className="text-xs font-bold uppercase tracking-wider">Request Something</span>
-              </Button>
+                    <span className="text-xs font-bold uppercase tracking-wider">Log Ad-Hoc Work</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Management Section - Visible to Area Managers & Admin */}
+              {(isManagement || isAdmin) && (
+                <div className="space-y-3 animate-in slide-in-from-left-2 duration-300">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Management Tools</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                      <Link href="/tasks">
+                        <ClipboardList className="h-6 w-6 text-accent-foreground" />
+                        <span className="text-xs font-bold uppercase tracking-wider">All Tasks</span>
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                      <Link href="/assets">
+                        <MapPin className="h-6 w-6 text-blue-600" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Assets Register</span>
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Main Actions Section */}
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Requests & Issues</span>
+                <div className="grid grid-cols-2 gap-3">
+                   <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                    <Link href="/issues">
+                      <AlertTriangle className="h-6 w-6 text-destructive" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
+                    </Link>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                    onClick={() => setRequestModalOpen(true)}
+                  >
+                    <Package className="h-6 w-6 text-primary" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Request Help</span>
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -359,6 +400,90 @@ export default function Dashboard() {
       title="My Workspace" 
       description="Overview of your assigned tasks, issues, and requests"
     >
+      <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Quick Access Groups for Desktop */}
+        <div className="col-span-full mb-2">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+               <TrendingUp className="h-3 w-3" /> Quick Access
+            </h3>
+        </div>
+        
+        <Link href="/my-tasks" className="block">
+          <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <ListTodo className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold">My Tasks</div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold">Current Assignments</div>
+            </div>
+          </Button>
+        </Link>
+        <Link href="/inspections" className="block">
+          <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+            <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <ClipboardCheck className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold">Inspections Tracker</div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold">Safety Checks</div>
+            </div>
+          </Button>
+        </Link>
+        <Button 
+          variant="outline" 
+          className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+          onClick={() => setRequestModalOpen(true)}
+        >
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Package className="h-5 w-5 text-primary" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-bold">Request Something</div>
+            <div className="text-[10px] text-muted-foreground uppercase font-bold">Materials & Help</div>
+          </div>
+        </Button>
+         <Link href="/issues" className="block">
+          <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+            <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold">Raise an Issue</div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold">Report Maintenance</div>
+            </div>
+          </Button>
+        </Link>
+
+        {/* Management Quick Access */}
+        {(isManagement || isAdmin) && (
+          <>
+            <Link href="/tasks" className="block">
+              <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                <div className="h-10 w-10 rounded-lg bg-accent/20 flex items-center justify-center">
+                  <ClipboardList className="h-5 w-5 text-accent-foreground" />
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-bold">All Tasks Hub</div>
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold">Management Overview</div>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/assets" className="block">
+              <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-bold">Asset Register</div>
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
+                </div>
+              </Button>
+            </Link>
+          </>
+        )}
+      </div>
+
       {!isContractor && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Link href="/tasks" className="block">

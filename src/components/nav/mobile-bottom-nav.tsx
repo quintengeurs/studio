@@ -14,11 +14,6 @@ import { getDefaultPermissionsForUser } from "@/lib/permissions";
 
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
-  { title: "All Tasks", icon: ClipboardList, href: "/tasks" },
-  { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
-  { title: "Issues", icon: AlertTriangle, href: "/issues" },
-  { title: "Assets", icon: MapPin, href: "/assets" },
   { title: "Parks", icon: MapPin, href: "/parks" },
   { title: "Depots", icon: Building2, href: "/depots" },
 ];
