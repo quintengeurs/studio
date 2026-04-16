@@ -66,6 +66,8 @@ export interface Asset {
   lastInspected: string;
   inspectionNotes?: string;
   customChecks?: string[];
+  expectedLifespan?: number | string;
+  isArchived?: boolean;
 }
 
 export interface Issue {

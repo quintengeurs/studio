@@ -84,7 +84,7 @@ export default function AssetRegister() {
   const [assetLimit, setAssetLimit] = useState(25);
   const assetsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "assets"), limit(assetLimit));
+    return query(collection(db, "assets"), where("isArchived", "==", false), limit(assetLimit));
   }, [db, assetLimit]);
   const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery as any);
 
@@ -114,6 +114,8 @@ export default function AssetRegister() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingRegimeId, setEditingRegimeId] = useState<string | null>(null);
+  const [tempRegime, setTempRegime] = useState<{ frequency: Frequency, dueDate: string }>({ frequency: 'Monthly', dueDate: '' });
   
   const [newAsset, setNewAsset] = useState({
     name: '',
@@ -121,6 +123,7 @@ export default function AssetRegister() {
     park: '',
     location: '',
     condition: 'Excellent' as const,
+    expectedLifespan: '',
     setupInspection: false,
     inspectionFrequency: 'Monthly' as Frequency,
     inspectionStartDate: format(new Date(), 'yyyy-MM-dd'),
@@ -159,6 +162,8 @@ export default function AssetRegister() {
       park: newAsset.park,
       location: newAsset.location,
       condition: newAsset.condition,
+      expectedLifespan: newAsset.expectedLifespan,
+      isArchived: false,
       lastInspected: 'Never'
     };
 
@@ -194,6 +199,7 @@ export default function AssetRegister() {
         park: '', 
         location: '', 
         condition: 'Excellent', 
+        expectedLifespan: '',
         setupInspection: false,
         inspectionFrequency: 'Monthly',
         inspectionStartDate: format(new Date(), 'yyyy-MM-dd'),
@@ -201,8 +207,6 @@ export default function AssetRegister() {
         customChecks: []
       });
       toast({ title: "Asset Added", description: `${assetData.name} registered successfully.` });
-    } catch (error) {
-      toast({ title: "Error", description: "An error occurred while adding the asset.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -217,6 +221,45 @@ export default function AssetRegister() {
       toast({ title: "Asset Updated", description: "Changes saved successfully." });
     } catch (error) {
       toast({ title: "Error", description: "An error occurred while updating the asset.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleArchiveAsset = async () => {
+    if (!db || !selectedAsset || isSubmitting) return;
+    if (!confirm(`Are you sure you want to archive ${selectedAsset.name}? This will remove it from the active register.`)) return;
+    
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, "assets", selectedAsset.id), { isArchived: true });
+      
+      // Cancel pending inspections
+      const pendingInspections = allInspections.filter(i => i.assetId === selectedAsset.id && i.status === 'Pending');
+      for (const insp of pendingInspections) {
+        await deleteDoc(doc(db, "inspections", insp.id));
+      }
+
+      setIsDetailsDialogOpen(false);
+      toast({ title: "Asset Archived", description: "Asset and upcoming inspections removed." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to archive asset.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateRegime = async (inspectionId: string, newFrequency: Frequency, newDueDate: string) => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, "inspections", inspectionId), { 
+        frequency: newFrequency,
+        dueDate: newDueDate
+      });
+      toast({ title: "Schedule Updated", description: "The inspection regime has been modified." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update schedule.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -272,6 +315,14 @@ export default function AssetRegister() {
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Sports and Leisure">Sports and Leisure</SelectItem>
+                        <SelectItem value="Planting">Planting</SelectItem>
+                        <SelectItem value="Trees">Trees</SelectItem>
+                        <SelectItem value="Electrical">Electrical</SelectItem>
+                        <SelectItem value="Water and drainage">Water and drainage</SelectItem>
+                        <SelectItem value="Bins and litter">Bins and litter</SelectItem>
+                        <SelectItem value="H&S">H&S</SelectItem>
+                        <SelectItem value="Toilet">Toilet</SelectItem>
                         <SelectItem value="Playground Equipment">Playground Equipment</SelectItem>
                         <SelectItem value="Park Furniture">Park Furniture</SelectItem>
                         <SelectItem value="Lighting">Lighting</SelectItem>
@@ -290,6 +341,28 @@ export default function AssetRegister() {
                         {parks.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Condition</Label>
+                    <Select value={newAsset.condition} onValueChange={(v: any) => setNewAsset({...newAsset, condition: v})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Excellent">Excellent</SelectItem>
+                        <SelectItem value="Good">Good</SelectItem>
+                        <SelectItem value="Fair">Fair</SelectItem>
+                        <SelectItem value="Poor">Poor</SelectItem>
+                        <SelectItem value="Critical">Critical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Expected Life Span (Years)</Label>
+                    <Input type="number" value={newAsset.expectedLifespan} onChange={e => setNewAsset({...newAsset, expectedLifespan: e.target.value})} placeholder="e.g. 15" />
                   </div>
                 </div>
                 
@@ -560,10 +633,24 @@ export default function AssetRegister() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Expected Life Span (Years)</Label>
+                        <Input 
+                          type="number"
+                          value={selectedAsset?.expectedLifespan} 
+                          onChange={e => selectedAsset && setSelectedAsset({...selectedAsset, expectedLifespan: e.target.value})} 
+                          className="font-medium"
+                        />
+                      </div>
                     </div>
-                    <Button onClick={handleUpdateAsset} className="w-full font-bold" disabled={isSubmitting}>
-                      {isSubmitting ? "Saving Changes..." : "Save Asset Changes"}
+                    <div className="flex gap-4">
+                      <Button onClick={handleUpdateAsset} className="flex-1 font-bold" disabled={isSubmitting}>
+                        {isSubmitting ? "Saving Changes..." : "Save Asset Changes"}
                       </Button>
+                      <Button onClick={handleArchiveAsset} variant="destructive" className="font-bold px-6" disabled={isSubmitting}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Archive Asset
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid gap-6">
@@ -581,6 +668,13 @@ export default function AssetRegister() {
                           <h4 className="text-[10px] font-bold uppercase tracking-widest">Asset Category</h4>
                         </div>
                         <p className="text-lg font-bold font-headline">{selectedAsset?.type}</p>
+                      </div>
+                      <div className="p-4 border rounded-lg bg-card shadow-sm">
+                        <div className="flex items-center gap-2 text-primary mb-2">
+                          <History className="h-4 w-4" />
+                          <h4 className="text-[10px] font-bold uppercase tracking-widest">Expected Life Span</h4>
+                        </div>
+                        <p className="text-lg font-bold font-headline">{selectedAsset?.expectedLifespan || 'Not Set'} <span className="text-xs font-normal text-muted-foreground uppercase ml-1">Years</span></p>
                       </div>
                     </div>
 
@@ -611,22 +705,60 @@ export default function AssetRegister() {
                   {assetInspections.filter(i => i.status === 'Pending').length > 0 ? (
                     <div className="space-y-3">
                       {assetInspections.filter(i => i.status === 'Pending').map(insp => (
-                        <div key={insp.id} className="p-3 border rounded-md flex items-center justify-between group hover:border-primary/40 transition-colors bg-primary/5">
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold">Safety Check (Due: {insp.dueDate})</span>
-                            <span className="text-[10px] text-muted-foreground uppercase">{insp.frequency || 'One-off'} Schedule</span>
-                          </div>
-                          {isAdmin && (
-                            <div className="flex gap-1">
-                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={async (e) => {
-                                 e.stopPropagation();
-                                 if (db && confirm('Delete this scheduled inspection?')) {
-                                   await deleteDoc(doc(db, "inspections", insp.id));
-                                   toast({ title: "Inspection Canceled" });
-                                 }
-                               }}>
-                                 <Trash2 className="h-3.5 w-3.5" />
-                               </Button>
+                        <div key={insp.id} className="p-3 border rounded-md group hover:border-primary/40 transition-colors bg-primary/5">
+                          {editingRegimeId === insp.id ? (
+                            <div className="space-y-3 animate-in fade-in duration-200">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="grid gap-1">
+                                  <Label className="text-[9px] font-bold uppercase tracking-widest opacity-70">Frequency</Label>
+                                  <Select value={tempRegime.frequency} onValueChange={(v: Frequency) => setTempRegime({...tempRegime, frequency: v})}>
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Weekly">Weekly</SelectItem>
+                                      <SelectItem value="Monthly">Monthly</SelectItem>
+                                      <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                                      <SelectItem value="Yearly">Yearly</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="grid gap-1">
+                                  <Label className="text-[9px] font-bold uppercase tracking-widest opacity-70">Next Due Date</Label>
+                                  <Input type="date" value={tempRegime.dueDate} onChange={e => setTempRegime({...tempRegime, dueDate: e.target.value})} className="h-8 text-xs" />
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" className="h-7 text-[10px] font-bold flex-1" onClick={() => {
+                                  handleUpdateRegime(insp.id, tempRegime.frequency, tempRegime.dueDate);
+                                  setEditingRegimeId(null);
+                                }}>Save Schedule</Button>
+                                <Button size="sm" variant="ghost" className="h-7 text-[10px] font-bold" onClick={() => setEditingRegimeId(null)}>Cancel</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold">Safety Check (Due: {insp.dueDate})</span>
+                                <span className="text-[10px] text-muted-foreground uppercase">{insp.frequency || 'One-off'} Schedule</span>
+                              </div>
+                              <div className="flex gap-1">
+                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => {
+                                   setEditingRegimeId(insp.id);
+                                   setTempRegime({ frequency: insp.frequency || 'Monthly', dueDate: insp.dueDate });
+                                 }}>
+                                   <Edit2 className="h-3.5 w-3.5" />
+                                 </Button>
+                                 {isAdmin && (
+                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={async (e) => {
+                                     e.stopPropagation();
+                                     if (db && confirm('Delete this scheduled inspection?')) {
+                                       await deleteDoc(doc(db, "inspections", insp.id));
+                                       toast({ title: "Inspection Canceled" });
+                                     }
+                                   }}>
+                                     <Trash2 className="h-3.5 w-3.5" />
+                                   </Button>
+                                 )}
+                              </div>
                             </div>
                           )}
                         </div>
