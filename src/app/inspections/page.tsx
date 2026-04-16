@@ -403,107 +403,109 @@ export default function InspectionsPage() {
               <Plus className="mr-2 h-4 w-4" /> Schedule Inspection
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[450px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[450px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="p-6 pb-2 border-b">
               <DialogTitle className="font-headline">Schedule New Inspection</DialogTitle>
               <DialogDescription>Assign a condition check for a specific asset.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
-                <div className="border rounded-xl bg-muted/10 overflow-hidden">
-                  <ScrollArea className="h-[150px] p-3">
-                    {Array.from(new Set(assets.map(a => a.park))).sort().map(park => (
-                      <div key={park} className="mb-4">
-                        <h4 className="text-[10px] font-bold uppercase text-primary mb-2 border-b border-primary/10 pb-1">{park}</h4>
-                        <div className="grid gap-2">
-                          {assets.filter(a => a.park === park).map(asset => (
-                            <div key={asset.id} className="flex items-center gap-2">
+            <ScrollArea className="flex-1 p-6">
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
+                  <div className="border rounded-xl bg-muted/10 overflow-hidden">
+                    <ScrollArea className="h-[150px] p-3">
+                      {Array.from(new Set(assets.map(a => a.park))).sort().map(park => (
+                        <div key={park} className="mb-4">
+                          <h4 className="text-[10px] font-bold uppercase text-primary mb-2 border-b border-primary/10 pb-1">{park}</h4>
+                          <div className="grid gap-2">
+                            {assets.filter(a => a.park === park).map(asset => (
+                              <div key={asset.id} className="flex items-center gap-2">
+                                <Checkbox 
+                                  id={`asset-${asset.id}`} 
+                                  checked={selectedAssetIds.includes(asset.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) setSelectedAssetIds(prev => [...prev, asset.id]);
+                                    else setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
+                                  }}
+                                />
+                                <Label htmlFor={`asset-${asset.id}`} className="text-xs font-medium cursor-pointer">{asset.name}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Bespoke Schedule</span>
+                    <span className="text-[10px] text-muted-foreground">Custom days and date range</span>
+                  </div>
+                  <Switch checked={newInspection.isBespoke} onCheckedChange={(v: boolean) => setNewInspection({...newInspection, isBespoke: v})} />
+                </div>
+
+                {newInspection.isBespoke ? (
+                  <div className="p-4 border-2 border-primary/20 rounded-2xl bg-primary/5 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Start Date</Label>
+                        <Input type="date" value={newInspection.startDate} onChange={e => setNewInspection({...newInspection, startDate: e.target.value})} className="h-9" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">End Date (Optional)</Label>
+                        <Input type="date" value={newInspection.endDate} onChange={e => setNewInspection({...newInspection, endDate: e.target.value})} className="h-9" />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Frequency: Repeat Every</Label>
+                      <div className="flex flex-wrap gap-3 pt-1">
+                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+                          const dayValue = (idx + 1) % 7;
+                          return (
+                            <div key={idx} className="flex flex-col items-center gap-1">
                               <Checkbox 
-                                id={`asset-${asset.id}`} 
-                                checked={selectedAssetIds.includes(asset.id)}
+                                checked={newInspection.daysOfWeek.includes(dayValue)}
                                 onCheckedChange={(checked) => {
-                                  if (checked) setSelectedAssetIds(prev => [...prev, asset.id]);
-                                  else setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
+                                  if (checked) setNewInspection(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, dayValue] }));
+                                  else setNewInspection(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== dayValue) }));
                                 }}
                               />
-                              <Label htmlFor={`asset-${asset.id}`} className="text-xs font-medium cursor-pointer">{asset.name}</Label>
+                              <span className="text-[9px] font-bold opacity-60">{day}</span>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </ScrollArea>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Bespoke Schedule</span>
-                  <span className="text-[10px] text-muted-foreground">Custom days and date range</span>
-                </div>
-                <Switch checked={newInspection.isBespoke} onCheckedChange={(v: boolean) => setNewInspection({...newInspection, isBespoke: v})} />
-              </div>
-
-              {newInspection.isBespoke ? (
-                <div className="p-4 border-2 border-primary/20 rounded-2xl bg-primary/5 space-y-4">
+                    </div>
+                  </div>
+                ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Start Date</Label>
-                      <Input type="date" value={newInspection.startDate} onChange={e => setNewInspection({...newInspection, startDate: e.target.value})} className="h-9" />
+                      <Label htmlFor="i-date" className="text-[10px] font-bold uppercase tracking-widest opacity-60">Due Date</Label>
+                      <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} className="h-11 shadow-sm" />
                     </div>
                     <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">End Date (Optional)</Label>
-                      <Input type="date" value={newInspection.endDate} onChange={e => setNewInspection({...newInspection, endDate: e.target.value})} className="h-9" />
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Frequency</Label>
+                      <Select value={newInspection.frequency} onValueChange={(v: Frequency) => setNewInspection({...newInspection, frequency: v})}>
+                        <SelectTrigger className="h-11 shadow-sm">
+                          <SelectValue placeholder="Select Frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="One-off">One-off</SelectItem>
+                          <SelectItem value="Weekly">Weekly</SelectItem>
+                          <SelectItem value="Monthly">Monthly</SelectItem>
+                          <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                          <SelectItem value="Yearly">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Frequency: Repeat Every</Label>
-                    <div className="flex flex-wrap gap-3 pt-1">
-                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
-                        const dayValue = (idx + 1) % 7;
-                        return (
-                          <div key={idx} className="flex flex-col items-center gap-1">
-                            <Checkbox 
-                              checked={newInspection.daysOfWeek.includes(dayValue)}
-                              onCheckedChange={(checked) => {
-                                if (checked) setNewInspection(prev => ({ ...prev, daysOfWeek: [...prev.daysOfWeek, dayValue] }));
-                                else setNewInspection(prev => ({ ...prev, daysOfWeek: prev.daysOfWeek.filter(d => d !== dayValue) }));
-                              }}
-                            />
-                            <span className="text-[9px] font-bold opacity-60">{day}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="i-date" className="text-[10px] font-bold uppercase tracking-widest opacity-60">Due Date</Label>
-                    <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} className="h-11 shadow-sm" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Frequency</Label>
-                    <Select value={newInspection.frequency} onValueChange={(v: Frequency) => setNewInspection({...newInspection, frequency: v})}>
-                      <SelectTrigger className="h-11 shadow-sm">
-                        <SelectValue placeholder="Select Frequency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="One-off">One-off</SelectItem>
-                        <SelectItem value="Weekly">Weekly</SelectItem>
-                        <SelectItem value="Monthly">Monthly</SelectItem>
-                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                        <SelectItem value="Yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button className="w-full" onClick={handleScheduleInspection} disabled={!newInspection.assetId || isSubmitting}>
+                )}
+              </div>
+            </ScrollArea>
+            <DialogFooter className="p-6 border-t bg-muted/50">
+              <Button className="w-full" onClick={handleScheduleInspection} disabled={(!newInspection.assetId && selectedAssetIds.length === 0) || isSubmitting}>
                 {isSubmitting ? "Scheduling..." : "Complete Schedule"}
               </Button>
             </DialogFooter>
@@ -752,46 +754,47 @@ export default function InspectionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Inspection Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[450px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[450px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2 border-b">
             <DialogTitle className="font-headline">Edit Scheduled Inspection</DialogTitle>
             <DialogDescription>Modify the due date or frequency for: {editingInspection?.assetName}</DialogDescription>
           </DialogHeader>
-          {editingInspection && (
-            <div className="grid gap-6 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Due Date</Label>
-                  <Input 
-                    type="date" 
-                    value={editingInspection.dueDate} 
-                    onChange={e => setEditingInspection({...editingInspection, dueDate: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Frequency</Label>
-                  <Select 
-                    value={editingInspection.frequency || "One-off"} 
-                    onValueChange={(v: Frequency) => setEditingInspection({...editingInspection, frequency: v === 'One-off' ? undefined : v})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="One-off">One-off</SelectItem>
-                      <SelectItem value="Weekly">Weekly</SelectItem>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                      <SelectItem value="Yearly">Yearly</SelectItem>
-                    </SelectContent>
-                  </Select>
+          <ScrollArea className="flex-1 p-6">
+            {editingInspection && (
+              <div className="grid gap-6 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Due Date</Label>
+                    <Input 
+                      type="date" 
+                      value={editingInspection.dueDate} 
+                      onChange={e => setEditingInspection({...editingInspection, dueDate: e.target.value})} 
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Frequency</Label>
+                    <Select 
+                      value={editingInspection.frequency || "One-off"} 
+                      onValueChange={(v: Frequency) => setEditingInspection({...editingInspection, frequency: v === 'One-off' ? undefined : v})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="One-off">One-off</SelectItem>
+                        <SelectItem value="Weekly">Weekly</SelectItem>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                        <SelectItem value="Yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-          <DialogFooter>
+            )}
+          </ScrollArea>
+          <DialogFooter className="p-6 border-t bg-muted/50">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
             <Button className="font-bold" onClick={handleUpdateInspection} disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Save Changes"}

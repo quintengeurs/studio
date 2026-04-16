@@ -296,12 +296,12 @@ export default function AssetRegister() {
               <Plus className="mr-2 h-4 w-4" /> Add Asset
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="p-6 pb-2 border-b">
               <DialogTitle className="font-headline">Add New Asset</DialogTitle>
               <DialogDescription>Register a new piece of infrastructure.</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[80vh] px-1">
+            <ScrollArea className="flex-1 p-6">
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label>Asset Name</Label>
@@ -461,7 +461,7 @@ export default function AssetRegister() {
                 </div>
               </div>
             </ScrollArea>
-            <DialogFooter>
+            <DialogFooter className="p-6 border-t bg-muted/50">
               <Button className="w-full" onClick={handleAddAsset} disabled={!newAsset.name || !newAsset.park || isSubmitting}>
                 {isSubmitting ? "Adding Asset..." : "Complete Registration"}
               </Button>
