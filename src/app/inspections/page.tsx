@@ -161,8 +161,11 @@ export default function InspectionsPage() {
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: "",
     daysOfWeek: [] as number[],
-    isBespoke: false
+    isBespoke: false,
+    assetNotes: "",
+    customChecks: [] as string[]
   });
+  const [newCustomCheck, setNewCustomCheck] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
   const [inspectionResults, setInspectionResults] = useState<{ 
@@ -199,7 +202,9 @@ export default function InspectionsPage() {
             isBespoke: true,
             startDate: newInspection.startDate,
             endDate: newInspection.endDate,
-            daysOfWeek: newInspection.daysOfWeek
+            daysOfWeek: newInspection.daysOfWeek,
+            assetNotes: newInspection.assetNotes,
+            customChecks: newInspection.customChecks
           })
         };
         await addDoc(collection(db, "inspections"), inspectionData);
@@ -209,8 +214,9 @@ export default function InspectionsPage() {
       setNewInspection({ 
         assetId: "", frequency: "One-off", dueDate: format(new Date(), 'yyyy-MM-dd'),
         startDate: format(new Date(), 'yyyy-MM-dd'), endDate: "",
-        daysOfWeek: [], isBespoke: false 
+        daysOfWeek: [], isBespoke: false, assetNotes: "", customChecks: []
       });
+      setNewCustomCheck("");
       setSelectedAssetIds([]);
       toast({ 
         title: "Inspections Scheduled", 
@@ -476,6 +482,61 @@ export default function InspectionsPage() {
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Specific Inspection Notes</Label>
+                      <Textarea 
+                        placeholder="e.g. Check the playground for needles or sharp objects." 
+                        value={newInspection.assetNotes} 
+                        onChange={e => setNewInspection({...newInspection, assetNotes: e.target.value})}
+                        className="text-xs min-h-[60px]"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Additional Custom Checks</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Add a specific check..." 
+                          value={newCustomCheck} 
+                          onChange={e => setNewCustomCheck(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (newCustomCheck.trim()) {
+                                setNewInspection(prev => ({...prev, customChecks: [...prev.customChecks, newCustomCheck.trim()]}));
+                                setNewCustomCheck("");
+                              }
+                            }
+                          }}
+                          className="h-9 text-xs"
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-9 w-9 p-0"
+                          onClick={() => {
+                            if (newCustomCheck.trim()) {
+                              setNewInspection(prev => ({...prev, customChecks: [...prev.customChecks, newCustomCheck.trim()]}));
+                              setNewCustomCheck("");
+                            }
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {newInspection.customChecks.map((check, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-[9px] py-0 px-2 flex items-center gap-1 group">
+                            {check}
+                            <X 
+                              className="h-3 w-3 cursor-pointer opacity-50 hover:opacity-100" 
+                              onClick={() => setNewInspection(prev => ({...prev, customChecks: prev.customChecks.filter((_, i) => i !== idx)}))} 
+                            />
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   </div>
