@@ -19,7 +19,8 @@ import {
   Edit2,
   Camera,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
@@ -39,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { User, Frequency, Inspection, Asset, OPERATIVE_ROLES } from "@/lib/types";
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
