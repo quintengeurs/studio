@@ -9,7 +9,7 @@ export const OPERATIONAL_MGMT_ROLES: Role[] = ['Head Gardener', 'Area Manager', 
 
 export interface AssignedRole {
   role: Role;
-  depotId: string;
+  depotIds: string[];
 }
 
 export interface AccessPermissions {

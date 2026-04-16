@@ -186,7 +186,7 @@ export default function UserManagement() {
     isArchived: false,
     allowDesktopView: true,
     password: '',
-    assignedRoles: [{ role: 'Gardener', depotId: '' }]
+    assignedRoles: [{ role: 'Gardener', depotIds: [] }]
   });
 
   const filteredUsers = useMemo(() => {
@@ -283,8 +283,8 @@ export default function UserManagement() {
         name: newUser.name || "Unknown User",
         email: userEmail,
         training: trainingString,
-        depots: newUser.assignedRoles?.map(ar => ar.depotId).filter(Boolean) || (newUser.depot ? [newUser.depot] : []),
-        depot: newUser.assignedRoles?.[0]?.depotId || newUser.depot || "",
+        depots: Array.from(new Set(newUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
+        depot: newUser.assignedRoles?.[0]?.depotIds?.[0] || "",
         isArchived: false,
         roles: newUser.assignedRoles?.map(ar => ar.role) || newUser.roles || [],
         assignedRoles: newUser.assignedRoles || [],
@@ -306,7 +306,7 @@ export default function UserManagement() {
         setNewUser({ 
           name: '', email: '', roles: ['Gardener'], depot: '', depots: [], 
           training: '', avatar: '', isArchived: false, password: '',
-          assignedRoles: [{ role: 'Gardener', depotId: '' }]
+          assignedRoles: [{ role: 'Gardener', depotIds: [] }]
         });
         setSelectedTrainings([]);
     } catch (e: any) {
@@ -326,8 +326,8 @@ export default function UserManagement() {
       ...selectedUser,
       training: trainingString,
       roles: selectedUser.assignedRoles?.map(ar => ar.role) || selectedUser.roles || [],
-      depots: selectedUser.assignedRoles?.map(ar => ar.depotId).filter(Boolean) || (selectedUser.depot ? [selectedUser.depot] : []),
-      depot: selectedUser.assignedRoles?.[0]?.depotId || selectedUser.depot || ""
+      depots: Array.from(new Set(selectedUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
+      depot: selectedUser.assignedRoles?.[0]?.depotIds?.[0] || ""
     };
 
     try {
@@ -620,7 +620,7 @@ export default function UserManagement() {
                                <Badge className={`${getRoleColor(ar.role)} font-bold text-[8px] h-4 uppercase shrink-0`} variant="outline">
                                  {ar.role}
                                </Badge>
-                               <span className="text-[9px] font-bold text-muted-foreground truncate">at {ar.depotId}</span>
+                               <span className="text-[9px] font-bold text-muted-foreground truncate">at {ar.depotIds?.join(', ')}</span>
                              </div>
                            ))
                         ) : (
@@ -839,22 +839,28 @@ export default function UserManagement() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label className="text-xs font-bold">Depot</Label>
-                  <Select 
-                    value={newUser.assignedRoles?.[0]?.depotId} 
-                    onValueChange={(v) => {
-                      const roles = [...(newUser.assignedRoles || [])];
-                      roles[0] = { ...roles[0], depotId: v };
-                      setNewUser({...newUser, assignedRoles: roles});
-                    }}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select primary depot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs font-bold">Depots (Select all that apply)</Label>
+                  <div className="grid grid-cols-2 gap-2 border rounded-lg p-3 bg-muted/5 min-h-[80px]">
+                    {teams.map(t => (
+                      <div 
+                        key={t} 
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1 rounded transition-colors"
+                        onClick={() => {
+                          const roles = [...(newUser.assignedRoles || [])];
+                          const currentIds = roles[0].depotIds || [];
+                          const checked = currentIds.includes(t);
+                          roles[0] = { 
+                            ...roles[0], 
+                            depotIds: checked ? currentIds.filter(id => id !== t) : [...currentIds, t] 
+                          };
+                          setNewUser({...newUser, assignedRoles: roles});
+                        }}
+                      >
+                        <Checkbox checked={(newUser.assignedRoles?.[0]?.depotIds || []).includes(t)} onCheckedChange={() => {}} />
+                        <Label className="text-[10px] cursor-pointer">{t}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -869,7 +875,7 @@ export default function UserManagement() {
                     className="h-7 text-[10px] font-bold uppercase"
                     onClick={() => {
                       const roles = [...(newUser.assignedRoles || [])];
-                      roles.push({ role: 'Litter Picker', depotId: '' });
+                      roles.push({ role: 'Litter Picker', depotIds: [] });
                       setNewUser({...newUser, assignedRoles: roles});
                     }}
                   >
@@ -880,54 +886,65 @@ export default function UserManagement() {
               
               <div className="space-y-3">
                 {newUser.assignedRoles?.slice(1).map((ar, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr,1fr,auto] gap-3 items-end border rounded-xl p-4 bg-muted/5 animate-in slide-in-from-top-2 duration-200">
-                    <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">{idx === 0 ? "Secondary" : "Third"} Role</Label>
-                      <Select 
-                        value={ar.role} 
-                        onValueChange={(v) => {
-                          const roles = [...(newUser.assignedRoles || [])];
-                          roles[idx + 1] = { ...roles[idx + 1], role: v as Role };
+                  <div key={idx} className="grid grid-cols-1 gap-3 border rounded-xl p-4 bg-muted/5 animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex justify-between items-center pb-2 border-b">
+                       <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">{idx === 0 ? "Secondary" : "Third"} Assignment</Label>
+                       <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-destructive"
+                        onClick={() => {
+                          const roles = (newUser.assignedRoles || []).filter((_, i) => i !== idx + 1);
                           setNewUser({...newUser, assignedRoles: roles});
                         }}
                       >
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
-                    <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot</Label>
-                      <Select 
-                        value={ar.depotId} 
-                        onValueChange={(v) => {
-                          const roles = [...(newUser.assignedRoles || [])];
-                          roles[idx + 1] = { ...roles[idx + 1], depotId: v };
-                          setNewUser({...newUser, assignedRoles: roles});
-                        }}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select Depot" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role</Label>
+                        <Select 
+                          value={ar.role} 
+                          onValueChange={(v) => {
+                            const roles = [...(newUser.assignedRoles || [])];
+                            roles[idx + 1] = { ...roles[idx + 1], role: v as Role };
+                            setNewUser({...newUser, assignedRoles: roles});
+                          }}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depots</Label>
+                        <div className="grid grid-cols-1 gap-2 border rounded-lg p-2 bg-background min-h-[60px] max-h-[120px] overflow-y-auto">
+                          {teams.map(t => (
+                            <div 
+                              key={t} 
+                              className="flex items-center space-x-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+                              onClick={() => {
+                                const roles = [...(newUser.assignedRoles || [])];
+                                const currentIds = roles[idx + 1].depotIds || [];
+                                const checked = currentIds.includes(t);
+                                roles[idx + 1] = { 
+                                  ...roles[idx + 1], 
+                                  depotIds: checked ? currentIds.filter(id => id !== t) : [...currentIds, t] 
+                                };
+                                setNewUser({...newUser, assignedRoles: roles});
+                              }}
+                            >
+                              <Checkbox checked={(ar.depotIds || []).includes(t)} onCheckedChange={() => {}} />
+                              <Label className="text-[10px] cursor-pointer truncate">{t}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-9 w-9 text-destructive"
-                      onClick={() => {
-                        const roles = (newUser.assignedRoles || []).filter((_, i) => i !== idx + 1);
-                        setNewUser({...newUser, assignedRoles: roles});
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 ))}
                 {(!newUser.assignedRoles || newUser.assignedRoles.length <= 1) && (
@@ -1069,23 +1086,29 @@ export default function UserManagement() {
                           </Select>
                         </div>
                         <div className="grid gap-2">
-                          <Label className="text-xs font-bold">Depot</Label>
-                          <Select 
-                            value={selectedUser?.assignedRoles?.[0]?.depotId || selectedUser?.depot || selectedUser?.depots?.[0]} 
-                            onValueChange={(v) => {
-                              if (!selectedUser) return;
-                              const roles = [...(selectedUser.assignedRoles || [{ role: selectedUser.role || selectedUser.roles?.[0] || 'Gardener', depotId: selectedUser.depot || selectedUser.depots?.[0] || '' }])];
-                              roles[0] = { ...roles[0], depotId: v };
-                              setSelectedUser({...selectedUser, assignedRoles: roles});
-                            }}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Label className="text-xs font-bold">Depots (Select all that apply)</Label>
+                          <div className="grid grid-cols-2 gap-2 border rounded-lg p-3 bg-muted/5 min-h-[80px]">
+                            {teams.map(t => (
+                              <div 
+                                key={t} 
+                                className="flex items-center space-x-2 cursor-pointer hover:bg-white/50 p-1 rounded transition-colors"
+                                onClick={() => {
+                                  if (!selectedUser) return;
+                                  const roles = [...(selectedUser.assignedRoles || [{ role: selectedUser.role || selectedUser.roles?.[0] || 'Gardener', depotIds: selectedUser.depots || [] }])];
+                                  const currentIds = roles[0].depotIds || [];
+                                  const checked = currentIds.includes(t);
+                                  roles[0] = { 
+                                    ...roles[0], 
+                                    depotIds: checked ? currentIds.filter(id => id !== t) : [...currentIds, t] 
+                                  };
+                                  setSelectedUser({...selectedUser, assignedRoles: roles});
+                                }}
+                              >
+                                <Checkbox checked={(selectedUser?.assignedRoles?.[0]?.depotIds || []).includes(t)} onCheckedChange={() => {}} />
+                                <Label className="text-[10px] cursor-pointer">{t}</Label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1100,8 +1123,8 @@ export default function UserManagement() {
                             className="h-7 text-[10px] font-bold uppercase"
                             onClick={() => {
                               if (!selectedUser) return;
-                              const roles = [...(selectedUser.assignedRoles || [{ role: selectedUser.role || selectedUser.roles?.[0] || 'Gardener', depotId: selectedUser.depot || selectedUser.depots?.[0] || '' }])];
-                              roles.push({ role: 'Litter Picker', depotId: teams[0] || '' });
+                              const roles = [...(selectedUser.assignedRoles || [{ role: selectedUser.role || selectedUser.roles?.[0] || 'Gardener', depotIds: selectedUser.depots || [] }])];
+                              roles.push({ role: 'Litter Picker', depotIds: [] });
                               setSelectedUser({...selectedUser, assignedRoles: roles});
                             }}
                           >
@@ -1112,57 +1135,68 @@ export default function UserManagement() {
                       
                       <div className="space-y-3">
                         {selectedUser?.assignedRoles?.slice(1).map((ar, idx) => (
-                          <div key={idx} className="grid grid-cols-[1fr,1fr,auto] gap-3 items-end border rounded-xl p-4 bg-muted/5 animate-in slide-in-from-top-2 duration-200">
-                            <div className="grid gap-2">
-                              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">{idx === 0 ? "Secondary" : "Third"} Role</Label>
-                              <Select 
-                                value={ar.role} 
-                                onValueChange={(v) => {
+                          <div key={idx} className="grid grid-cols-1 gap-3 border rounded-xl p-4 bg-muted/5 animate-in slide-in-from-top-2 duration-200">
+                            <div className="flex justify-between items-center pb-2 border-b">
+                               <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">{idx === 0 ? "Secondary" : "Third"} Assignment</Label>
+                               <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-destructive"
+                                onClick={() => {
                                   if (!selectedUser) return;
-                                  const roles = [...(selectedUser.assignedRoles || [])];
-                                  roles[idx + 1] = { ...roles[idx + 1], role: v as Role };
+                                  const roles = (selectedUser.assignedRoles || []).filter((_, i) => i !== idx + 1);
                                   setSelectedUser({...selectedUser, assignedRoles: roles});
                                 }}
                               >
-                                <SelectTrigger className="h-9">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <div className="grid gap-2">
-                              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depot</Label>
-                              <Select 
-                                value={ar.depotId} 
-                                onValueChange={(v) => {
-                                  if (!selectedUser) return;
-                                  const roles = [...(selectedUser.assignedRoles || [])];
-                                  roles[idx + 1] = { ...roles[idx + 1], depotId: v };
-                                  setSelectedUser({...selectedUser, assignedRoles: roles});
-                                }}
-                              >
-                                <SelectTrigger className="h-9">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="grid gap-2">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role</Label>
+                                <Select 
+                                  value={ar.role} 
+                                  onValueChange={(v) => {
+                                    if (!selectedUser) return;
+                                    const roles = [...(selectedUser.assignedRoles || [])];
+                                    roles[idx + 1] = { ...roles[idx + 1], role: v as Role };
+                                    setSelectedUser({...selectedUser, assignedRoles: roles});
+                                  }}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {[...OPERATIVE_ROLES, ...MANAGEMENT_ROLES].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Depots</Label>
+                                <div className="grid grid-cols-1 gap-2 border rounded-lg p-2 bg-background min-h-[60px] max-h-[120px] overflow-y-auto">
+                                  {teams.map(t => (
+                                    <div 
+                                      key={t} 
+                                      className="flex items-center space-x-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+                                      onClick={() => {
+                                        if (!selectedUser) return;
+                                        const roles = [...(selectedUser.assignedRoles || [])];
+                                        const currentIds = roles[idx + 1].depotIds || [];
+                                        const checked = currentIds.includes(t);
+                                        roles[idx + 1] = { 
+                                          ...roles[idx + 1], 
+                                          depotIds: checked ? currentIds.filter(id => id !== t) : [...currentIds, t] 
+                                        };
+                                        setSelectedUser({...selectedUser, assignedRoles: roles});
+                                      }}
+                                    >
+                                      <Checkbox checked={(ar.depotIds || []).includes(t)} onCheckedChange={() => {}} />
+                                      <Label className="text-[10px] cursor-pointer truncate">{t}</Label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-9 w-9 text-destructive"
-                              onClick={() => {
-                                if (!selectedUser) return;
-                                const roles = (selectedUser.assignedRoles || []).filter((_, i) => i !== idx + 1);
-                                setSelectedUser({...selectedUser, assignedRoles: roles});
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </div>
                         ))}
                       </div>
@@ -1211,7 +1245,7 @@ export default function UserManagement() {
                             </div>
                             <div className="flex items-center gap-2 text-primary font-bold">
                               <MapPin className="h-3 w-3" />
-                              <span className="text-sm">{ar.depotId}</span>
+                              <span className="text-[10px] uppercase">{ar.depotIds?.join(' • ') || "No Depot"}</span>
                             </div>
                           </div>
                         ))}

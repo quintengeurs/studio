@@ -110,7 +110,7 @@ export default function DepotsPage() {
       (
         u.depot === selectedDepotName || 
         u.depots?.includes(selectedDepotName) ||
-        u.assignedRoles?.some(ar => ar.depotId === selectedDepotName)
+        u.assignedRoles?.some(ar => ar.depotIds?.includes(selectedDepotName))
       )
     );
   }, [allUsers, selectedDepotName]);
@@ -250,7 +250,7 @@ export default function DepotsPage() {
   const renderStaffByRole = (role: Role) => {
     const staff = depotStaff.filter(s => {
       // Check for assigned roles at this specific depot
-      const hasSpecificAssignment = s.assignedRoles?.some(ar => ar.depotId === selectedDepotName && ar.role === role);
+      const hasSpecificAssignment = s.assignedRoles?.some(ar => ar.depotIds?.includes(selectedDepotName) && ar.role === role);
       if (hasSpecificAssignment) return true;
       
       // Fallback for legacy data or if assignedRoles is missing but user matches this depot
@@ -308,7 +308,7 @@ export default function DepotsPage() {
           const staffCount = allUsers.filter(u => 
             !u.isArchived && 
             (
-              u.assignedRoles?.some(ar => ar.depotId === depot && operationalRoles.includes(ar.role)) ||
+              u.assignedRoles?.some(ar => ar.depotIds?.includes(depot) && operationalRoles.includes(ar.role)) ||
               (
                 (u.roles || (u.role ? [u.role] : [])).some(r => operationalRoles.includes(r)) &&
                 (u.depots?.includes(depot) || u.depot === depot)
