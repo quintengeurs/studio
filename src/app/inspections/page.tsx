@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
-import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { compressImage } from "@/lib/image-compress";
 import {
@@ -277,7 +277,12 @@ export default function InspectionsPage() {
       const compressed = await compressImage(file);
       const storage = getStorage();
       const storageRef = ref(storage, `inspections/${selectedInspection?.id}/check_${index}_${Date.now()}.jpg`);
-      await uploadString(storageRef, compressed, 'data_url');
+      
+      // Convert Data URL to Blob to avoid CORS/preflight issues with uploadString in some environments
+      const res = await fetch(compressed);
+      const blob = await res.blob();
+      
+      await uploadBytes(storageRef, blob);
       const url = await getDownloadURL(storageRef);
       
       const newResults = [...inspectionResults];
@@ -708,7 +713,7 @@ export default function InspectionsPage() {
             )}
           </DialogHeader>
 
-          <ScrollArea className="flex-1 px-6 py-4">
+          <ScrollArea className="flex-1 min-h-0 px-6 py-4 border-t">
             <div className="space-y-6 pb-6">
               {inspectionResults.map((res, idx) => (
                 <div key={idx} className={`p-5 rounded-2xl border-2 transition-all ${res.passed ? 'bg-background border-primary/5' : 'bg-destructive/5 border-destructive/20 shadow-sm'}`}>
