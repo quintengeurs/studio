@@ -34,7 +34,8 @@ import {
   Clock,
   Users as UsersIcon,
   Settings2,
-  RotateCcw
+  RotateCcw,
+  MapPin
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -976,7 +977,7 @@ export default function UserManagement() {
       </Dialog>
 
       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="sm:max-w-[700px] h-[90vh] overflow-hidden flex flex-col p-0" aria-describedby={undefined}>
           <div className="p-6 pb-0">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
