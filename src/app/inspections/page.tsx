@@ -278,9 +278,8 @@ export default function InspectionsPage() {
       const storage = getStorage();
       const storageRef = ref(storage, `inspections/${selectedInspection?.id}/check_${index}_${Date.now()}.jpg`);
       
-      // Try base64 format without data_url prefix to see if it bypasses certain preflight behavior
-      const base64 = compressed.split(',')[1];
-      await uploadString(storageRef, base64, 'base64', { contentType: 'image/jpeg' });
+      // Using standard data_url. If this fails with CORS, the bucket configuration must be updated.
+      await uploadString(storageRef, compressed, 'data_url');
       
       const url = await getDownloadURL(storageRef);
       
@@ -685,7 +684,7 @@ export default function InspectionsPage() {
       )}
 
       <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[550px] h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-6 pb-2 bg-gradient-to-br from-primary/5 to-primary/10 border-b">
             <div className="flex items-center gap-3 mb-2">
               <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
@@ -712,7 +711,7 @@ export default function InspectionsPage() {
             )}
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 border-t min-h-[300px]" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+          <div className="flex-1 overflow-y-auto px-6 py-4 border-t min-h-0 custom-scrollbar shadow-inner bg-muted/5">
             <div className="space-y-6 pb-6">
               {inspectionResults.map((res, idx) => (
                 <div key={idx} className={`p-5 rounded-2xl border-2 transition-all ${res.passed ? 'bg-background border-primary/5' : 'bg-destructive/5 border-destructive/20 shadow-sm'}`}>
