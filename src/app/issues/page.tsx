@@ -57,11 +57,16 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, l
 import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role, ParkDetail } from "@/lib/types";
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { FolderArchive } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
 
-export default function IssuesPage() {
+function IssuesContent() {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get('tab') || null;
+  
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
@@ -452,7 +457,7 @@ export default function IssuesPage() {
         </Dialog>
       }
     >
-      <Tabs defaultValue={isOperative ? "assigned" : "unassigned"} className="w-full">
+      <Tabs defaultValue={defaultTab || (isOperative ? "assigned" : "unassigned")} className="w-full">
         <TabsList className="mb-6">
           {!isOperative && (
             <TabsTrigger value="unassigned" className="flex items-center gap-2">
@@ -618,5 +623,19 @@ export default function IssuesPage() {
         </DialogContent>
       </Dialog>
     </DashboardShell>
+  );
+}
+
+export default function IssuesPage() {
+  return (
+    <Suspense fallback={
+      <DashboardShell title="Issues Management" description="Loading issues...">
+        <div className="flex items-center justify-center h-96">
+          <Clock className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      </DashboardShell>
+    }>
+      <IssuesContent />
+    </Suspense>
   );
 }

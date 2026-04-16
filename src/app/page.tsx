@@ -148,6 +148,7 @@ export default function Dashboard() {
   // Computed Values
   const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
   const openMyIssues = myIssues.filter(i => i.status !== 'Resolved');
+  const unassignedCount = myIssues.filter(i => i.status !== 'Resolved' && !i.assignedTo).length;
   const readyRequests = myRequests.filter(r => r.status === 'Available');
   const pendingRequests = myRequests.filter(r => r.status === 'Open' || r.status === 'In Progress');
 
@@ -235,6 +236,17 @@ export default function Dashboard() {
                       <Link href="/assets">
                         <MapPin className="h-6 w-6 text-blue-600" />
                         <span className="text-xs font-bold uppercase tracking-wider">Assets Register</span>
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center col-span-2 border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative overflow-visible">
+                      <Link href="/issues?tab=unassigned">
+                        <AlertTriangle className="h-6 w-6 text-destructive" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Unassigned Issues</span>
+                        {unassignedCount > 0 && (
+                          <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-lg animate-bounce">
+                            {unassignedCount}
+                          </span>
+                        )}
                       </Link>
                     </Button>
                   </div>
@@ -490,6 +502,22 @@ export default function Dashboard() {
                 <div className="text-left">
                   <div className="text-sm font-bold">Asset Register</div>
                   <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
+                </div>
+              </Button>
+            </Link>
+            <Link href="/issues?tab=unassigned" className="block">
+              <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative group">
+                <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="text-sm font-bold flex items-center justify-between">
+                    Unassigned Issues
+                    {unassignedCount > 0 && (
+                      <Badge variant="destructive" className="ml-2 animate-pulse">{unassignedCount} NEW</Badge>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold text-destructive/80">Awaiting Allocation</div>
                 </div>
               </Button>
             </Link>
