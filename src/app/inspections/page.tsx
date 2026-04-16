@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { compressImage } from "@/lib/image-compress";
 import {
@@ -269,7 +269,7 @@ export default function InspectionsPage() {
       const compressed = await compressImage(file);
       const storage = getStorage();
       const storageRef = ref(storage, `inspections/${selectedInspection?.id}/check_${index}_${Date.now()}.jpg`);
-      await uploadBytes(storageRef, compressed);
+      await uploadString(storageRef, compressed, 'data_url');
       const url = await getDownloadURL(storageRef);
       
       const newResults = [...inspectionResults];
@@ -625,8 +625,12 @@ export default function InspectionsPage() {
                 <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <DialogTitle className="font-headline text-xl">Perform Safety Check</DialogTitle>
-                <DialogDescription className="text-xs font-medium opacity-70">Log instance for asset: {selectedInspection?.assetName}</DialogDescription>
+                <DialogTitle className="font-headline text-xl">
+                  {selectedInspection?.status === 'Completed' ? "Inspection Record" : "Perform Safety Check"}
+                </DialogTitle>
+                <DialogDescription className="text-xs font-medium opacity-70">
+                  {selectedInspection?.status === 'Completed' ? `Historical record for: ${selectedInspection?.assetName}` : `Log instance for asset: ${selectedInspection?.assetName}`}
+                </DialogDescription>
               </div>
             </div>
             
@@ -646,96 +650,120 @@ export default function InspectionsPage() {
               {inspectionResults.map((res, idx) => (
                 <div key={idx} className={`p-5 rounded-2xl border-2 transition-all ${res.passed ? 'bg-background border-primary/5' : 'bg-destructive/5 border-destructive/20 shadow-sm'}`}>
                   <div className="space-y-4">
-                    <div className="flex flex-col gap-1">
-                       <Label className="font-bold text-sm tracking-tight">{res.item}</Label>
-                       <p className="text-[10px] text-muted-foreground font-medium">Verified condition of this specific component.</p>
+                    <div className="flex items-center justify-between">
+                       <div className="flex flex-col gap-1">
+                          <Label className="font-bold text-sm tracking-tight">{res.item}</Label>
+                          {res.passed ? (
+                            <div className="flex items-center gap-1 text-[10px] text-primary font-bold uppercase">
+                              <CheckCircle2 className="h-3 w-3" /> Pass
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-[10px] text-destructive font-bold uppercase">
+                              <AlertCircle className="h-3 w-3" /> Fail
+                            </div>
+                          )}
+                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        type="button"
-                        variant={res.passed ? 'default' : 'outline'}
-                        className={`h-12 font-bold transition-all ${res.passed ? 'shadow-lg shadow-primary/20' : 'opacity-60'}`}
-                        onClick={() => {
-                          const newRes = [...inspectionResults];
-                          newRes[idx].passed = true;
-                          setInspectionResults(newRes);
-                        }}
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4" /> PASS
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={!res.passed ? 'destructive' : 'outline'}
-                        className={`h-12 font-bold transition-all ${!res.passed ? 'shadow-lg shadow-destructive/20' : 'opacity-60'}`}
-                        onClick={() => {
-                          const newRes = [...inspectionResults];
-                          newRes[idx].passed = false;
-                          setInspectionResults(newRes);
-                        }}
-                      >
-                        <AlertCircle className="mr-2 h-4 w-4" /> FAIL
-                      </Button>
-                    </div>
+                    {selectedInspection?.status !== 'Completed' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          type="button"
+                          variant={res.passed ? 'default' : 'outline'}
+                          className={`h-12 font-bold transition-all ${res.passed ? 'shadow-lg shadow-primary/20' : 'opacity-60'}`}
+                          onClick={() => {
+                            const newRes = [...inspectionResults];
+                            newRes[idx].passed = true;
+                            setInspectionResults(newRes);
+                          }}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> PASS
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={!res.passed ? 'destructive' : 'outline'}
+                          className={`h-12 font-bold transition-all ${!res.passed ? 'shadow-lg shadow-destructive/20' : 'opacity-60'}`}
+                          onClick={() => {
+                            const newRes = [...inspectionResults];
+                            newRes[idx].passed = false;
+                            setInspectionResults(newRes);
+                          }}
+                        >
+                          <AlertCircle className="mr-2 h-4 w-4" /> FAIL
+                        </Button>
+                      </div>
+                    )}
 
                     <div className="space-y-3 pt-1">
                       <div className="flex items-center gap-3">
                          <div className="relative flex-1">
-                            <Input 
-                              placeholder="Add observation notes..." 
-                              className="h-10 text-xs pl-4 bg-muted/40 border-none rounded-lg" 
-                              value={res.notes}
-                              onChange={(e) => {
-                                const newRes = [...inspectionResults];
-                                newRes[idx].notes = e.target.value;
-                                setInspectionResults(newRes);
-                              }}
-                            />
+                            {selectedInspection?.status === 'Completed' ? (
+                              res.notes ? (
+                                <div className="p-3 bg-muted/40 rounded-lg text-xs font-medium italic border">
+                                  "{res.notes}"
+                                </div>
+                              ) : null
+                            ) : (
+                              <Input 
+                                placeholder="Add observation notes..." 
+                                className="h-10 text-xs pl-4 bg-muted/40 border-none rounded-lg" 
+                                value={res.notes}
+                                onChange={(e) => {
+                                  const newRes = [...inspectionResults];
+                                  newRes[idx].notes = e.target.value;
+                                  setInspectionResults(newRes);
+                                }}
+                              />
+                            )}
                          </div>
-                         <div className="shrink-0">
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              id={`upload-${idx}`} 
-                              className="hidden" 
-                              capture="environment"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleCheckImageUpload(file, idx);
-                              }}
-                            />
-                            <Button 
-                              type="button" 
-                              variant="secondary" 
-                              size="icon" 
-                              className={`h-10 w-10 rounded-lg ${res.imageUrl ? 'bg-primary/20 text-primary border-primary/20' : ''}`}
-                              disabled={isUploading === idx}
-                              asChild
-                            >
-                               <label htmlFor={`upload-${idx}`} className="cursor-pointer">
-                                  {isUploading === idx ? <Clock className="h-4 w-4 animate-spin" /> : 
-                                   res.imageUrl ? <ImageIcon className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
-                               </label>
-                            </Button>
-                         </div>
+                         {selectedInspection?.status !== 'Completed' && (
+                           <div className="shrink-0">
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                id={`upload-${idx}`} 
+                                className="hidden" 
+                                capture="environment"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleCheckImageUpload(file, idx);
+                                }}
+                              />
+                              <Button 
+                                type="button" 
+                                variant="secondary" 
+                                size="icon" 
+                                className={`h-10 w-10 rounded-lg ${res.imageUrl ? 'bg-primary/20 text-primary border-primary/20' : ''}`}
+                                disabled={isUploading === idx}
+                                asChild
+                              >
+                                 <label htmlFor={`upload-${idx}`} className="cursor-pointer">
+                                    {isUploading === idx ? <Clock className="h-4 w-4 animate-spin" /> : 
+                                     res.imageUrl ? <ImageIcon className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                                 </label>
+                              </Button>
+                           </div>
+                         )}
                       </div>
                       
                       {res.imageUrl && (
-                        <div className="relative h-32 w-full rounded-xl overflow-hidden border bg-muted animate-in zoom-in-95 duration-200">
-                           <img src={res.imageUrl} className="h-full w-full object-cover" alt="Verification" />
-                           <Button 
-                              type="button"
-                              variant="destructive" 
-                              size="icon" 
-                              className="absolute top-2 right-2 h-6 w-6 rounded-full"
-                              onClick={() => {
-                                const newRes = [...inspectionResults];
-                                delete newRes[idx].imageUrl;
-                                setInspectionResults(newRes);
-                              }}
-                            >
-                              <X className="h-3 w-3" />
-                           </Button>
+                        <div className={`relative ${selectedInspection?.status === 'Completed' ? 'h-48' : 'h-32'} w-full rounded-xl overflow-hidden border bg-muted animate-in zoom-in-95 duration-200`}>
+                           <img src={res.imageUrl} className="h-full w-full object-contain bg-black/5" alt="Verification" />
+                           {selectedInspection?.status !== 'Completed' && (
+                             <Button 
+                                type="button"
+                                variant="destructive" 
+                                size="icon" 
+                                className="absolute top-2 right-2 h-6 w-6 rounded-full"
+                                onClick={() => {
+                                  const newRes = [...inspectionResults];
+                                  delete newRes[idx].imageUrl;
+                                  setInspectionResults(newRes);
+                                }}
+                              >
+                                <Plus className="h-3 w-3 rotate-45" />
+                             </Button>
+                           )}
                         </div>
                       )}
                     </div>
@@ -746,10 +774,16 @@ export default function InspectionsPage() {
           </ScrollArea>
 
           <div className="p-6 bg-muted/30 border-t mt-auto">
-            <Button className="w-full font-bold h-12 text-md shadow-xl" onClick={handleFinishInspection} disabled={isSubmitting || isUploading !== null}>
-              {isSubmitting ? "Finalizing Report..." : "Complete Overall Safety Check"}
-              <CheckCircle2 className="ml-2 h-5 w-5" />
-            </Button>
+            {selectedInspection?.status === 'Completed' ? (
+              <Button className="w-full font-bold h-12 text-md" variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
+                Close Record
+              </Button>
+            ) : (
+              <Button className="w-full font-bold h-12 text-md shadow-xl" onClick={handleFinishInspection} disabled={isSubmitting || isUploading !== null}>
+                {isSubmitting ? "Finalizing Report..." : "Complete Overall Safety Check"}
+                <CheckCircle2 className="ml-2 h-5 w-5" />
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
