@@ -736,26 +736,26 @@ export default function InspectionsPage() {
                         <Button
                           type="button"
                           variant={res.passed ? 'default' : 'outline'}
-                          className={`h-12 font-bold transition-all ${res.passed ? 'shadow-lg shadow-primary/20' : 'opacity-60'}`}
+                          className={`h-14 font-bold transition-all ${res.passed ? 'shadow-lg shadow-primary/20' : 'opacity-60'}`}
                           onClick={() => {
                             const newRes = [...inspectionResults];
                             newRes[idx].passed = true;
                             setInspectionResults(newRes);
                           }}
                         >
-                          <CheckCircle2 className="mr-2 h-4 w-4" /> PASS
+                          <CheckCircle2 className="mr-2 h-5 w-5" /> PASS
                         </Button>
                         <Button
                           type="button"
                           variant={!res.passed ? 'destructive' : 'outline'}
-                          className={`h-12 font-bold transition-all ${!res.passed ? 'shadow-lg shadow-destructive/20' : 'opacity-60'}`}
+                          className={`h-14 font-bold transition-all ${!res.passed ? 'shadow-lg shadow-destructive/20' : 'opacity-60'}`}
                           onClick={() => {
                             const newRes = [...inspectionResults];
                             newRes[idx].passed = false;
                             setInspectionResults(newRes);
                           }}
                         >
-                          <AlertCircle className="mr-2 h-4 w-4" /> FAIL
+                          <AlertCircle className="mr-2 h-5 w-5" /> FAIL
                         </Button>
                       </div>
                     )}
@@ -799,13 +799,13 @@ export default function InspectionsPage() {
                                 type="button" 
                                 variant="secondary" 
                                 size="icon" 
-                                className={`h-10 w-10 rounded-lg ${res.imageUrl ? 'bg-primary/20 text-primary border-primary/20' : ''}`}
+                                className={`h-12 w-12 rounded-lg transition-all ${res.imageUrl ? 'bg-primary/20 text-primary border-primary/20' : !res.passed ? 'bg-destructive/10 text-destructive border-destructive/20 animate-pulse border-2' : ''}`}
                                 disabled={isUploading === idx}
                                 asChild
                               >
                                  <label htmlFor={`upload-${idx}`} className="cursor-pointer">
-                                    {isUploading === idx ? <Clock className="h-4 w-4 animate-spin" /> : 
-                                     res.imageUrl ? <ImageIcon className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                                    {isUploading === idx ? <Clock className="h-5 w-5 animate-spin" /> : 
+                                     res.imageUrl ? <ImageIcon className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
                                  </label>
                               </Button>
                            </div>

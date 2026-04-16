@@ -107,8 +107,11 @@ export default function DepotsPage() {
     if (!selectedDepotName) return [];
     return allUsers.filter(u => 
       !u.isArchived && 
-      u.role !== 'Admin' && 
-      (u.depots?.includes(selectedDepotName) || u.depot === selectedDepotName)
+      (
+        u.depot === selectedDepotName || 
+        u.depots?.includes(selectedDepotName) ||
+        u.assignedRoles?.some(ar => ar.depotId === selectedDepotName)
+      )
     );
   }, [allUsers, selectedDepotName]);
 
@@ -245,7 +248,18 @@ export default function DepotsPage() {
   };
 
   const renderStaffByRole = (role: Role) => {
-    const staff = depotStaff.filter(s => s.role === role);
+    const staff = depotStaff.filter(s => {
+      // Check for assigned roles at this specific depot
+      const hasSpecificAssignment = s.assignedRoles?.some(ar => ar.depotId === selectedDepotName && ar.role === role);
+      if (hasSpecificAssignment) return true;
+      
+      // Fallback for legacy data or if assignedRoles is missing but user matches this depot
+      if (!s.assignedRoles || s.assignedRoles.length === 0) {
+        return s.role === role || s.roles?.includes(role);
+      }
+      
+      return false;
+    });
     if (staff.length === 0) return null;
 
     return (
@@ -293,8 +307,13 @@ export default function DepotsPage() {
           const operationalRoles = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener'];
           const staffCount = allUsers.filter(u => 
             !u.isArchived && 
-            (u.roles || (u.role ? [u.role] : [])).some(r => operationalRoles.includes(r)) &&
-            (u.depots?.includes(depot) || u.depot === depot)
+            (
+              u.assignedRoles?.some(ar => ar.depotId === depot && operationalRoles.includes(ar.role)) ||
+              (
+                (u.roles || (u.role ? [u.role] : [])).some(r => operationalRoles.includes(r)) &&
+                (u.depots?.includes(depot) || u.depot === depot)
+              )
+            )
           ).length;
           const parkCount = allParks.filter(p => p.depot === depot).length;
 

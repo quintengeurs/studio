@@ -7,6 +7,11 @@ export const CONTRACTOR_ROLE: Role = 'Contractor';
 export const STANDARD_OFFICER_ROLES: Role[] = ['Tree Officer', 'Parks Development Officer', 'Bin Run', 'Litter Picker', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'Biodiversity Officer', 'Gardener', 'Keeper'];
 export const OPERATIONAL_MGMT_ROLES: Role[] = ['Head Gardener', 'Area Manager', 'Assistant Area Manager', 'Operations Manager'];
 
+export interface AssignedRole {
+  role: Role;
+  depotId: string;
+}
+
 export interface AccessPermissions {
   // Page Visibility
   viewDashboard: boolean;
@@ -45,6 +50,7 @@ export interface User {
   role?: Role; // Legacy fallback
   depot: string; // Primary depot
   depots?: string[]; // Multiple assigned depots
+  assignedRoles?: AssignedRole[];
   avatar?: string;
   training?: string;
   phone?: string;
