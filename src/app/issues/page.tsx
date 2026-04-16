@@ -107,6 +107,7 @@ export default function IssuesPage() {
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
 
   const isAdmin = profile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const canDelete = isAdmin || profile?.role === 'Area Manager' || profile?.role === 'Operations Manager';
 
   const filteredIssues = useMemo(() => {
     const baseList = isAdmin ? issues : issues.filter(issue => {
@@ -361,7 +362,7 @@ export default function IssuesPage() {
                       </Tooltip>
                     </TooltipProvider>
                   )}
-                  {permissions.assignTask && (
+                  {canDelete && (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -460,11 +461,17 @@ export default function IssuesPage() {
             </TabsTrigger>
           )}
           <TabsTrigger value="assigned" className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4" /> Actively Working
+            <UserPlus className="h-4 w-4" /> Assigned
             {assignedIssues.length > 0 && <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">{assignedIssues.length}</span>}
           </TabsTrigger>
-          <TabsTrigger value="resolved" className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Resolved</TabsTrigger>
-          {!isOperative && <TabsTrigger value="archived" className="flex items-center gap-2"><FolderArchive className="h-4 w-4" /> Archive Log</TabsTrigger>}
+          <TabsTrigger value="resolved" className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4" /> Resolved
+          </TabsTrigger>
+          {!isOperative && (
+            <TabsTrigger value="archived" className="flex items-center gap-2 opacity-60">
+              <FolderArchive className="h-4 w-4" /> Archive Log
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="unassigned">
