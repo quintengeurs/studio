@@ -68,23 +68,11 @@ export default function Dashboard() {
   };
 
   // Optimized user lookup: Targeted query instead of fetching the entire collection
-  const emailId = user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "";
+  const emailId = useMemo(() => user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", [user?.email]);
+  const userProfileRef = useMemo(() => (db && emailId) ? doc(db, "users", emailId) : null, [db, emailId]);
+  const { data: profile } = useDoc<User>(userProfileRef as any);
   
-  // 1. Check by UID
-  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
-  const { data: profileByUid } = useDoc<User>(profileByUidRef as any);
-  
-  // 2. Check by Email ID (legacy/sync pattern)
-  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
-  const { data: profileByEmail } = useDoc<User>(profileByEmailRef as any);
-
-  // 3. Check by Email Field (search pattern)
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
-  
-  const profile = profileByEmail || profileByUid || profileResults[0];
+  const profileResults = profile ? [profile] : [];
   
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 
@@ -93,12 +81,12 @@ export default function Dashboard() {
   [profile]);
 
   const isAdmin = currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
-  const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1;
+  const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1 && !isAdmin;
   const isManagement = currentUserRoles.some((r: Role) => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin;
   
-  const isOfficeStaff = currentUserRoles.some(r => OFFICE_ROLES.includes(r));
-  const isOpsStaff = currentUserRoles.some(r => OPS_ROLES.includes(r));
-  const isSeniorOps = currentUserRoles.some(r => SENIOR_OPS_ROLES.includes(r));
+  const isOfficeStaff = currentUserRoles.some(r => OFFICE_ROLES.includes(r)) || isAdmin;
+  const isOpsStaff = currentUserRoles.some(r => OPS_ROLES.includes(r)) || isAdmin;
+  const isSeniorOps = currentUserRoles.some(r => SENIOR_OPS_ROLES.includes(r)) || isAdmin;
   const isSeniorMgmt = currentUserRoles.some(r => SENIOR_MGMT_ROLES.includes(r)) || isAdmin;
   
   const isStandard = !isAdmin && !isContractor && !isManagement;
@@ -131,8 +119,8 @@ export default function Dashboard() {
 
   const myIssuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    if (isManagement) return query(collection(db, "issues"), limit(100));
-    if (userEffectiveName) return query(collection(db, "issues"), where("reportedBy", "==", userEffectiveName));
+    if (isManagement) return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(15));
+    if (userEffectiveName) return query(collection(db, "issues"), where("reportedBy", "==", userEffectiveName), where("status", "!=", "Resolved"), limit(10));
     return null;
   }, [db, userEffectiveName, isManagement]);
 
@@ -140,9 +128,8 @@ export default function Dashboard() {
 
   const myRequestsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    // Management still needs data, but we should limit it for dashboard summaries
-    if (isManagement) return query(collection(db, "requests"), limit(50));
-    if (userEffectiveName) return query(collection(db, "requests"), where("requestedBy", "==", userEffectiveName));
+    if (isManagement) return query(collection(db, "requests"), where("status", "!=", "Collected"), limit(15));
+    if (userEffectiveName) return query(collection(db, "requests"), where("requestedBy", "==", userEffectiveName), where("status", "!=", "Collected"), limit(10));
     return null;
   }, [db, userEffectiveName, isManagement]);
 

@@ -63,12 +63,11 @@ export function AppSidebar() {
   const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  // Optimized: Targeted current user lookup
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<UserType>(userProfileQuery as any);
-  const currentUserProfile = profileResults[0];
+  const emailId = useMemo(() => user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", [user?.email]);
+  const userProfileRef = useMemo(() => (db && emailId) ? doc(db, "users", emailId) : null, [db, emailId]);
+  const { data: currentUserProfile } = useDoc<UserType>(userProfileRef as any);
+
+  const profileResults = currentUserProfile ? [currentUserProfile] : []; // Keep for compatibility if needed
 
   const allUsers = profileResults; // Keep variable for compatibility where count is checked
 
