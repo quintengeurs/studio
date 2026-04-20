@@ -27,7 +27,7 @@ import {
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, query, where, doc, updateDoc, orderBy, limit, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Issue, Task, User, Role, OFFICE_ROLES, OPS_ROLES, SENIOR_OPS_ROLES, SENIOR_MGMT_ROLES } from "@/lib/types";
+import { Issue, Task, User, Role, OFFICE_ROLES, OPS_ROLES, SENIOR_OPS_ROLES, SENIOR_MGMT_ROLES, OPERATIVE_ROLES } from "@/lib/types";
 import Link from "next/link";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
