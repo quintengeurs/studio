@@ -59,16 +59,15 @@ export default function ParksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Firestore Queries
-  // Optimized: Targeted current user lookup
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
-  const currentUserData = profileResults[0];
-
-  // For Management/Admin lists, still limit fetch where appropriate
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), limit(100)) : null, [db]);
+  // Optimized: Use allUsers for robust lookup and list displays
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
+
+  const currentUserData = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
+
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
   
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(500)) : null, [db]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);

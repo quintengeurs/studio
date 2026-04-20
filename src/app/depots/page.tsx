@@ -85,8 +85,11 @@ export default function DepotsPage() {
   const [updateForm, setUpdateForm] = useState<Partial<DepotUpdate>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currentUserData = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+  const currentUserData = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
+  
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
   const isAdmin = permissions.editDepotsFull; // Use granular role for component gates
   const canEditMaintenance = permissions.editDepotsFull;
 

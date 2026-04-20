@@ -138,15 +138,16 @@ export default function InspectionsPage() {
   [db, inspectionLimit]);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
 
-  // Optimized: Targeted current user lookup
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
-  const currentUserData = profileResults[0];
+  // Live Users (to check roles)
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
 
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
-  const isAdmin = permissions.approveResolution;
+  const currentUserData = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
+
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
+  const canManage = permissions.scheduleInspection;
   const isOperational = !permissions.scheduleInspection;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -167,15 +168,14 @@ export default function InspectionsPage() {
     assetNotes: "",
     customChecks: [] as string[]
   });
-  const [newCustomCheck, setNewCustomCheck] = useState("");
-  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
-
   const [inspectionResults, setInspectionResults] = useState<{ 
     item: string, 
     passed: boolean, 
     notes: string,
     imageUrl?: string 
   }[]>([]);
+  
+  const [editCustomCheck, setEditCustomCheck] = useState("");
 
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
@@ -339,6 +339,8 @@ export default function InspectionsPage() {
                     status: 'Pending',
                     dueDate: nextDate,
                     frequency: selectedInspection.frequency,
+                    assetNotes: selectedInspection.assetNotes,
+                    customChecks: selectedInspection.customChecks,
                     ...(selectedInspection.isBespoke && {
                         isBespoke: true,
                         startDate: selectedInspection.startDate,
@@ -376,6 +378,9 @@ export default function InspectionsPage() {
   const todayStr = format(today, 'yyyy-MM-dd');
 
   const isWithinWindow = (inspection: Inspection) => {
+    // Managers/Admins see everything
+    if (!isOperational) return true;
+
     if (inspection.status === 'Completed') return true;
     
     // Manual/Overdue check
@@ -603,7 +608,7 @@ export default function InspectionsPage() {
                         key={inspection.id} 
                         inspection={inspection} 
                         onStart={openCompleteDialog} 
-                        isAdmin={isAdmin} 
+                        isAdmin={canManage} 
                         onDelete={handleDeleteInspection} 
                         onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                     />
@@ -618,7 +623,7 @@ export default function InspectionsPage() {
                         key={inspection.id} 
                         inspection={inspection} 
                         onStart={openCompleteDialog} 
-                        isAdmin={isAdmin} 
+                        isAdmin={canManage} 
                         onDelete={handleDeleteInspection} 
                         onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                     />
@@ -633,7 +638,7 @@ export default function InspectionsPage() {
                         key={inspection.id} 
                         inspection={inspection} 
                         onStart={openCompleteDialog} 
-                        isAdmin={isAdmin} 
+                        isAdmin={canManage} 
                         onDelete={handleDeleteInspection} 
                         onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                     />
@@ -855,49 +860,165 @@ export default function InspectionsPage() {
       </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-2 border-b">
             <DialogTitle className="font-headline">Edit Scheduled Inspection</DialogTitle>
-            <DialogDescription>Modify the due date or frequency for: {editingInspection?.assetName}</DialogDescription>
+            <DialogDescription>Modify the full regime for: {editingInspection?.assetName}</DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1 p-6">
             {editingInspection && (
               <div className="grid gap-6 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Due Date</Label>
-                    <Input 
-                      type="date" 
-                      value={editingInspection.dueDate} 
-                      onChange={e => setEditingInspection({...editingInspection, dueDate: e.target.value})} 
+                <div className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Bespoke Schedule</span>
+                    <span className="text-[10px] text-muted-foreground">Custom days and date range</span>
+                  </div>
+                  <Switch 
+                    checked={editingInspection.isBespoke} 
+                    onCheckedChange={(v: boolean) => setEditingInspection({...editingInspection, isBespoke: v})} 
+                  />
+                </div>
+
+                {editingInspection.isBespoke ? (
+                  <div className="p-4 border-2 border-primary/20 rounded-2xl bg-primary/5 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Start Date</Label>
+                        <Input 
+                            type="date" 
+                            value={editingInspection.startDate || editingInspection.dueDate} 
+                            onChange={e => setEditingInspection({...editingInspection, startDate: e.target.value, dueDate: e.target.value})} 
+                            className="h-9" 
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">End Date (Optional)</Label>
+                        <Input 
+                            type="date" 
+                            value={editingInspection.endDate || ""} 
+                            onChange={e => setEditingInspection({...editingInspection, endDate: e.target.value})} 
+                            className="h-9" 
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Frequency: Repeat Every</Label>
+                      <div className="flex flex-wrap gap-3 pt-1">
+                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
+                          const dayValue = (idx + 1) % 7;
+                          const days = editingInspection.daysOfWeek || [];
+                          return (
+                            <div key={idx} className="flex flex-col items-center gap-1">
+                              <Checkbox 
+                                checked={days.includes(dayValue)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) setEditingInspection({ ...editingInspection, daysOfWeek: [...days, dayValue], frequency: 'Bespoke' });
+                                  else setEditingInspection({ ...editingInspection, daysOfWeek: days.filter(d => d !== dayValue) });
+                                }}
+                              />
+                              <span className="text-[9px] font-bold opacity-60">{day}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Due Date</Label>
+                      <Input 
+                        type="date" 
+                        value={editingInspection.dueDate} 
+                        onChange={e => setEditingInspection({...editingInspection, dueDate: e.target.value})} 
+                        className="h-11 shadow-sm"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Frequency</Label>
+                      <Select 
+                        value={editingInspection.frequency || "One-off"} 
+                        onValueChange={(v: Frequency) => setEditingInspection({...editingInspection, frequency: v === 'One-off' ? undefined : v})}
+                      >
+                        <SelectTrigger className="h-11 shadow-sm">
+                          <SelectValue placeholder="Select Frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="One-off">One-off</SelectItem>
+                          <SelectItem value="Weekly">Weekly</SelectItem>
+                          <SelectItem value="Monthly">Monthly</SelectItem>
+                          <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                          <SelectItem value="Yearly">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection Instructions / Description</Label>
+                    <Textarea 
+                        placeholder="Define what needs to be checked..." 
+                        value={editingInspection.assetNotes || ""} 
+                        onChange={e => setEditingInspection({...editingInspection, assetNotes: e.target.value})}
+                        className="text-xs min-h-[80px]"
                     />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Frequency</Label>
-                    <Select 
-                      value={editingInspection.frequency || "One-off"} 
-                      onValueChange={(v: Frequency) => setEditingInspection({...editingInspection, frequency: v === 'One-off' ? undefined : v})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Frequency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="One-off">One-off</SelectItem>
-                        <SelectItem value="Weekly">Weekly</SelectItem>
-                        <SelectItem value="Monthly">Monthly</SelectItem>
-                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                        <SelectItem value="Yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Manage Custom Checklist Items</Label>
+                    <div className="flex gap-2">
+                        <Input 
+                            placeholder="Add a new check item..." 
+                            value={editCustomCheck} 
+                            onChange={e => setEditCustomCheck(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (editCustomCheck.trim()) {
+                                        const currentChecks = editingInspection.customChecks || [];
+                                        setEditingInspection({...editingInspection, customChecks: [...currentChecks, editCustomCheck.trim()]});
+                                        setEditCustomCheck("");
+                                    }
+                                }
+                            }}
+                            className="h-9 text-xs"
+                        />
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-9 w-9 p-0"
+                            onClick={() => {
+                                if (editCustomCheck.trim()) {
+                                    const currentChecks = editingInspection.customChecks || [];
+                                    setEditingInspection({...editingInspection, customChecks: [...currentChecks, editCustomCheck.trim()]});
+                                    setEditCustomCheck("");
+                                }
+                            }}
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {(editingInspection.customChecks || []).map((check, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-[9px] py-0 px-2 flex items-center gap-1 group">
+                                {check}
+                                <X 
+                                    className="h-3 w-3 cursor-pointer opacity-50 hover:opacity-100" 
+                                    onClick={() => setEditingInspection({...editingInspection, customChecks: (editingInspection.customChecks || []).filter((_, i) => i !== idx)})} 
+                                />
+                            </Badge>
+                        ))}
+                    </div>
                 </div>
               </div>
             )}
           </ScrollArea>
           <DialogFooter className="p-6 border-t bg-muted/50">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button className="font-bold" onClick={handleUpdateInspection} disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save Changes"}
+            <Button className="font-bold px-8 shadow-lg shadow-primary/20" onClick={handleUpdateInspection} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Update Full Schedule"}
             </Button>
           </DialogFooter>
         </DialogContent>

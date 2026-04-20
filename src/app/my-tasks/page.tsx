@@ -74,11 +74,22 @@ export default function MyTasksPage() {
     currentUserProfile?.role && OPERATIVE_ROLES.includes(currentUserProfile.role),
   [currentUserProfile]);
 
-  const groupIdentity = useMemo(() => {
+  const identities = useMemo(() => {
+    const list = [currentUserName];
+    if (user?.email) list.push(user.email.toLowerCase());
+    if (user?.displayName) list.push(user.displayName);
 
-    if (!currentUserProfile?.role || !currentUserProfile?.depot) return null;
-    return `Group: ${currentUserProfile.role} @ ${currentUserProfile.depot}`;
-  }, [currentUserProfile]);
+    const userDepots = currentUserProfile?.depots || (currentUserProfile?.depot ? [currentUserProfile.depot] : []);
+    const roles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
+    
+    roles.forEach(r => {
+      userDepots.forEach(d => {
+        if (d?.trim?.()) list.push(`Group: ${r} @ ${d.trim()}`);
+      });
+    });
+    
+    return Array.from(new Set(list)).slice(0, 10);
+  }, [currentUserName, user?.email, user?.displayName, currentUserProfile]);
 
   const colleagues = useMemo(() => {
     if (!currentUserProfile) return [];
@@ -91,16 +102,9 @@ export default function MyTasksPage() {
 
 
   const tasksQuery = useMemoFirebase(() => {
-    if (!db || !currentUserName) return null;
-    const identities = [currentUserName];
-    if (user?.email) identities.push(user.email.toLowerCase());
-    if (user?.displayName) identities.push(user.displayName);
-    if (groupIdentity) identities.push(groupIdentity);
-    
-    // Ensure uniqueness and limit for Firestore safety
-    const uniqueIdentities = Array.from(new Set(identities)).slice(0, 10);
-    return query(collection(db, "tasks"), where("assignedTo", "in", uniqueIdentities));
-  }, [db, currentUserName, groupIdentity, user?.email, user?.displayName]);
+    if (!db || !currentUserName || identities.length === 0) return null;
+    return query(collection(db, "tasks"), where("assignedTo", "in", identities));
+  }, [db, currentUserName, identities]);
 
   const { data: tasks = [], loading } = useCollection<any>(tasksQuery);
 

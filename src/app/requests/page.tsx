@@ -30,18 +30,16 @@ export default function RequestsManagementPage() {
   const { user } = useUser();
   const router = useRouter();
 
-  // Optimized: Targeted current user lookup
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<UserProfile>(userProfileQuery as any);
-  const currentUserProfile = profileResults[0];
+  // Live Users (to check roles)
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
 
-  const allUsers = profileResults; // Keep variable for compatibility where count is checked
+  const currentUserData = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
 
-  const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
-  const isAdmin = profileRoles.includes('Admin') || user?.email === 'quinten.geurs@gmail.com';
-  const canViewRequests = isAdmin || profileRoles.includes('Area Manager') || profileRoles.includes('Operations Manager');
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
+  const canViewRequests = permissions.viewStaffRequests;
 
   const requestsQuery = useMemoFirebase(() => {
     if (!db || !canViewRequests) return null;

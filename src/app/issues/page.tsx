@@ -152,13 +152,43 @@ function IssuesContent() {
   const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
   const parks = registryConfig?.parks?.sort() ?? [];
 
-  const operatives = users.filter(u => OPERATIVE_ROLES.includes(u.role as Role) || (u.role as string) === 'operative');
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAllStaff, setShowAllStaff] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
   
+  const selectedIssue = useMemo(() => issues.find(i => i.id === selectedIssueId), [issues, selectedIssueId]);
+  const targetDepot = useMemo(() => {
+    if (!selectedIssue) return null;
+    return allDetails.find(d => d.name === selectedIssue.park)?.depot;
+  }, [selectedIssue, allDetails]);
+
+  const assignableStaff = useMemo(() => {
+    // Include all non-archived users, not just operatives
+    let list = users;
+    
+    if (assignSearch) {
+        const search = assignSearch.toLowerCase();
+        list = list.filter(u => 
+            u.name.toLowerCase().includes(search) || 
+            u.email.toLowerCase().includes(search) ||
+            u.role?.toLowerCase().includes(search) ||
+            u.roles?.some(r => r.toLowerCase().includes(search))
+        );
+    }
+
+    if (showAllStaff) return list;
+
+    // Filter by target depot
+    if (!targetDepot) return list;
+    return list.filter(u => {
+        const userDepots = u.depots || (u.depot ? [u.depot] : []);
+        return userDepots.includes(targetDepot);
+    });
+  }, [users, targetDepot, showAllStaff, assignSearch]);
+
   const [assignment, setAssignment] = useState({ operativeId: "", instructions: "" });
   const [isProofDialogOpen, setIsProofDialogOpen] = useState(false);
   const [selectedIssueForProof, setSelectedIssueForProof] = useState<Issue | null>(null);
@@ -239,6 +269,8 @@ function IssuesContent() {
   const handleOpenAssignDialog = (id: string) => {
     setSelectedIssueId(id);
     setAssignment({ operativeId: "", instructions: "" });
+    setShowAllStaff(false);
+    setAssignSearch("");
     setIsAssignDialogOpen(true);
   };
 
@@ -247,7 +279,7 @@ function IssuesContent() {
     setIsSubmitting(true);
 
     const issue = issues.find(i => i.id === selectedIssueId);
-    const operative = operatives.find(o => o.id === assignment.operativeId);
+    const operative = users.find(o => o.id === assignment.operativeId);
     if (!issue || !operative) {
         toast({ title: "Error", description: "Invalid issue or operative.", variant: "destructive" });
         setIsSubmitting(false);
@@ -581,22 +613,49 @@ function IssuesContent() {
             <DialogDescription>Create a task for an operative.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
-            <div className="space-y-2">
-              <Label>Select Operative</Label>
-              <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2">
-                {operatives.map(user => (
-                  <div key={user.id} className={`flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors ${assignment.operativeId === user.id ? 'border-primary bg-primary/5' : ''}`} onClick={() => setAssignment({...assignment, operativeId: user.id})}>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Select Staff Member</Label>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{showAllStaff ? 'Showing All' : `Depot: ${targetDepot || 'Any'}`}</span>
+                    <Switch checked={showAllStaff} onCheckedChange={setShowAllStaff} />
+                </div>
+              </div>
+              
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input 
+                    placeholder="Search staff by name or role..." 
+                    className="h-8 pl-8 text-xs" 
+                    value={assignSearch}
+                    onChange={e => setAssignSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 max-h-[250px] overflow-y-auto pr-2 mt-2">
+                {assignableStaff.map(user => (
+                  <div key={user.id} className={`flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors ${assignment.operativeId === user.id ? 'border-primary bg-primary/5' : ''}`} onClick={() => setAssignment({...assignment, operativeId: user.id})}>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold">{user.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted font-bold text-muted-foreground uppercase">{user.role || (user.roles?.[0])}</span>
+                            <span className="text-[9px] text-muted-foreground truncate max-w-[150px]">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
+                        </div>
                       </div>
                     </div>
                     {assignment.operativeId === user.id && <CheckCircle2 className="h-4 w-4 text-primary" />}
                   </div>
                 ))}
-                {operatives.length === 0 && <p className="text-center text-xs text-muted-foreground py-4 italic">No active operatives found.</p>}
+                {assignableStaff.length === 0 && (
+                    <div className="text-center py-6 border-2 border-dashed rounded-xl">
+                        <p className="text-xs text-muted-foreground italic mb-2">No staff found {showAllStaff ? '' : `for ${targetDepot}`}</p>
+                        {!showAllStaff && (
+                            <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold" onClick={() => setShowAllStaff(true)}>Show All Staff</Button>
+                        )}
+                    </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">

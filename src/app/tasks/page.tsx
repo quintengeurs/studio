@@ -85,26 +85,15 @@ export default function TasksPage() {
   [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
-  // Optimized user fetching: Fetch only active staff for assignment, and use a targeted lookup for current user
-  const usersQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "users"), where("isArchived", "==", false), limit(100)) : null, 
-  [db]);
-  const { data: users = [] } = useCollection<User>(usersQuery as any);
+  // Live Users (to check roles and for assignment)
+  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
 
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
+  const currentUserData = useMemo(() => 
+    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [allUsers, user?.email]);
 
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(100)) : null, [db]);
-  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
-  
-  // Optimized current user lookup
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<User>(userProfileQuery as any);
-  const currentUserData = profileResults[0];
-
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
   const isAdmin = permissions.approveResolution; // Used for some super-user checks down the line
   const isOperational = !permissions.viewAllTasks;
 
@@ -114,10 +103,22 @@ export default function TasksPage() {
     return user?.displayName || user?.email || "";
   }, [currentUserData, user]);
 
-  const groupIdentity = useMemo(() => {
-    if (!currentUserData?.role || !currentUserData?.depot) return null;
-    return `Group: ${currentUserData.role} @ ${currentUserData.depot}`;
-  }, [currentUserData]);
+  const identities = useMemo(() => {
+    const list = [currentUserName];
+    if (user?.email) list.push(user.email.toLowerCase());
+    if (user?.displayName) list.push(user.displayName);
+
+    const userDepots = currentUserData?.depots || (currentUserData?.depot ? [currentUserData.depot] : []);
+    const roles = currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []);
+    
+    roles.forEach(r => {
+      userDepots.forEach(d => {
+        if (d?.trim?.()) list.push(`Group: ${r} @ ${d.trim()}`);
+      });
+    });
+    
+    return Array.from(new Set(list)).slice(0, 10);
+  }, [currentUserName, user?.email, user?.displayName, currentUserData]);
 
   const filteredTasksForUser = useMemo(() => {
     if (isAdmin) return tasks;
@@ -125,12 +126,6 @@ export default function TasksPage() {
     const userDepots = currentUserData?.depots?.length ? currentUserData.depots : (currentUserData?.depot ? [currentUserData.depot] : []);
     
     return tasks.filter(t => {
-      // 1. Direct assignment (Name, Email, or Group)
-      const identities = [currentUserName];
-      if (user?.email) identities.push(user.email.toLowerCase());
-      if (user?.displayName) identities.push(user.displayName);
-      if (groupIdentity) identities.push(groupIdentity);
-      
       const isDirectlyAssigned = identities.some(ident => 
         t.assignedTo?.toLowerCase() === ident.toLowerCase() || t.assignedTo === ident
       );
@@ -146,14 +141,41 @@ export default function TasksPage() {
 
       return false;
     });
-  }, [tasks, isAdmin, currentUserData, allDetails, currentUserName, groupIdentity, user?.email, user?.displayName]);
-
-  const assignableUsers = users;
-  const parks = registryConfig?.parks?.sort() ?? Array.from(new Set(assets.map(a => a.park))).sort();
+  }, [tasks, isAdmin, currentUserData, allDetails, identities]);
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showAllStaff, setShowAllStaff] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
+
+  const selectedTask = useMemo(() => tasks.find(t => t.id === selectedTaskId), [tasks, selectedTaskId]);
+  const targetDepot = useMemo(() => {
+    if (!selectedTask) return null;
+    return allDetails.find(d => d.name === selectedTask.park)?.depot;
+  }, [selectedTask, allDetails]);
+
+  const assignableStaff = useMemo(() => {
+    let list = users;
+    
+    if (assignSearch) {
+        const search = assignSearch.toLowerCase();
+        list = list.filter(u => 
+            u.name.toLowerCase().includes(search) || 
+            u.email.toLowerCase().includes(search) ||
+            u.role?.toLowerCase().includes(search) ||
+            u.roles?.some(r => r.toLowerCase().includes(search))
+        );
+    }
+
+    if (showAllStaff) return list;
+
+    if (!targetDepot) return list;
+    return list.filter(u => {
+        const userDepots = u.depots || (u.depot ? [u.depot] : []);
+        return userDepots.includes(targetDepot);
+    });
+  }, [users, targetDepot, showAllStaff, assignSearch]);
   
   const [isGroupAssign, setIsGroupAssign] = useState(false);
   const [groupRole, setGroupRole] = useState<Role>("Keeper");
@@ -230,6 +252,8 @@ export default function TasksPage() {
 
   const handleOpenAssignDialog = (id: string) => {
     setSelectedTaskId(id);
+    setShowAllStaff(false);
+    setAssignSearch("");
     setIsAssignDialogOpen(true);
   };
 
@@ -350,8 +374,8 @@ export default function TasksPage() {
                     </Select>
                     <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
                         <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
-                        <SelectContent>
-                            {assignableUsers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                        <SelectContent className="max-h-[300px]">
+                            {users.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.role || u.roles?.[0]})</SelectItem>)}
                         </SelectContent>
                     </Select>
                   </div>
@@ -387,9 +411,9 @@ export default function TasksPage() {
             <TabsTrigger value="active" className="flex items-center gap-2"><ListTodo className="h-4 w-4" /> Active Tasks</TabsTrigger>
             <TabsTrigger value="approvals" className="flex items-center gap-2 relative">
               <Inbox className="h-4 w-4" /> Work Logs
-              {tasks.filter(t => t.status === 'Pending Approval').length > 0 && (
+              {filteredTasksForUser.filter(t => t.status === 'Pending Approval').length > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold shadow-sm">
-                  {tasks.filter(t => t.status === 'Pending Approval').length}
+                  {filteredTasksForUser.filter(t => t.status === 'Pending Approval').length}
                 </span>
               )}
             </TabsTrigger>
@@ -400,14 +424,14 @@ export default function TasksPage() {
           <TabsContent value="active">
             {tasksLoading ? (
               <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-            ) : tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).length === 0 ? (
+            ) : filteredTasksForUser.filter(t => t.status !== 'Pending Approval').length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
                  <ListTodo className="h-12 w-12 mb-4" />
                  <p className="font-bold">No active tasks for today</p>
               </div>
             ) : (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                {tasks.filter(t => t.status !== 'Pending Approval' && t.dueDate <= today).map((task) => (
+                {filteredTasksForUser.filter(t => t.status !== 'Pending Approval').map((task) => (
                   <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
                     <CardHeader className="pb-3 px-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -461,7 +485,7 @@ export default function TasksPage() {
           </TabsContent>
 
           <TabsContent value="approvals">
-            {tasks.filter(t => t.status === 'Pending Approval').length === 0 ? (
+            {filteredTasksForUser.filter(t => t.status === 'Pending Approval').length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
                  <Inbox className="h-12 w-12 mb-4" />
                  <p className="font-bold">No work logs pending approval</p>
@@ -469,7 +493,7 @@ export default function TasksPage() {
               </div>
             ) : (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                {tasks.filter(t => t.status === 'Pending Approval').map((task) => (
+                {filteredTasksForUser.filter(t => t.status === 'Pending Approval').map((task) => (
                   <Card key={task.id} className="group relative overflow-hidden border-2 border-primary/20 hover:border-primary/40 transition-all shadow-md flex flex-col bg-accent/5">
                     <div className="absolute top-0 right-0 p-2">
                       {task.isLog ? (
@@ -530,7 +554,7 @@ export default function TasksPage() {
 
           <TabsContent value="recurring">
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-               {tasks.filter(t => t.frequency).map((task) => (
+               {filteredTasksForUser.filter(t => t.frequency).map((task) => (
                   <Card key={task.id} className="border-2 hover:border-accent transition-colors shadow-sm">
                   <CardHeader>
                     <div className="flex justify-between items-center mb-2">
@@ -654,26 +678,56 @@ export default function TasksPage() {
 
 
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>Reassign Task</DialogTitle>
-            <DialogDescription>Select a new operative for this task.</DialogDescription>
+            <DialogTitle className="font-headline">Reassign Task</DialogTitle>
+            <DialogDescription>Change the staff member responsible for this task.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              {assignableUsers.map(user => (
-                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleAssign(user.name)}>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">{user.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
-                    </div>
-                  </div>
-                  <UserPlus className="h-4 w-4 text-muted-foreground" />
+          <div className="grid gap-6 py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Select Staff Member</Label>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{showAllStaff ? 'Showing All' : `Depot: ${targetDepot || 'Any'}`}</span>
+                    <Switch checked={showAllStaff} onCheckedChange={setShowAllStaff} />
                 </div>
-              ))}
-              {assignableUsers.length === 0 && <p className="text-center text-xs text-muted-foreground py-4">No active staff assignable.</p>}
+              </div>
+              
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input 
+                    placeholder="Search staff by name or role..." 
+                    className="h-8 pl-8 text-xs" 
+                    value={assignSearch}
+                    onChange={e => setAssignSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 mt-2">
+                {assignableStaff.map(user => (
+                  <div key={user.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleAssign(user.name)}>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold">{user.name}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted font-bold text-muted-foreground uppercase">{user.role || (user.roles?.[0])}</span>
+                            <span className="text-[9px] text-muted-foreground truncate max-w-[150px]">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <UserPlus className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                ))}
+                {assignableStaff.length === 0 && (
+                    <div className="text-center py-6 border-2 border-dashed rounded-xl">
+                        <p className="text-xs text-muted-foreground italic mb-2">No staff found {showAllStaff ? '' : `for ${targetDepot}`}</p>
+                        {!showAllStaff && (
+                            <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold" onClick={() => setShowAllStaff(true)}>Show All Staff</Button>
+                        )}
+                    </div>
+                )}
+              </div>
             </div>
           </div>
         </DialogContent>

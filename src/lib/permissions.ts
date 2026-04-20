@@ -31,7 +31,19 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
   // If no user profile exists, check if the logged-in email is the system admin
   const isSystemAdmin = fallbackEmail?.toLowerCase() === 'quinten.geurs@gmail.com';
   
-  if (!user && !isSystemAdmin) return { ...ALL_FALSE };
+  if (!user && !isSystemAdmin) {
+    if (fallbackEmail) {
+      return {
+        ...ALL_FALSE,
+        viewDashboard: true,
+        viewMyTasks: true,
+        viewParks: true,
+        viewDepots: true,
+        createIssue: true,
+      };
+    }
+    return { ...ALL_FALSE };
+  }
   
   if (user?.permissions) {
     return user.permissions;

@@ -77,7 +77,7 @@ export default function AssetRegister() {
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
   
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
   const isAdmin = permissions.manageAssets; // Proxy for top level controls
 
   // Live Assets
