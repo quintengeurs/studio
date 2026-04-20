@@ -189,10 +189,6 @@ export default function TasksPage() {
   const [isGroupAssign, setIsGroupAssign] = useState(false);
   const [groupRole, setGroupRole] = useState<Role>("Keeper");
   const [groupPark, setGroupPark] = useState("");
-
-  
-  const today = format(new Date(), 'yyyy-MM-dd');
-  
   const [newTask, setNewTask] = useState({
     title: "",
     objective: "",

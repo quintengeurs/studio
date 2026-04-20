@@ -127,8 +127,6 @@ export default function ParksPage() {
 
   const [editForm, setEditForm] = useState<Partial<ParkDetail>>({});
 
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData), [currentUserData]);
-
   const canEditProjects = permissions.editParksFull || permissions.editParkDevelopment;
   const canEditEvents = permissions.editParksFull || permissions.editParkDevelopment;
   const canEditVolunteering = permissions.editParksFull || permissions.editParkDevelopment;
