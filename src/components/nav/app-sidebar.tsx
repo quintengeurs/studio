@@ -34,11 +34,11 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useState, useMemo } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
 
