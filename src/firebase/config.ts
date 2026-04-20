@@ -22,12 +22,12 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 let db: any;
 
 try {
-  // We are reverting to the (default) database silo to restore your legacy data
+  // We are using the NAMED database silo to access your existing data
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
-  });
-  console.log(`[Firebase] Initialized DEFAULT Firestore Silo: (default)`);
+  }, "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0");
+  console.log(`[Firebase] Initialized NAMED Firestore Silo: ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0`);
 } catch (e: any) {
   // Graceful reuse if already initialized
   db = getFirestore(app);
