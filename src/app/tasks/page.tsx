@@ -30,7 +30,9 @@ import {
   Trash2,
   Users,
   Inbox,
-  FolderArchive
+  FolderArchive,
+  Search,
+  Filter
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
