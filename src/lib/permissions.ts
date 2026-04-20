@@ -38,7 +38,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined): Acc
   const roles = user.roles || (user.role ? [user.role] : []);
   const isAdmin = roles.includes('Admin') || user.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   const isContractor = roles.includes('Contractor') && roles.length === 1;
-  const isManagement = roles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r)) || isAdmin;
+  const isManagement = roles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin;
   const canViewRequests = isAdmin || roles.includes('Area Manager') || roles.includes('Operations Manager');
 
   if (isAdmin) {
@@ -102,9 +102,9 @@ export function getDefaultPermissionsForUser(user: User | null | undefined): Acc
       manageAssets: true,
       approveResolution: true,
 
-      editParksFull: roles.some(r => ['Area Manager', 'Head Gardener'].includes(r)),
-      editParkDevelopment: roles.includes('Parks Development Officer'),
-      editDepotsFull: roles.some(r => ['Area Manager', 'Head Gardener'].includes(r)),
+      editParksFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
+      editParkDevelopment: roles.some(r => ['Parks Development Officer', 'Biodiversity Manager'].includes(r)),
+      editDepotsFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
     };
   }
 

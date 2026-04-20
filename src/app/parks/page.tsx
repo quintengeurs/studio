@@ -97,7 +97,7 @@ export default function ParksPage() {
       'Operations Manager', 
       'Parks Development Officer', 
       'Tree Officer', 
-      'Biodiversity Officer', 
+      'Biodiversity Manager', 
       'Project Manager'
     ].includes(r));
 

@@ -19,20 +19,18 @@ const firebaseConfig = {
 // Initialize Firebase only once
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-const DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
 let db: any;
 
 try {
-  // Use initializeFirestore with named silo and persistent caching
+  // We are reverting to the (default) database silo to restore your legacy data
   db = initializeFirestore(app, {
-    experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
-    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
-  }, DB_ID);
-  console.log(`[Firebase] Initialized NAMED Firestore Silo: ${DB_ID}`);
+  });
+  console.log(`[Firebase] Initialized DEFAULT Firestore Silo: (default)`);
 } catch (e: any) {
   // Graceful reuse if already initialized
-  db = getFirestore(app, DB_ID);
+  db = getFirestore(app);
 }
 
 const auth = getAuth(app);

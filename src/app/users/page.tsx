@@ -1078,10 +1078,10 @@ export default function UserManagement() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectValue placeholder="Operative roles" className="text-muted-foreground font-bold px-2 py-1 flex h-auto" />
+                              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1.5 bg-muted/30">Operative Roles</div>
                               {OPERATIVE_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                               <Separator className="my-1" />
-                              <SelectValue placeholder="Management roles" className="text-muted-foreground font-bold px-2 py-1 flex h-auto" />
+                              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1.5 bg-muted/30">Management Roles</div>
                               {MANAGEMENT_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                             </SelectContent>
                           </Select>

@@ -1,11 +1,17 @@
-export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Assistant Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Officer' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Admin';
+export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Assistant Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Manager' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Park Manager' | 'Admin';
 
 export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor'];
-export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Officer', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Admin'];
+export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Manager', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Park Manager', 'Admin'];
 
 export const CONTRACTOR_ROLE: Role = 'Contractor';
-export const STANDARD_OFFICER_ROLES: Role[] = ['Tree Officer', 'Parks Development Officer', 'Bin Run', 'Litter Picker', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'Biodiversity Officer', 'Gardener', 'Keeper'];
+export const STANDARD_OFFICER_ROLES: Role[] = ['Tree Officer', 'Parks Development Officer', 'Bin Run', 'Litter Picker', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'Biodiversity Manager', 'Gardener', 'Keeper', 'Park Manager'];
 export const OPERATIONAL_MGMT_ROLES: Role[] = ['Head Gardener', 'Area Manager', 'Assistant Area Manager', 'Operations Manager'];
+
+// Categorization for Dashboard Visibility logic
+export const OFFICE_ROLES: Role[] = ['Parks Development Officer', 'Events Manager', 'Sports and Leisure Manager', 'Project Manager', 'Volunteering Coordinator', 'Biodiversity Manager', 'User Group Chair', 'Park Manager', 'Tree Officer'];
+export const OPS_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run'];
+export const SENIOR_OPS_ROLES: Role[] = ['Head Gardener', 'Assistant Area Manager'];
+export const SENIOR_MGMT_ROLES: Role[] = ['Area Manager', 'Operations Manager', 'Admin'];
 
 export interface AssignedRole {
   role: Role;
