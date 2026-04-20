@@ -17,7 +17,8 @@ import {
   PackagePlus,
   Truck,
   Map,
-  Building2
+  Building2,
+  LayoutGrid
 } from "lucide-react";
 import {
   Sidebar,
