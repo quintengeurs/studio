@@ -171,7 +171,6 @@ export interface RegistryConfig {
   trainingOptions: string[];
   parks: string[];
   assetCategories?: string[];
-  showPixelPark?: boolean;
 }
 
 export type RequestCategory = 'Materials' | 'Tools' | 'Equipment' | 'PPE' | 'Other';

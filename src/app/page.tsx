@@ -38,7 +38,6 @@ import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { PixelPark } from "@/components/dashboard/pixel-park";
 import { RegistryConfig } from "@/lib/types";
 
 export default function Dashboard() {
@@ -691,7 +690,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {(registryConfig?.showPixelPark ?? true) && <PixelPark />}
     </DashboardShell>
   );
 }
