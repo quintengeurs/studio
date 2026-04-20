@@ -187,6 +187,8 @@ export default function UserManagement() {
     isArchived: false,
     allowDesktopView: true,
     password: '',
+    phone: '',
+    radioCallSign: '',
     assignedRoles: [{ role: 'Gardener', depotIds: [] }]
   });
 
@@ -307,6 +309,7 @@ export default function UserManagement() {
         setNewUser({ 
           name: '', email: '', roles: ['Gardener'], depot: '', depots: [], 
           training: '', avatar: '', isArchived: false, password: '',
+          phone: '', radioCallSign: '',
           assignedRoles: [{ role: 'Gardener', depotIds: [] }]
         });
         setSelectedTrainings([]);
@@ -814,6 +817,17 @@ export default function UserManagement() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+              <div className="grid gap-2">
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Phone Number (Optional)</Label>
+                <Input type="tel" value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} placeholder="e.g. 07700 900000" className="font-medium" />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Radio Call Sign (Optional)</Label>
+                <Input value={newUser.radioCallSign} onChange={e => setNewUser({...newUser, radioCallSign: e.target.value})} placeholder="e.g. Sierra 1" className="font-medium" />
+              </div>
+            </div>
+
             <div className="space-y-4">
               <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Primary Assignment</Label>
               <div className="grid gap-4 border rounded-xl p-4 bg-muted/10">
@@ -1058,6 +1072,17 @@ export default function UserManagement() {
                       </div>
                     </div>
                     
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Phone Number</Label>
+                        <Input type="tel" value={selectedUser?.phone || ""} onChange={e => selectedUser && setSelectedUser({...selectedUser, phone: e.target.value})} className="font-medium" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Radio Call Sign</Label>
+                        <Input value={selectedUser?.radioCallSign || ""} onChange={e => selectedUser && setSelectedUser({...selectedUser, radioCallSign: e.target.value})} className="font-medium" />
+                      </div>
+                    </div>
+                    
                     <Separator className="my-2" />
 
                     <div className="space-y-4">
@@ -1258,6 +1283,29 @@ export default function UserManagement() {
                         )}
                       </div>
                     </div>
+
+                    {(selectedUser?.phone || selectedUser?.radioCallSign) && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-primary" />
+                          <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Communication Details</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {selectedUser.phone && (
+                            <div className="p-4 border rounded-xl bg-card shadow-sm flex flex-col gap-1">
+                              <span className="text-[10px] font-bold uppercase text-muted-foreground">Phone Number</span>
+                              <span className="text-sm font-bold">{selectedUser.phone}</span>
+                            </div>
+                          )}
+                          {selectedUser.radioCallSign && (
+                            <div className="p-4 border rounded-xl bg-card shadow-sm flex flex-col gap-1">
+                              <span className="text-[10px] font-bold uppercase text-muted-foreground">Radio Call Sign</span>
+                              <span className="text-sm font-bold">{selectedUser.radioCallSign}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </TabsContent>
