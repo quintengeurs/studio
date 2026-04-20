@@ -87,11 +87,20 @@ export default function TasksPage() {
 
   // Live Users (to check roles and for assignment)
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
+  const { data: users = [] } = useCollection<User>(usersQuery as any);
+
+  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
+
+  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(100)) : null, [db]);
+  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
+
+  const parks = useMemo(() => registryConfig?.parks ? [...registryConfig.parks].sort() : [], [registryConfig?.parks]);
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const currentUserData = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
+    users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
+  [users, user?.email]);
 
   const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
   const isAdmin = permissions.approveResolution; // Used for some super-user checks down the line
