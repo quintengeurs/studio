@@ -26,7 +26,6 @@ const ALL_FALSE: AccessPermissions = {
   editParksFull: false,
   editParkDevelopment: false,
   editDepotsFull: false,
-  viewMap: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {

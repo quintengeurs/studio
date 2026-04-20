@@ -66,12 +66,22 @@ export function AppSidebar() {
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
   const emailId = useMemo(() => user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", [user?.email]);
-  const userProfileRef = useMemo(() => (db && emailId) ? doc(db, "users", emailId) : null, [db, emailId]);
-  const { data: currentUserProfile } = useDoc<UserType>(userProfileRef as any);
+  
+  // 1. Check by UID
+  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
+  const { data: profileByUid } = useDoc<UserType>(profileByUidRef as any);
+  
+  // 2. Check by Email ID (legacy/sync pattern)
+  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
+  const { data: profileByEmail } = useDoc<UserType>(profileByEmailRef as any);
 
-  const profileResults = currentUserProfile ? [currentUserProfile] : []; // Keep for compatibility if needed
-
-  const allUsers = profileResults; // Keep variable for compatibility where count is checked
+  // 3. Check by Email Field (search pattern)
+  const userProfileQuery = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
+  [db, user?.email]);
+  const { data: profileResults = [] } = useCollection<UserType>(userProfileQuery as any);
+  
+  const currentUserProfile = profileByEmail || profileByUid || profileResults[0];
 
   const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserProfile, user?.email), [currentUserProfile, user?.email]);
   
