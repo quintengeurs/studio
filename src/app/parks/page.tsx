@@ -391,23 +391,39 @@ export default function ParksPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredParks.map((park) => {
                 const detail = allDetails.find(d => d.name === park);
+                const gfStatus = detail?.greenFlagStatus || (detail?.greenflag ? 'Awarded' : 'None');
+                
+                let bgClass = 'bg-background border-primary/5 hover:border-primary/20 hover:bg-muted/30';
+                let iconClass = 'bg-primary/5';
+                let Icon = MapPin;
+                let iconColor = 'text-primary opacity-20 group-hover:opacity-40';
+                
+                if (gfStatus === 'Awarded') {
+                  bgClass = 'bg-green-600/5 border-green-600/20 hover:border-green-600/40 hover:bg-green-600/10';
+                  iconClass = 'bg-green-600 shadow-lg shadow-green-600/20';
+                  Icon = Leaf;
+                  iconColor = 'text-white fill-white';
+                } else if (gfStatus === 'Pending') {
+                  bgClass = 'bg-amber-600/5 border-amber-600/20 hover:border-amber-600/40 hover:bg-amber-600/10';
+                  iconClass = 'bg-amber-500 shadow-lg shadow-amber-500/20';
+                  Icon = Clock;
+                  iconColor = 'text-white';
+                }
+
                 return (
                   <button 
                     key={park} 
                     onClick={() => handleOpenDetail(park)}
-                    className={`flex items-center gap-3 p-4 border-2 transition-all rounded-xl text-left group ${detail?.greenflag ? 'bg-green-600/5 border-green-600/20 hover:border-green-600/40 hover:bg-green-600/10' : 'bg-background border-primary/5 hover:border-primary/20 hover:bg-muted/30'}`}
+                    className={`flex items-center gap-3 p-4 border-2 transition-all rounded-xl text-left group ${bgClass}`}
                   >
-                    <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${detail?.greenflag ? 'bg-green-600 shadow-lg shadow-green-600/20' : 'bg-primary/5'}`}>
-                      {detail?.greenflag ? (
-                        <Leaf className="h-5 w-5 text-white fill-white" />
-                      ) : (
-                        <MapPin className="h-5 w-5 text-primary opacity-20 group-hover:opacity-40" />
-                      )}
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${iconClass}`}>
+                      <Icon className={`h-5 w-5 ${iconColor}`} />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="font-bold text-sm tracking-tight flex items-center gap-2 truncate">
                         <span className="truncate">{park}</span>
-                        {detail?.greenflag && <Badge variant="outline" className="text-[7px] h-3 px-1 uppercase font-bold border-green-600/30 text-green-700 bg-white">Awarded</Badge>}
+                        {gfStatus === 'Awarded' && <Badge variant="outline" className="text-[7px] h-3 px-1 uppercase font-bold border-green-600/30 text-green-700 bg-white">Awarded</Badge>}
+                        {gfStatus === 'Pending' && <Badge variant="outline" className="text-[7px] h-3 px-1 uppercase font-bold border-amber-600/30 text-amber-700 bg-white">Pending</Badge>}
                       </span>
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">View Park Info</span>
                     </div>
@@ -492,8 +508,16 @@ export default function ParksPage() {
           <div className="bg-primary/10 px-8 py-8 border-b border-primary/10">
             <div className="flex items-start justify-between gap-6">
               <div className="flex items-center gap-4 min-w-0">
-                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${selectedParkDetail?.greenflag ? 'bg-green-600 shadow-green-600/20' : 'bg-primary shadow-primary/20'}`}>
-                  <Leaf className={`h-6 w-6 ${selectedParkDetail?.greenflag ? 'text-white fill-white' : 'text-primary-foreground'}`} />
+                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${
+                  (selectedParkDetail?.greenFlagStatus === 'Awarded' || selectedParkDetail?.greenflag) ? 'bg-green-600 shadow-green-600/20' : 
+                  selectedParkDetail?.greenFlagStatus === 'Pending' ? 'bg-amber-500 shadow-amber-500/20' : 
+                  'bg-primary shadow-primary/20'
+                }`}>
+                  {selectedParkDetail?.greenFlagStatus === 'Pending' ? (
+                    <Clock className="h-6 w-6 text-white" />
+                  ) : (
+                    <Leaf className={`h-6 w-6 ${(selectedParkDetail?.greenFlagStatus === 'Awarded' || selectedParkDetail?.greenflag) ? 'text-white fill-white' : 'text-primary-foreground'}`} />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <DialogTitle className="text-2xl font-headline font-bold text-primary truncate">
@@ -601,15 +625,25 @@ export default function ParksPage() {
                       </div>
 
                       <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-xl border border-primary/10">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="greenflag" 
-                            checked={editForm.greenflag || false} 
-                            onCheckedChange={v => setEditForm({...editForm, greenflag: !!v})} 
-                          />
-                          <label htmlFor="greenflag" className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2 cursor-pointer">
-                            Green Flag Award Status <Leaf className="h-4 w-4 text-green-600" />
-                          </label>
+                        <div className="space-y-2">
+                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Green Flag Award Status</Label>
+                           <Select 
+                              value={editForm.greenFlagStatus || (editForm.greenflag ? 'Awarded' : 'None')} 
+                              onValueChange={v => setEditForm({
+                                ...editForm, 
+                                greenFlagStatus: v as any,
+                                greenflag: v === 'Awarded'
+                              })}
+                            >
+                              <SelectTrigger className="bg-background font-bold">
+                                <SelectValue placeholder="Select Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Awarded" className="font-bold text-green-700">Awarded</SelectItem>
+                                <SelectItem value="Pending" className="font-bold text-amber-700">First Time / Pending</SelectItem>
+                                <SelectItem value="None">None / Not Awarded</SelectItem>
+                              </SelectContent>
+                           </Select>
                         </div>
                         <div className="grid grid-cols-2 gap-4 ml-6">
                            <div className="space-y-2">
@@ -798,7 +832,7 @@ export default function ParksPage() {
                         <span className="font-bold text-sm">{selectedParkDetail.parkOfficer || "Not Assigned"}</span>
                       </div>
                     </div>
-                    {selectedParkDetail.greenflag && (
+                    {(selectedParkDetail.greenFlagStatus === 'Awarded' || selectedParkDetail.greenflag) && (
                       <div className="mt-6 p-5 bg-green-600/5 rounded-2xl border border-green-600/10 flex flex-col gap-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center shadow-lg shadow-green-600/20">
@@ -819,6 +853,23 @@ export default function ParksPage() {
                               <span className="text-xs font-bold text-green-800">{selectedParkDetail.gfMysteryShopYear || "Not Scheduled"}</span>
                            </div>
                         </div>
+                      </div>
+                    )}
+
+                    {selectedParkDetail.greenFlagStatus === 'Pending' && (
+                      <div className="mt-6 p-5 bg-amber-600/5 rounded-2xl border border-amber-600/10 flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                            <Clock className="h-5 w-5 text-white shrink-0" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">First Time Entry / Pending Outcome</span>
+                            <span className="text-sm font-bold text-amber-900">{selectedParkDetail.greenFlagInfo || "Judging In Progress"}</span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-amber-800/70 font-medium leading-relaxed bg-amber-100/50 p-2 rounded-lg border border-amber-600/5">
+                          Status is currently pending following the judging visit. This site is currently being highlighted as a new entry.
+                        </p>
                       </div>
                     )}
 

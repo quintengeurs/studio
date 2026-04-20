@@ -27,16 +27,19 @@ const ALL_FALSE: AccessPermissions = {
   editDepotsFull: false,
 };
 
-export function getDefaultPermissionsForUser(user: User | null | undefined): AccessPermissions {
-  if (!user) return { ...ALL_FALSE };
+export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
+  // If no user profile exists, check if the logged-in email is the system admin
+  const isSystemAdmin = fallbackEmail?.toLowerCase() === 'quinten.geurs@gmail.com';
   
-  if (user.permissions) {
+  if (!user && !isSystemAdmin) return { ...ALL_FALSE };
+  
+  if (user?.permissions) {
     return user.permissions;
   }
 
   // Fallback map evaluating legacy roles mapping
-  const roles = user.roles || (user.role ? [user.role] : []);
-  const isAdmin = roles.includes('Admin') || user.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+  const roles = user?.roles || (user?.role ? [user.role] : []);
+  const isAdmin = roles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || isSystemAdmin;
   const isContractor = roles.includes('Contractor') && roles.length === 1;
   const isManagement = roles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin;
   const canViewRequests = isAdmin || roles.includes('Area Manager') || roles.includes('Operations Manager');

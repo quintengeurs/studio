@@ -72,7 +72,7 @@ export function AppSidebar() {
 
   const allUsers = profileResults; // Keep variable for compatibility where count is checked
 
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserProfile), [currentUserProfile]);
+  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserProfile, user?.email), [currentUserProfile, user?.email]);
   
   const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
   const isAdmin = profileRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';

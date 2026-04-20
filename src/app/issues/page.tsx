@@ -169,7 +169,8 @@ function IssuesContent() {
     priority: "Medium" as Issue['priority'],
     category: "General",
     park: "",
-    imageUrl: ""
+    imageUrl: "",
+    location: null as { latitude: number, longitude: number } | null
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,6 +190,30 @@ function IssuesContent() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Not Supported", description: "Geolocation is not supported by your browser.", variant: "destructive" });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setNewIssue(prev => ({
+          ...prev,
+          location: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          }
+        }));
+        toast({ title: "Location Captured", description: "GPS coordinates added to report." });
+      },
+      (error) => {
+        toast({ title: "Location Error", description: "Could not retrieve your location. Please check permissions.", variant: "destructive" });
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   const handleCreateIssue = async () => {
     if (!db || !user || isSubmitting) return;
     setIsSubmitting(true);
@@ -202,7 +227,7 @@ function IssuesContent() {
     try {
       await addDoc(collection(db, "issues"), issueData);
       toast({ title: "Issue Raised", description: "Successfully created the new issue report." });
-      setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "" });
+      setNewIssue({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "", location: null });
       setIsDialogOpen(false);
     } catch (error) {
       toast({ title: "Error", description: "Failed to create issue. Please try again.", variant: "destructive" });
@@ -309,6 +334,11 @@ function IssuesContent() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="text-[9px] uppercase font-bold text-muted-foreground shrink-0">{issue.category}</Badge>
                     <div className="flex items-center gap-1 text-[9px] text-primary font-bold shrink-0"><MapPin className="h-3 w-3" />{issue.park}</div>
+                    {issue.location && (
+                      <Badge variant="secondary" className="text-[8px] h-4 px-1.5 font-bold bg-primary/5 text-primary border-primary/10 flex items-center gap-1 shrink-0">
+                        <MapPin className="h-2.5 w-2.5" /> GPS
+                      </Badge>
+                    )}
                   </div>
                   <Badge className={`${(issue.status as string) === 'Open' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-200' : (issue.status as string) === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' : (issue.status as string) === 'Pending Approval' ? 'bg-accent/20 text-accent-foreground border-accent animate-pulse' : 'bg-green-500/10 text-green-600 border-green-200'} font-bold text-[9px] shrink-0 uppercase tracking-tighter`}>{issue.status}</Badge>
                 </div>
@@ -445,6 +475,44 @@ function IssuesContent() {
                     </Button>
                   )}
                   <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Geolocation</Label>
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${newIssue.location ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold leading-none mb-1">
+                      {newIssue.location ? "GPS Tag Captured" : "No GPS Tag Added"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {newIssue.location 
+                        ? `${newIssue.location.latitude.toFixed(4)}, ${newIssue.location.longitude.toFixed(4)}` 
+                        : "Tag where the issue is located"}
+                    </p>
+                  </div>
+                  <Button 
+                    variant={newIssue.location ? "secondary" : "outline"}
+                    size="sm"
+                    className="h-8 font-bold text-[10px] uppercase shadow-sm"
+                    onClick={handleGetLocation}
+                    type="button"
+                  >
+                    {newIssue.location ? "Retake Tag" : "Add GPS Tag"}
+                  </Button>
+                  {newIssue.location && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => setNewIssue(prev => ({ ...prev, location: null }))}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

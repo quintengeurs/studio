@@ -100,6 +100,7 @@ export interface Issue {
   resolutionDate?: string;
   collaborators?: string[];
   isArchived?: boolean;
+  location?: { latitude: number; longitude: number };
 }
 
 export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthly' | 'Yearly' | 'Bespoke';
@@ -217,6 +218,7 @@ export interface ParkDetail {
   userGroup?: string;
   userGroupChair?: string;
   greenflag?: boolean;
+  greenFlagStatus?: 'Awarded' | 'Pending' | 'None';
   greenFlagInfo?: string;
 }
 export interface DepotUpdate {
