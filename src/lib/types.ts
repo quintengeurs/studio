@@ -46,6 +46,7 @@ export interface AccessPermissions {
   editParksFull: boolean;
   editParkDevelopment: boolean; // Just projects/groups
   editDepotsFull: boolean;
+  viewMap: boolean;
 }
 
 export interface User {
@@ -80,6 +81,7 @@ export interface Asset {
   customChecks?: string[];
   expectedLifespan?: number | string;
   isArchived?: boolean;
+  gpsLocation?: { latitude: number; longitude: number };
 }
 
 export interface Issue {

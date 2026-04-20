@@ -14,6 +14,7 @@ const ALL_FALSE: AccessPermissions = {
   viewArchivedTasks: false,
   viewUsers: false,
   viewArchivedStaff: false,
+  viewMap: false,
 
   createTask: false,
   assignTask: false,
@@ -25,6 +26,7 @@ const ALL_FALSE: AccessPermissions = {
   editParksFull: false,
   editParkDevelopment: false,
   editDepotsFull: false,
+  viewMap: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
@@ -82,6 +84,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       editParksFull: true,
       editParkDevelopment: true,
       editDepotsFull: true,
+      viewMap: true,
     };
   }
 
@@ -120,6 +123,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       editParksFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
       editParkDevelopment: roles.some(r => ['Parks Development Officer', 'Biodiversity Manager'].includes(r)),
       editDepotsFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
+      viewMap: roles.some(r => ['Area Manager', 'Operations Manager'].includes(r)),
     };
   }
 

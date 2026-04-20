@@ -128,7 +128,8 @@ export default function AssetRegister() {
     inspectionFrequency: 'Monthly' as Frequency,
     inspectionStartDate: format(new Date(), 'yyyy-MM-dd'),
     inspectionNotes: '',
-    customChecks: [] as string[]
+    customChecks: [] as string[],
+    gpsLocation: null as { latitude: number, longitude: number } | null
   });
 
   const [newCustomCheck, setNewCustomCheck] = useState("");
@@ -153,6 +154,32 @@ export default function AssetRegister() {
     }
   };
 
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Not Supported", description: "Geolocation is not supported by your browser.", variant: "destructive" });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+        if (isEditing && selectedAsset) {
+          setSelectedAsset(prev => prev ? { ...prev, gpsLocation: coords } : null);
+        } else {
+          setNewAsset(prev => ({ ...prev, gpsLocation: coords }));
+        }
+        toast({ title: "Location Captured", description: "GPS coordinates added to asset report." });
+      },
+      (error) => {
+        toast({ title: "Location Error", description: "Could not retrieve location. Please check permissions.", variant: "destructive" });
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   const handleAddAsset = async () => {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
@@ -164,7 +191,8 @@ export default function AssetRegister() {
       condition: newAsset.condition,
       expectedLifespan: newAsset.expectedLifespan,
       isArchived: false,
-      lastInspected: 'Never'
+      lastInspected: 'Never',
+      gpsLocation: newAsset.gpsLocation
     };
 
     try {
@@ -204,7 +232,8 @@ export default function AssetRegister() {
         inspectionFrequency: 'Monthly',
         inspectionStartDate: format(new Date(), 'yyyy-MM-dd'),
         inspectionNotes: '',
-        customChecks: []
+        customChecks: [],
+        gpsLocation: null
       });
       toast({ title: "Asset Added", description: `${assetData.name} registered successfully.` });
     } finally {
@@ -304,8 +333,25 @@ export default function AssetRegister() {
             <ScrollArea className="flex-1 p-6">
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label>Asset Name</Label>
                   <Input value={newAsset.name} onChange={e => setNewAsset({...newAsset, name: e.target.value})} placeholder="e.g. South End Play Frame" />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Location / Landmark (Text)</Label>
+                  <div className="flex gap-2">
+                    <Input className="flex-1" value={newAsset.location} onChange={e => setNewAsset({...newAsset, location: e.target.value})} placeholder="e.g. Near East Gate" />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleGetLocation}
+                      className={newAsset.gpsLocation ? "text-primary border-primary bg-primary/5 font-bold" : "font-bold"}
+                    >
+                      <MapPin className={`h-4 w-4 ${newAsset.gpsLocation ? '' : 'mr-2'}`} />
+                      {newAsset.gpsLocation ? "Captured" : "Get GPS"}
+                    </Button>
+                  </div>
+                  {newAsset.gpsLocation && (
+                    <p className="text-[10px] text-muted-foreground italic">Lat: {newAsset.gpsLocation.latitude.toFixed(4)}, Lon: {newAsset.gpsLocation.longitude.toFixed(4)}</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -520,7 +566,12 @@ export default function AssetRegister() {
                     <TableCell className="font-medium">
                       <div className="min-w-[120px]">
                         <div className="truncate max-w-[200px]">{asset.name}</div>
-                        <div className="text-[10px] text-muted-foreground font-normal truncate max-w-[200px]">{asset.location}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-[10px] text-muted-foreground font-normal truncate max-w-[150px]">{asset.location}</div>
+                          {asset.gpsLocation && (
+                            <Badge variant="secondary" className="text-[8px] h-3.5 px-1 font-bold bg-primary/5 text-primary border-primary/10">GPS</Badge>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{asset.park}</TableCell>
@@ -616,6 +667,20 @@ export default function AssetRegister() {
                         <Input value={selectedAsset?.type} disabled className="font-medium opacity-100" />
                       </div>
                     </div>
+                    <div className="grid gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Physical Location (GPS)</Label>
+                        <div className="flex gap-2">
+                            <Input 
+                                disabled 
+                                value={selectedAsset?.gpsLocation ? `${selectedAsset.gpsLocation.latitude.toFixed(6)}, ${selectedAsset.gpsLocation.longitude.toFixed(6)}` : "No GPS data captured"} 
+                                className="font-medium bg-muted/30"
+                            />
+                            <Button variant="outline" size="sm" onClick={handleGetLocation} className="font-bold">
+                                <MapPin className="mr-2 h-4 w-4" />
+                                {selectedAsset?.gpsLocation ? "Update GPS" : "Capture GPS"}
+                            </Button>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                       <div className="grid gap-2">
                         <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Physical Condition</Label>
@@ -676,6 +741,15 @@ export default function AssetRegister() {
                         </div>
                         <p className="text-lg font-bold font-headline">{selectedAsset?.expectedLifespan || 'Not Set'} <span className="text-xs font-normal text-muted-foreground uppercase ml-1">Years</span></p>
                       </div>
+                      {selectedAsset?.gpsLocation && (
+                        <div className="p-4 border rounded-lg bg-card shadow-sm">
+                          <div className="flex items-center gap-2 text-primary mb-2">
+                            <MapPin className="h-4 w-4" />
+                            <h4 className="text-[10px] font-bold uppercase tracking-widest">Physical GPS Location</h4>
+                          </div>
+                          <p className="text-lg font-bold font-headline">{selectedAsset.gpsLocation.latitude.toFixed(6)}, {selectedAsset.gpsLocation.longitude.toFixed(6)}</p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-4">
