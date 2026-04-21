@@ -16,8 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, X, AlertTriangle, MapPin } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { useFirestore, useUser, useDoc } from "@/firebase";
+import { collection, addDoc, doc } from "firebase/firestore";
 import { compressImage } from "@/lib/image-compress";
 import { useDataContext } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -34,14 +34,20 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const { allParks, registryConfig } = useDataContext();
+  const { allParks, registryConfig: contextRegistry } = useDataContext();
+  
+  const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const registry = localRegistry || contextRegistry;
+
   const parks = useMemo(() => {
-    const list = registryConfig?.parks || allParks.map(p => p.name);
+    const list = registry?.parks || allParks.map(p => p.name);
     return Array.from(new Set(list)).sort();
-  }, [allParks, registryConfig]);
+  }, [allParks, registry]);
 
   const [formData, setFormData] = useState({
     title: "",

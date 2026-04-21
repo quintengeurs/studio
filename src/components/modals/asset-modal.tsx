@@ -17,8 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, MapPin, X, PlusCircle } from "lucide-react";
-import { useFirestore } from "@/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { useFirestore, useDoc } from "@/firebase";
+import { collection, addDoc, doc } from "firebase/firestore";
 import { useDataContext } from "@/context/DataContext";
 import { format } from "date-fns";
 import { Frequency } from "@/lib/types";
@@ -31,13 +31,19 @@ interface AssetModalProps {
 export function AssetModal({ open, onOpenChange }: AssetModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
-  const { allParks, registryConfig } = useDataContext();
+  const { allParks, registryConfig: contextRegistry } = useDataContext();
+  
+  const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const registry = localRegistry || contextRegistry;
+
   const parks = useMemo(() => {
-    const list = registryConfig?.parks || allParks.map(p => p.name);
+    const list = registry?.parks || allParks.map(p => p.name);
     return Array.from(new Set(list)).sort();
-  }, [allParks, registryConfig]);
+  }, [allParks, registry]);
 
   const [formData, setFormData] = useState({
     name: '',
