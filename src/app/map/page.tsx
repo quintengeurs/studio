@@ -62,9 +62,9 @@ export default function MapPage() {
   const [selectedItem, setSelectedItem] = useState<{ item: Asset | Issue, type: 'Asset' | 'Issue' } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Layers
-  const issueLayerRef = useRef<L.LayerGroup>(L.layerGroup());
-  const assetLayerRef = useRef<L.LayerGroup>(L.layerGroup());
+  // Layers (Initialized in useEffect to be client-safe)
+  const [issueLayer, setIssueLayer] = useState<L.LayerGroup | null>(null);
+  const [assetLayer, setAssetLayer] = useState<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
 
   // Filtered List for Sidebar
@@ -98,9 +98,15 @@ export default function MapPage() {
       attributionControl: false 
     }).setView(referencePosition, 15);
 
+    // Initialize layers if not present
+    const iLayer = L.layerGroup();
+    const aLayer = L.layerGroup();
+    setIssueLayer(iLayer);
+    setAssetLayer(aLayer);
+
     // Add layers to map
-    issueLayerRef.current.addTo(map);
-    assetLayerRef.current.addTo(map);
+    iLayer.addTo(map);
+    aLayer.addTo(map);
 
     mapRef.current = map;
     setMapReady(true);
@@ -108,29 +114,39 @@ export default function MapPage() {
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, [permissions.viewMap]);
 
   // Update Markers
   useEffect(() => {
-    if (!mapReady || !mapRef.current) return;
+    if (!mapReady || !mapRef.current || !issueLayer || !assetLayer) return;
 
     const map = mapRef.current;
-    issueLayerRef.current.clearLayers();
-    assetLayerRef.current.clearLayers();
+    issueLayer.clearLayers();
+    assetLayer.clearLayers();
+
+    console.log(`[Map] Updating markers. Issues: ${issues.length}, Assets: ${assets.length}`);
 
     // Issues
+    let plottedIssues = 0;
     if (showIssues) {
       issues.forEach(issue => {
-        if (!issue.location) return;
+        const lat = Number(issue.location?.latitude);
+        const lon = Number(issue.location?.longitude);
+        
+        if (isNaN(lat) || isNaN(lon)) return;
+        
+        plottedIssues++;
         const color = getIssueColor(issue.priority);
-        const marker = L.circleMarker([issue.location.latitude, issue.location.longitude], {
-          radius: 9,
+        const marker = L.circleMarker([lat, lon], {
+          radius: 10,
           fillColor: color,
-          color: "#222",
-          weight: 2.5,
-          fillOpacity: 0.95
-        }).addTo(issueLayerRef.current);
+          color: "#fff",
+          weight: 2,
+          fillOpacity: 1,
+          pane: 'markerPane'
+        }).addTo(issueLayer);
 
         marker.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
@@ -140,16 +156,23 @@ export default function MapPage() {
     }
 
     // Assets
+    let plottedAssets = 0;
     if (showAssets) {
       assets.forEach(asset => {
-        if (!asset.gpsLocation) return;
-        const marker = L.circleMarker([asset.gpsLocation.latitude, asset.gpsLocation.longitude], {
-          radius: 4.5,
-          fillColor: "#555",
-          color: "#222",
-          weight: 1.5,
-          fillOpacity: 0.85
-        }).addTo(assetLayerRef.current);
+        const lat = Number(asset.gpsLocation?.latitude);
+        const lon = Number(asset.gpsLocation?.longitude);
+
+        if (isNaN(lat) || isNaN(lon)) return;
+
+        plottedAssets++;
+        const marker = L.circleMarker([lat, lon], {
+          radius: 6,
+          fillColor: "#333",
+          color: "#fff",
+          weight: 2,
+          fillOpacity: 1,
+          pane: 'markerPane'
+        }).addTo(assetLayer);
 
         marker.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
@@ -158,11 +181,13 @@ export default function MapPage() {
       });
     }
 
+    console.log(`[Map] Plotted ${plottedIssues} issues and ${plottedAssets} assets.`);
+
     // Heatmap
     if (showHeat && (L as any).heatLayer) {
       const heatPoints = issues
-        .filter(i => i.location)
-        .map(i => [i.location!.latitude, i.location!.longitude, 1]);
+        .filter(i => i.location?.latitude && i.location?.longitude)
+        .map(i => [Number(i.location!.latitude), Number(i.location!.longitude), 1]);
       
       if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
       heatLayerRef.current = (L as any).heatLayer(heatPoints, { radius: 28, blur: 18, maxZoom: 16 }).addTo(map);
@@ -170,7 +195,7 @@ export default function MapPage() {
       if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
     }
 
-  }, [mapReady, issues, assets, showIssues, showAssets, showHeat]);
+  }, [mapReady, issues, assets, showIssues, showAssets, showHeat, issueLayer, assetLayer]);
 
   const getIssueColor = (priority: string) => {
     switch (priority) {
