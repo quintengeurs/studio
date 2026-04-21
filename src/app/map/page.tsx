@@ -128,6 +128,8 @@ export default function MapPage() {
 
     console.log(`[Map] Updating markers. Issues: ${issues.length}, Assets: ${assets.length}`);
 
+    const bounds = L.latLngBounds([]);
+
     // Issues
     let plottedIssues = 0;
     if (showIssues) {
@@ -135,17 +137,19 @@ export default function MapPage() {
         const lat = Number(issue.location?.latitude);
         const lon = Number(issue.location?.longitude);
         
-        if (isNaN(lat) || isNaN(lon)) return;
+        if (isNaN(lat) || isNaN(lon) || !lat || !lon) return;
         
         plottedIssues++;
+        const pos = L.latLng(lat, lon);
+        bounds.extend(pos);
+        
         const color = getIssueColor(issue.priority);
-        const marker = L.circleMarker([lat, lon], {
+        const marker = L.circleMarker(pos, {
           radius: 10,
           fillColor: color,
           color: "#fff",
-          weight: 2,
-          fillOpacity: 1,
-          pane: 'markerPane'
+          weight: 3,
+          fillOpacity: 1
         }).addTo(issueLayer);
 
         marker.on('click', (e) => {
@@ -162,16 +166,18 @@ export default function MapPage() {
         const lat = Number(asset.gpsLocation?.latitude);
         const lon = Number(asset.gpsLocation?.longitude);
 
-        if (isNaN(lat) || isNaN(lon)) return;
+        if (isNaN(lat) || isNaN(lon) || !lat || !lon) return;
 
         plottedAssets++;
-        const marker = L.circleMarker([lat, lon], {
-          radius: 6,
-          fillColor: "#333",
+        const pos = L.latLng(lat, lon);
+        bounds.extend(pos);
+
+        const marker = L.circleMarker(pos, {
+          radius: 8,
+          fillColor: "#1e293b",
           color: "#fff",
-          weight: 2,
-          fillOpacity: 1,
-          pane: 'markerPane'
+          weight: 3,
+          fillOpacity: 1
         }).addTo(assetLayer);
 
         marker.on('click', (e) => {
@@ -182,6 +188,11 @@ export default function MapPage() {
     }
 
     console.log(`[Map] Plotted ${plottedIssues} issues and ${plottedAssets} assets.`);
+
+    // Auto-zoom if markers exist
+    if (bounds.isValid() && (plottedIssues > 0 || plottedAssets > 0)) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    }
 
     // Heatmap
     if (showHeat && (L as any).heatLayer) {
@@ -374,6 +385,9 @@ export default function MapPage() {
                       <Badge variant="outline" className={`text-[8px] h-3.5 px-1 font-bold ${(item as any).mapSearchType === 'Issue' ? 'bg-orange-500/5 text-orange-600 border-orange-100' : 'bg-blue-500/5 text-blue-600 border-blue-100'}`}>
                         {(item as any).mapSearchType}
                       </Badge>
+                      {((item as any).location?.latitude || (item as any).gpsLocation?.latitude) && (
+                        <Badge variant="default" className="text-[7px] h-3 px-1 font-bold bg-green-600 hover:bg-green-600">GPS</Badge>
+                      )}
                     </div>
                     <p className="text-xs font-bold truncate pr-4">{(item as any).title || (item as any).name}</p>
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
