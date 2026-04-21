@@ -20,6 +20,7 @@ import { useFirestore, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, doc } from "firebase/firestore";
 import { compressImage } from "@/lib/image-compress";
 import { useDataContext } from "@/context/DataContext";
+import { User, RegistryConfig, ParkDetail } from "@/lib/types";
 import { format } from "date-fns";
 import Image from "next/image";
 

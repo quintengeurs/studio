@@ -134,10 +134,10 @@ export default function MapPage() {
     let plottedIssues = 0;
     if (showIssues) {
       issues.forEach(issue => {
-        const lat = Number(issue.location?.latitude);
-        const lon = Number(issue.location?.longitude);
+        const lat = parseFloat((issue.location as any)?.latitude);
+        const lon = parseFloat((issue.location as any)?.longitude);
         
-        if (isNaN(lat) || isNaN(lon) || !lat || !lon) return;
+        if (isNaN(lat) || isNaN(lon)) return;
         
         plottedIssues++;
         const pos = L.latLng(lat, lon);
@@ -163,10 +163,10 @@ export default function MapPage() {
     let plottedAssets = 0;
     if (showAssets) {
       assets.forEach(asset => {
-        const lat = Number(asset.gpsLocation?.latitude);
-        const lon = Number(asset.gpsLocation?.longitude);
+        const lat = parseFloat((asset.gpsLocation as any)?.latitude);
+        const lon = parseFloat((asset.gpsLocation as any)?.longitude);
 
-        if (isNaN(lat) || isNaN(lon) || !lat || !lon) return;
+        if (isNaN(lat) || isNaN(lon)) return;
 
         plottedAssets++;
         const pos = L.latLng(lat, lon);
@@ -332,6 +332,15 @@ export default function MapPage() {
           </div>
 
           <div id="map-container" className="flex-1 w-full min-h-[400px] z-0 shadow-sm overflow-hidden relative">
+            {(issues.length > 0 || assets.length > 0) && mapReady && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/80 text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 pointer-events-none transition-all">
+                {L.latLngBounds([]).isValid() ? (
+                   <><Target className="h-3 w-3 text-green-400 animate-pulse" /> Tracking {issues.filter(i => i.location?.latitude).length + assets.filter(a => a.gpsLocation?.latitude).length} Nodes</>
+                ) : (
+                   <><X className="h-3 w-3 text-red-400" /> No Geodata found in {issues.length + assets.length} items</>
+                )}
+              </div>
+            )}
             <div className="absolute bottom-4 right-4 z-[1000] bg-white/90 backdrop-blur p-3 rounded-lg border shadow-lg text-[10px] space-y-2 pointer-events-none">
               <p className="font-bold border-b pb-1 mb-1">LEGEND</p>
               <div className="flex items-center gap-2">
@@ -392,6 +401,11 @@ export default function MapPage() {
                     <p className="text-xs font-bold truncate pr-4">{(item as any).title || (item as any).name}</p>
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                       <MapPin className="h-2.5 w-2.5" /> {item.park}
+                      {((item as any).location?.latitude || (item as any).gpsLocation?.latitude) && (
+                        <span className="ml-auto font-mono text-[8px] opacity-70">
+                          [{Number((item as any).location?.latitude || (item as any).gpsLocation?.latitude).toFixed(4)}, {Number((item as any).location?.longitude || (item as any).gpsLocation?.longitude).toFixed(4)}]
+                        </span>
+                      )}
                     </p>
                   </div>
                   <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all shrink-0">

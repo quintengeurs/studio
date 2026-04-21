@@ -21,7 +21,7 @@ import { useFirestore, useDoc } from "@/firebase";
 import { collection, addDoc, doc } from "firebase/firestore";
 import { useDataContext } from "@/context/DataContext";
 import { format } from "date-fns";
-import { Frequency } from "@/lib/types";
+import { Frequency, RegistryConfig, ParkDetail } from "@/lib/types";
 
 interface AssetModalProps {
   open: boolean;
