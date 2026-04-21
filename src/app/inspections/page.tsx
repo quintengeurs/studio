@@ -42,8 +42,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { User, Frequency, Inspection, Asset, OPERATIVE_ROLES } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
+import { User, Frequency, Inspection, Asset } from "@/lib/types";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 import { getNextBespokeOccurrence } from "@/lib/scheduling-utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -138,15 +139,8 @@ export default function InspectionsPage() {
   [db, inspectionLimit]);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
 
-  // Live Users (to check roles)
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
-
-  const currentUserData = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
-
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
+  const { profile, permissions, isAdmin } = useUserContext();
+  const { allUsers, allParks } = useDataContext();
   const canManage = permissions.scheduleInspection;
   const isOperational = !permissions.scheduleInspection;
 
@@ -176,6 +170,8 @@ export default function InspectionsPage() {
   }[]>([]);
   
   const [editCustomCheck, setEditCustomCheck] = useState("");
+  const [newCustomCheck, setNewCustomCheck] = useState("");
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
@@ -313,7 +309,7 @@ export default function InspectionsPage() {
         await updateDoc(doc(db, "inspections", selectedInspection.id), {
             status: 'Completed',
             completedAt: new Date().toISOString(),
-            inspectedBy: currentUserData?.name || user.email,
+            inspectedBy: profile?.name || user?.email,
             checklist: inspectionResults.map(res => ({
                 item: res.item,
                 status: res.passed ? 'Pass' : 'Fail',

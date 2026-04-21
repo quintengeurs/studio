@@ -11,7 +11,6 @@ import {
   Clock, 
   AlertCircle, 
   CheckCircle2, 
-  LayerOutline,
   Layers,
   LayoutGrid,
   Maximize2,
@@ -35,9 +34,10 @@ import {
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
 import { collection, query, where, limit, doc } from "firebase/firestore";
 import { Asset, Issue, User, Role, RegistryConfig } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 
 // Leaflet imports - Only client side
 import L from 'leaflet';
@@ -51,20 +51,8 @@ export default function MapPage() {
   const mapRef = useRef<L.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
-  // Auth & Permissions
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
-  const currentUserData = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
-
-  // Data Fetching
-  const assetsQuery = useMemoFirebase(() => db ? query(collection(db, "assets"), where("isArchived", "==", false)) : null, [db]);
-  const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
-
-  const issuesQuery = useMemoFirebase(() => db ? query(collection(db, "issues"), where("isArchived", "==", false)) : null, [db]);
-  const { data: issues = [] } = useCollection<Issue>(issuesQuery as any);
+  const { permissions, isAdmin } = useUserContext();
+  const { allUsers, allAssets: assets, allIssues: issues } = useDataContext();
 
   // States
   const [showIssues, setShowIssues] = useState(true);

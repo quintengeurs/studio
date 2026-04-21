@@ -23,6 +23,8 @@ import { MaterialRequest, User as UserProfile } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 
 export default function RequestsManagementPage() {
   const { toast } = useToast();
@@ -30,15 +32,8 @@ export default function RequestsManagementPage() {
   const { user } = useUser();
   const router = useRouter();
 
-  // Live Users (to check roles)
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: allUsers = [] } = useCollection<UserProfile>(usersQuery as any);
-
-  const currentUserData = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
-
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
+  const { permissions, loading: userLoading } = useUserContext();
+  const { allUsers } = useDataContext();
   const canViewRequests = permissions.viewStaffRequests;
 
   const requestsQuery = useMemoFirebase(() => {
@@ -53,10 +48,10 @@ export default function RequestsManagementPage() {
   const { data: requests = [], loading } = useCollection<MaterialRequest>(requestsQuery as any);
 
   useEffect(() => {
-    if (!loading && !canViewRequests && allUsers.length > 0) {
+    if (!loading && !userLoading && !canViewRequests && allUsers.length > 0) {
       router.push("/");
     }
-  }, [canViewRequests, loading, allUsers.length, router]);
+  }, [canViewRequests, loading, userLoading, allUsers.length, router]);
 
   if (!canViewRequests && allUsers.length > 0) {
       return null; // Will redirect via useEffect

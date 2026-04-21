@@ -54,10 +54,11 @@ import {
 } from "@/components/ui/tooltip";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit } from "firebase/firestore";
-import { Issue, Asset, User, RegistryConfig, OPERATIVE_ROLES, Role, ParkDetail } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit } from "firebase/firestore";
+import { Issue, OPERATIVE_ROLES, ParkDetail } from "@/lib/types";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 import { FolderArchive } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -73,20 +74,8 @@ function IssuesContent() {
   const db = useFirestore();
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const userEmail = user?.email || "";
-  const emailId = userEmail.toLowerCase().replace(/[.#$[\]]/g, "_");
-  
-  // Resilient profile lookup: try UID first, then emailId
-  const userProfileRef = useMemo(() => (user && db) ? doc(db, "users", user.uid) : null, [user?.uid, db]);
-  const { data: profileByUid } = useDoc<User>(userProfileRef as any);
-  
-  const emailProfileRef = useMemo(() => (user && db && emailId) ? doc(db, "users", emailId) : null, [emailId, db]);
-  const { data: profileByEmail } = useDoc<User>(emailProfileRef as any);
-  
-  const profile = profileByEmail || profileByUid;
-  
-  const permissions = useMemo(() => getDefaultPermissionsForUser(profile), [profile]);
+  const { profile, permissions, isAdmin } = useUserContext();
+  const { allUsers: users, allParks: allDetails } = useDataContext();
   const isOperative = !permissions.assignTask;
 
   const [issueLimit, setIssueLimit] = useState(25);
@@ -110,10 +99,8 @@ function IssuesContent() {
   }, [db, archivedLimit]);
   const { data: archivedIssuesRaw = [], loading: archivedLoading } = useCollection<Issue>(archivedQuery as any);
 
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details")) : null, [db]);
-  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
+  const parks = useMemo(() => allDetails.map(p => p.name).sort(), [allDetails]);
 
-  const isAdmin = profile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   const canDelete = isAdmin || profile?.role === 'Area Manager' || profile?.role === 'Operations Manager';
 
   const filteredIssues = useMemo(() => {
@@ -146,13 +133,6 @@ function IssuesContent() {
   const assignedIssues = useMemo(() => filteredIssues.filter(i => i.assignedTo), [filteredIssues]);
   const resolvedIssues = useMemo(() => resolvedIssuesRaw.filter(i => i.isArchived !== true), [resolvedIssuesRaw]);
   const archivedIssues = archivedIssuesRaw;
-
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: users = [] } = useCollection<User>(usersQuery as any);
-
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
-  const parks = registryConfig?.parks?.sort() ?? [];
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);

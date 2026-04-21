@@ -18,9 +18,9 @@ import { useAuth, useUser, useFirestore, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, where, limit, doc } from "firebase/firestore";
-import { Task, User as UserProfile, OPERATIVE_ROLES } from "@/lib/types";
-import { useDoc } from "@/firebase/firestore/use-doc";
+import { collection, query, where, limit } from "firebase/firestore";
+import { Task, OPERATIVE_ROLES } from "@/lib/types";
+import { useUserContext } from "@/context/UserContext";
 
 
 export function MobileTopHeader() {
@@ -29,23 +29,7 @@ export function MobileTopHeader() {
   const db = useFirestore();
   const router = useRouter();
 
-  const emailId = user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "";
-  
-  // 1. Check by UID
-  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
-  const { data: profileByUid } = useDoc<UserProfile>(profileByUidRef as any);
-  
-  // 2. Check by Email ID (legacy/sync pattern)
-  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
-  const { data: profileByEmail } = useDoc<UserProfile>(profileByEmailRef as any);
-
-  // 3. Check by Email Field (search pattern)
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<UserProfile>(userProfileQuery as any);
-  
-  const profile = profileByEmail || profileByUid || profileResults[0];
+  const { profile } = useUserContext();
   
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 

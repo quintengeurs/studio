@@ -88,11 +88,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { firebaseConfig } from "@/firebase/config";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 import { PermissionsMatrix } from "@/components/users/permissions-matrix";
 
 export default function UserManagement() {
@@ -101,8 +103,8 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef as any);
+  const { profile, isAdmin } = useUserContext();
+  const { allUsers: users, allParks: allDetails, registryConfig, configLoading } = useDataContext();
 
   const teams = useMemo(() => 
     registryConfig?.teams ? [...registryConfig.teams].sort() : [], 
@@ -111,15 +113,12 @@ export default function UserManagement() {
   const trainingOptions = useMemo(() => 
     registryConfig?.trainingOptions ? [...registryConfig.trainingOptions].sort() : [], 
   [registryConfig?.trainingOptions]);
-  const parks = useMemo(() => 
-    registryConfig?.parks ? [...registryConfig.parks].sort() : [], 
-  [registryConfig?.parks]);
 
-  const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "users"), limit(500)); // Still fetch users for the table, but with a safe limit
-  }, [db]);
-  const { data: users = [], loading: usersLoading } = useCollection<User>(usersQuery as any);
+  const parks = useMemo(() => 
+    allDetails ? allDetails.map(p => p.name).sort() : [], 
+  [allDetails]);
+
+  const usersLoading = false; // We use DataContext which is already loaded or loading
 
   // OPTIMIZED: Removed global allTasks and allIssues fetches. 
   // We will fetch these specifically for a user only when their profile is opened.
@@ -689,7 +688,7 @@ export default function UserManagement() {
                     <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground"><p className="font-bold">No Archived Staff</p></TableCell></TableRow>
                   ) : (
                     users.filter(u => u.isArchived).map((user) => (
-                      <TableRow key={user.id} className="hover:bg-accent/5 transition-colors cursor-pointer opacity-50 grayscale hover:grayscale-0" onClick={() => handleEditClick(user)}>
+                      <TableRow key={user.id} className="hover:bg-accent/5 transition-colors cursor-pointer opacity-50 grayscale hover:grayscale-0" onClick={() => openUserProfile(user)}>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10 border-2 border-primary/10">
@@ -1094,7 +1093,7 @@ export default function UserManagement() {
                             value={selectedUser?.assignedRoles?.[0]?.role || selectedUser?.role || (selectedUser?.roles?.[0] as Role)} 
                             onValueChange={(v) => {
                               if (!selectedUser) return;
-                              const roles = [...(selectedUser.assignedRoles || [{ role: selectedUser.role || selectedUser.roles?.[0] || 'Gardener', depotId: selectedUser.depot || selectedUser.depots?.[0] || '' }])];
+                              const roles = [...(selectedUser.assignedRoles || [{ role: (selectedUser.role || selectedUser.roles?.[0] || 'Gardener') as Role, depotIds: selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []) }])];
                               roles[0] = { ...roles[0], role: v as Role };
                               setSelectedUser({...selectedUser, assignedRoles: roles});
                             }}

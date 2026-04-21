@@ -20,10 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
-import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, doc } from "firebase/firestore";
-import { User as UserProfile } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
+import { useUserContext } from "@/context/UserContext";
 
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -41,29 +38,9 @@ const items = [
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const { user } = useUser();
-  const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  const emailId = useMemo(() => user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", [user?.email]);
-  
-  // 1. Check by UID
-  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
-  const { data: profileByUid } = useDoc<UserProfile>(profileByUidRef as any);
-  
-  // 2. Check by Email ID (legacy/sync pattern)
-  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
-  const { data: profileByEmail } = useDoc<UserProfile>(profileByEmailRef as any);
-
-  // 3. Check by Email Field (search pattern)
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<UserProfile>(userProfileQuery as any);
-  
-  const profile = profileByEmail || profileByUid || profileResults[0];
-  
-  const permissions = useMemo(() => getDefaultPermissionsForUser(profile, user?.email), [profile, user?.email]);
+  const { permissions } = useUserContext();
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {

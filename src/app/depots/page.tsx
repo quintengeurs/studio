@@ -45,7 +45,8 @@ import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@
 import { collection, doc, setDoc, query, where, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { RegistryConfig, DepotDetail, User, Role, DepotUpdate, ParkDetail } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function DepotsPage() {
@@ -54,20 +55,12 @@ export default function DepotsPage() {
   const isMobile = useIsMobile();
   const { user } = useUser();
 
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef as any);
-
-  const depots = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
-
-  // Firestore Queries
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false), limit(100)) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
+  const { profile, permissions, isAdmin: globalIsAdmin } = useUserContext();
+  const { allUsers, allParks, registryConfig, configLoading } = useDataContext();
   
+  // Depot details remain page-specific as they are large and mostly for management
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "depots_details"), limit(100)) : null, [db]);
   const { data: allDetails = [] } = useCollection<DepotDetail>(detailsQuery as any);
-
-  const parksQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(100)) : null, [db]);
-  const { data: allParks = [] } = useCollection<ParkDetail>(parksQuery as any);
 
   const [selectedDepotName, setSelectedDepotName] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -85,13 +78,9 @@ export default function DepotsPage() {
   const [updateForm, setUpdateForm] = useState<Partial<DepotUpdate>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currentUserData = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
-  
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
   const isAdmin = permissions.editDepotsFull; // Use granular role for component gates
   const canEditMaintenance = permissions.editDepotsFull;
+  const depots = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
 
   const selectedDepotDetail = useMemo(() => {
     return allDetails.find(d => d.name === selectedDepotName || d.id === selectedDepotName) || {
@@ -182,7 +171,7 @@ export default function DepotsPage() {
           description: updateForm.description || "",
           attendees: updateForm.attendees || [],
           createdAt: new Date().toISOString(),
-          createdBy: currentUserData?.name || user.email || "Unknown",
+          createdBy: profile?.name || user?.email || "Unknown",
           isArchived: false,
         };
         updatedList = [...updatedList, newUpdate];
@@ -253,7 +242,7 @@ export default function DepotsPage() {
   const renderStaffByRole = (role: Role) => {
     const staff = depotStaff.filter(s => {
       // Check for assigned roles at this specific depot
-      const hasSpecificAssignment = s.assignedRoles?.some(ar => ar.depotIds?.includes(selectedDepotName) && ar.role === role);
+      const hasSpecificAssignment = selectedDepotName && s.assignedRoles?.some(ar => ar.depotIds?.includes(selectedDepotName) && ar.role === role);
       if (hasSpecificAssignment) return true;
       
       // Fallback for legacy data or if assignedRoles is missing but user matches this depot

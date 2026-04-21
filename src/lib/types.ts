@@ -82,6 +82,7 @@ export interface Asset {
   expectedLifespan?: number | string;
   isArchived?: boolean;
   gpsLocation?: { latitude: number; longitude: number };
+  imageUrl?: string;
 }
 
 export interface Issue {
@@ -126,6 +127,7 @@ export interface Task {
   daysOfWeek?: number[];
   isBespoke?: boolean;
   isArchived?: boolean;
+  completedAt?: string;
 }
 
 export interface RecurringSchedule {

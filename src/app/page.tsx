@@ -25,9 +25,10 @@ import {
   Pie
 } from "recharts";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
-import { collection, query, where, doc, updateDoc, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Issue, Task, User, Role, OFFICE_ROLES, OPS_ROLES, SENIOR_OPS_ROLES, SENIOR_MGMT_ROLES, OPERATIVE_ROLES } from "@/lib/types";
+import { Issue, Task, Role, OFFICE_ROLES, OPS_ROLES, SENIOR_OPS_ROLES, SENIOR_MGMT_ROLES, OPERATIVE_ROLES, RegistryConfig } from "@/lib/types";
+import { useUserContext } from "@/context/UserContext";
 import Link from "next/link";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { RegistryConfig } from "@/lib/types";
+import { useDataContext } from "@/context/DataContext";
 
 export default function Dashboard() {
   const db = useFirestore();
@@ -66,29 +67,16 @@ export default function Dashboard() {
     }
   };
 
-  // Optimized user lookup: Targeted query instead of fetching the entire collection
-  const emailId = useMemo(() => user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", [user?.email]);
-  const userProfileRef = useMemo(() => (db && emailId) ? doc(db, "users", emailId) : null, [db, emailId]);
-  const { data: profile } = useDoc<User>(userProfileRef as any);
-  
-  const profileResults = profile ? [profile] : [];
+  const { profile, isAdmin, isManagement, currentUserRoles } = useUserContext();
   
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 
-  const currentUserRoles = useMemo(() => 
-    profile?.roles || (profile?.role ? [profile.role] : []),
-  [profile]);
-
-  const isAdmin = currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
   const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1 && !isAdmin;
-  const isManagement = currentUserRoles.some((r: Role) => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin;
   
-  const isOfficeStaff = currentUserRoles.some(r => OFFICE_ROLES.includes(r)) || isAdmin;
-  const isOpsStaff = currentUserRoles.some(r => OPS_ROLES.includes(r)) || isAdmin;
-  const isSeniorOps = currentUserRoles.some(r => SENIOR_OPS_ROLES.includes(r)) || isAdmin;
-  const isSeniorMgmt = currentUserRoles.some(r => SENIOR_MGMT_ROLES.includes(r)) || isAdmin;
-  
-  const isStandard = !isAdmin && !isContractor && !isManagement;
+  const isOfficeStaff = currentUserRoles.some(r => OFFICE_ROLES.includes(r as any)) || isAdmin;
+  const isOpsStaff = currentUserRoles.some(r => OPS_ROLES.includes(r as any)) || isAdmin;
+  const isSeniorOps = currentUserRoles.some(r => SENIOR_OPS_ROLES.includes(r as any)) || isAdmin;
+  const isSeniorMgmt = currentUserRoles.some(r => SENIOR_MGMT_ROLES.includes(r as any)) || isAdmin;
 
   const userEffectiveName = profile?.name || userDisplayName;
 
@@ -281,14 +269,14 @@ export default function Dashboard() {
 
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
           <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
-          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={profileResults} />
+          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={profile ? [profile] : []} />
           
           <TaskDetailModal 
             open={taskDetailOpen} 
             onOpenChange={setTaskDetailOpen} 
             task={selectedTask} 
             linkedIssue={myIssues.find((i: Issue) => i.id === selectedTask?.linkedIssueId)}
-            allUsers={profileResults}
+            allUsers={profile ? [profile] : []}
           />
 
           {/* Admin Quick Actions */}

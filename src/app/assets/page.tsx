@@ -59,26 +59,19 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, limit } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit } from "firebase/firestore";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 import { format } from "date-fns";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
 
 export default function AssetRegister() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
   
-  // Live Users (to check roles)
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
-  
-  const currentUserData = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
-  
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
-  const isAdmin = permissions.manageAssets; // Proxy for top level controls
+  const { profile, permissions, isAdmin } = useUserContext();
+  const { allUsers, allParks } = useDataContext();
 
   // Live Assets
   const [assetLimit, setAssetLimit] = useState(25);
@@ -102,11 +95,9 @@ export default function AssetRegister() {
   }, [db]);
   const { data: allTasks = [] } = useCollection<Task>(tasksQuery as any);
 
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef as any);
   const parks = useMemo(() => 
-    registryConfig?.parks ? [...registryConfig.parks].sort() : [], 
-  [registryConfig?.parks]);
+    allParks ? allParks.map(p => p.name).sort() : [], 
+  [allParks]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);

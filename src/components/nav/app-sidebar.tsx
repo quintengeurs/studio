@@ -32,16 +32,15 @@ import {
   SidebarGroupLabel,
   SidebarSeparator
 } from "@/components/ui/sidebar";
+import { useState, useMemo } from "react";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { signOut } from "firebase/auth";
-import { useState, useMemo } from "react";
+import { useUserContext } from "@/context/UserContext";
 import { RequestModal } from "@/components/modals/request-modal";
-import { collection, query, where, doc } from "firebase/firestore";
-import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
+import { User as UserType } from "@/lib/types";
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -62,31 +61,11 @@ export function AppSidebar() {
   const router = useRouter();
   const auth = useAuth();
   const { user } = useUser();
-  const db = useFirestore();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  const emailId = useMemo(() => user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", [user?.email]);
-  
-  // 1. Check by UID
-  const profileByUidRef = useMemo(() => db && user?.uid ? doc(db, "users", user.uid) : null, [db, user?.uid]);
-  const { data: profileByUid } = useDoc<UserType>(profileByUidRef as any);
-  
-  // 2. Check by Email ID (legacy/sync pattern)
-  const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
-  const { data: profileByEmail } = useDoc<UserType>(profileByEmailRef as any);
+  const { profile: currentUserProfile, permissions, isAdmin } = useUserContext();
 
-  // 3. Check by Email Field (search pattern)
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
-  const { data: profileResults = [] } = useCollection<UserType>(userProfileQuery as any);
-  
-  const currentUserProfile = profileByEmail || profileByUid || profileResults[0];
-
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserProfile, user?.email), [currentUserProfile, user?.email]);
-  
   const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
-  const isAdmin = profileRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
 
   const filteredNavItems = useMemo(() => {
     return navItems.filter(item => {

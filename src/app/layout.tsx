@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   description: 'Asset tracking, issue reporting, and task management for park operatives.',
 };
 
+import { UserProvider } from '@/context/UserContext';
+import { DataProvider } from '@/context/DataContext';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -24,11 +27,15 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
-          <SidebarProvider defaultOpen={true}>
-            <DesktopGuard>
-              {children}
-            </DesktopGuard>
-          </SidebarProvider>
+          <UserProvider>
+            <DataProvider>
+              <SidebarProvider defaultOpen={true}>
+                <DesktopGuard>
+                  {children}
+                </DesktopGuard>
+              </SidebarProvider>
+            </DataProvider>
+          </UserProvider>
         </FirebaseClientProvider>
         <Toaster />
       </body>

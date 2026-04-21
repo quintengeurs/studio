@@ -10,14 +10,15 @@ import {
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
-export function useCollection<T = DocumentData>(query: Query<T> | null) {
+export function useCollection<T = DocumentData>(
+  query: Query<T> | null, 
+  options: { fetchOnce?: boolean } = {}
+) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const queryRef = useRef(query);
 
-  // Only update the ref if the query actually changed meaningfully
-  // This prevents infinite re-subscription from unstable object references
   if (query !== queryRef.current) {
     queryRef.current = query;
   }
@@ -31,6 +32,26 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
     }
 
     setLoading(true);
+
+    if (options.fetchOnce) {
+      const { getDocs } = require('firebase/firestore');
+      getDocs(currentQuery)
+        .then((snapshot: any) => {
+          const items = snapshot.docs.map((doc: any) => ({
+            ...doc.data(),
+            id: doc.id,
+          }));
+          setData(items);
+          setLoading(false);
+          setError(null);
+        })
+        .catch((err: any) => {
+          console.error(`[useCollection] FETCH ONCE ERROR:`, err.code, err.message);
+          setError(err);
+          setLoading(false);
+        });
+      return;
+    }
 
     const unsubscribe = onSnapshot(
       currentQuery,
@@ -56,10 +77,9 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
     );
 
     return () => {
-      console.log('[useCollection] Unsubscribing from query');
       unsubscribe();
     };
-  }, [query]);
+  }, [query, options.fetchOnce]);
 
   return { data, loading, error };
 }

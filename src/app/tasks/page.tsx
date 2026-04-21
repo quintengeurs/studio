@@ -56,12 +56,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit } from "firebase/firestore";
+import { Role, Frequency, Task, Asset } from "@/lib/types";
+import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
-import { User, Task, Frequency, Asset, OPERATIVE_ROLES, Role, RegistryConfig, ParkDetail } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { addDays, addMonths, format } from "date-fns";
 
 export default function TasksPage() {
@@ -87,54 +88,34 @@ export default function TasksPage() {
   [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
-  // Live Users (to check roles and for assignment)
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
-  const { data: users = [] } = useCollection<User>(usersQuery as any);
-
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig } = useDoc<RegistryConfig>(registryConfigRef as any);
-
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(100)) : null, [db]);
-  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
-
-  const parks = useMemo(() => registryConfig?.parks ? [...registryConfig.parks].sort() : [], [registryConfig?.parks]);
-  const today = format(new Date(), 'yyyy-MM-dd');
-
-  const currentUserData = useMemo(() => 
-    users.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [users, user?.email]);
-
-  const permissions = useMemo(() => getDefaultPermissionsForUser(currentUserData, user?.email), [currentUserData, user?.email]);
-  const isAdmin = permissions.approveResolution; // Used for some super-user checks down the line
+  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
+  const { allUsers: users, allParks: allDetails } = useDataContext();
+  const parks = useMemo(() => allDetails.map(p => p.name).sort(), [allDetails]);
   const isOperational = !permissions.viewAllTasks;
 
-  const currentUserName = useMemo(() => {
-    if (currentUserData?.name) return currentUserData.name;
-    if (user?.email?.toLowerCase() === 'quinten.geurs@gmail.com') return "Quinten (Admin)";
-    return user?.displayName || user?.email || "";
-  }, [currentUserData, user]);
+  const currentUserName = profile?.name || user?.displayName || user?.email || "";
+  const userEffectiveName = currentUserName;
 
   const identities = useMemo(() => {
     const list = [currentUserName];
     if (user?.email) list.push(user.email.toLowerCase());
     if (user?.displayName) list.push(user.displayName);
 
-    const userDepots = currentUserData?.depots || (currentUserData?.depot ? [currentUserData.depot] : []);
-    const roles = currentUserData?.roles || (currentUserData?.role ? [currentUserData.role] : []);
+    const userDepots = profile?.depots || (profile?.depot ? [profile.depot] : []);
     
-    roles.forEach(r => {
+    currentUserRoles.forEach((r: any) => {
       userDepots.forEach(d => {
         if (d?.trim?.()) list.push(`Group: ${r} @ ${d.trim()}`);
       });
     });
     
     return Array.from(new Set(list)).slice(0, 10);
-  }, [currentUserName, user?.email, user?.displayName, currentUserData]);
+  }, [currentUserName, user?.email, user?.displayName, profile, currentUserRoles]);
 
   const filteredTasksForUser = useMemo(() => {
     if (isAdmin) return tasks;
     
-    const userDepots = currentUserData?.depots?.length ? currentUserData.depots : (currentUserData?.depot ? [currentUserData.depot] : []);
+    const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
     
     return tasks.filter(t => {
       const isDirectlyAssigned = identities.some(ident => 
@@ -152,7 +133,7 @@ export default function TasksPage() {
 
       return false;
     });
-  }, [tasks, isAdmin, currentUserData, allDetails, identities]);
+  }, [tasks, isAdmin, profile, allDetails, identities]);
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
