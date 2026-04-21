@@ -47,7 +47,7 @@ const navItems = [
   { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Parks", icon: Map, href: "/parks" },
-  { title: "Map Registry", icon: LayoutGrid, href: "/map" },
+  { title: "Parks Map", icon: LayoutGrid, href: "/map" },
   { title: "Depots", icon: Building2, href: "/depots" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
@@ -80,7 +80,7 @@ export function AppSidebar() {
         case "Staff Requests": return permissions.viewStaffRequests;
         case "All Tasks": return permissions.viewAllTasks;
         case "Users": return permissions.viewUsers;
-        case "Map Registry": return permissions.viewMap;
+        case "Parks Map": return permissions.viewMap;
         default: return false;
       }
     });

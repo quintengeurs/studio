@@ -50,9 +50,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     getDefaultPermissionsForUser(profile, user?.email), 
   [profile, user?.email]);
 
-  const currentUserRoles = useMemo(() => 
-    profile?.roles || (profile?.role ? [profile.role] : []),
-  [profile]);
+  const currentUserRoles = useMemo(() => {
+    const rolesSet = new Set<string>();
+    if (profile?.role) rolesSet.add(profile.role);
+    if (profile?.roles) profile.roles.forEach(r => rolesSet.add(r));
+    if (profile?.assignedRoles) profile.assignedRoles.forEach(ar => rolesSet.add(ar.role));
+    return Array.from(rolesSet);
+  }, [profile]);
 
   const isAdmin = useMemo(() => 
     currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',

@@ -27,7 +27,7 @@ const items = [
   { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Parks", icon: Map, href: "/parks" },
-  { title: "Map Registry", icon: LayoutGrid, href: "/map" },
+  { title: "Parks Map", icon: LayoutGrid, href: "/map" },
   { title: "Depots", icon: Building2, href: "/depots" },
   { title: "Inspections", icon: ClipboardCheck, href: "/inspections" },
   { title: "Issues", icon: AlertTriangle, href: "/issues" },
@@ -45,17 +45,17 @@ export function MobileBottomNav() {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       switch(item.title) {
-          case "Dashboard": return permissions.viewDashboard;
-          case "My Tasks": return permissions.viewMyTasks;
+          case "Dashboard": return true;
+          case "My Tasks": return true; 
           case "Asset Register": return permissions.viewAssets;
           case "Parks": return permissions.viewParks;
+          case "Parks Map": return permissions.viewMap;
           case "Depots": return permissions.viewDepots;
           case "Inspections": return permissions.viewInspections;
           case "Issues": return permissions.viewIssues;
           case "Staff Requests": return permissions.viewStaffRequests;
           case "All Tasks": return permissions.viewAllTasks;
           case "Users": return permissions.viewUsers;
-          case "Map Registry": return permissions.viewMap;
           default: return false;
       }
     });

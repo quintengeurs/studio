@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, ChangeEvent } from "react";
+import Image from "next/image";
 import { 
   Dialog, 
   DialogContent, 
@@ -16,13 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, X, Users, ClipboardCheck } from "lucide-react";
-import { useFirestore, useCollection, useUser, useDoc } from "@/firebase";
+import { Badge } from "@/components/ui/badge";
+import { useFirestore, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, doc } from "firebase/firestore";
 import { compressImage } from "@/lib/image-compress";
 import { User, RegistryConfig } from "@/lib/types";
 import { format } from "date-fns";
-import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
+import { useDataContext } from "@/context/DataContext";
 
 interface LogWorkModalProps {
   open: boolean;
@@ -35,22 +36,12 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const usersQuery = useMemo(() => db ? collection(db, "users") : null, [db]);
-  const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
+  const { allUsers, allParks } = useDataContext();
   
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registry } = useDoc<RegistryConfig>(registryRef as any);
 
-  const currentUser = allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase());
-
-  const colleagues = useMemo(() => {
-    if (!currentUser) return [];
-    return allUsers.filter(u => 
-      u.id !== currentUser.id && 
-      !u.isArchived && 
-      u.depot === currentUser.depot
-    );
-  }, [allUsers, currentUser]);
+  const currentUserId = user?.uid;
 
   const [formData, setFormData] = useState({
     title: "",
@@ -59,6 +50,20 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
     imageUrl: "",
     selectedColleagues: [] as string[]
   });
+
+  const selectedParkDepot = useMemo(() => {
+    if (!formData.park) return null;
+    return allParks.find(p => p.name === formData.park)?.depot;
+  }, [formData.park, allParks]);
+
+  const colleagues = useMemo(() => {
+    if (!selectedParkDepot) return [];
+    return allUsers.filter(u => 
+      u.email?.toLowerCase() !== user?.email?.toLowerCase() && 
+      !u.isArchived && 
+      (u.depots?.includes(selectedParkDepot) || u.depot === selectedParkDepot)
+    );
+  }, [allUsers, selectedParkDepot, user?.email]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,7 +95,7 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
         title: formData.title,
         objective: formData.note || "Ad-hoc work log",
         park: formData.park,
-        assignedTo: currentUser?.name || user.displayName || user.email,
+        assignedTo: profile?.name || user.displayName || user.email,
         dueDate: format(new Date(), 'yyyy-MM-dd'),
         status: 'Pending Approval',
         completionNote: formData.note,
@@ -135,7 +140,7 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
             <Select value={formData.park} onValueChange={v => setFormData(prev => ({ ...prev, park: v }))}>
               <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
               <SelectContent>
-                {registry?.parks?.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                {registry?.parks?.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

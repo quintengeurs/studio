@@ -36,6 +36,8 @@ import { RequestModal } from "@/components/modals/request-modal";
 import { LogWorkModal } from "@/components/modals/log-work-modal";
 import { TrainingUpdateModal } from "@/components/modals/training-update-modal";
 import { TaskDetailModal } from "@/components/modals/task-detail-modal";
+import { IssueModal } from "@/components/modals/issue-modal";
+import { AssetModal } from "@/components/modals/asset-modal";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -49,6 +51,8 @@ export default function Dashboard() {
   const [logWorkModalOpen, setLogWorkModalOpen] = useState(false);
   const [trainingModalOpen, setTrainingModalOpen] = useState(false);
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
+  const [assetModalOpen, setAssetModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const userDisplayName = user?.displayName || user?.email || "";
@@ -176,11 +180,13 @@ export default function Dashboard() {
               <div className="space-y-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Quick Actions</span>
                 <div className="grid grid-cols-2 gap-3">
-                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                    <Link href="/issues">
-                      <AlertTriangle className="h-6 w-6 text-destructive" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
-                    </Link>
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                    onClick={() => setIssueModalOpen(true)}
+                  >
+                    <AlertTriangle className="h-6 w-6 text-destructive" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
                   </Button>
                   <Button 
                     variant="outline" 
@@ -229,11 +235,13 @@ export default function Dashboard() {
                       <Users className="h-6 w-4 text-orange-500" />
                       <span className="text-xs font-bold uppercase tracking-wider">Add Training</span>
                     </Button>
-                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                      <Link href="/assets">
-                        <PlusCircle className="h-6 w-6 text-green-600" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Add Asset</span>
-                      </Link>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                      onClick={() => setAssetModalOpen(true)}
+                    >
+                      <PlusCircle className="h-6 w-6 text-green-600" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Add Asset</span>
                     </Button>
                    </div>
                 </div>
@@ -267,6 +275,8 @@ export default function Dashboard() {
             </div>
           )}
 
+          <IssueModal open={issueModalOpen} onOpenChange={setIssueModalOpen} />
+          <AssetModal open={assetModalOpen} onOpenChange={setAssetModalOpen} />
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
           <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
           <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={profile ? [profile] : []} />
@@ -278,29 +288,6 @@ export default function Dashboard() {
             linkedIssue={myIssues.find((i: Issue) => i.id === selectedTask?.linkedIssueId)}
             allUsers={profile ? [profile] : []}
           />
-
-          {/* Admin Quick Actions */}
-          {isAdmin && (
-            <div className="space-y-3">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">System Management</span>
-              <div className="grid grid-cols-3 gap-3">
-                <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                  <Link href="/assets">
-                    <MapPin className="h-6 w-6 text-primary" />
-                    <span className="text-[10px] font-bold uppercase truncate w-full px-1">Add Asset</span>
-                  </Link>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                  onClick={() => setTrainingModalOpen(true)}
-                >
-                  <Users className="h-6 w-6 text-accent-foreground" />
-                  <span className="text-[10px] font-bold uppercase truncate w-full px-1">Add Training</span>
-                </Button>
-              </div>
-            </div>
-          )}
 
           {/* Notifications: Ready for Collection */}
           {readyRequests.length > 0 && (
@@ -325,66 +312,7 @@ export default function Dashboard() {
             </Card>
           )}
 
-          {/* Allocated Tasks */}
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-headline">My Assigned and Pending Tasks</CardTitle>
-                <CardDescription className="text-xs">Tasks currently assigned to you or your team</CardDescription>
-              </div>
-              <Badge variant="secondary" className="font-bold">{activeMyTasks.length}</Badge>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {activeMyTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No active tasks assigned.</p>
-              ) : (
-                activeMyTasks.slice(0, 5).map(task => (
-                  <div 
-                    key={task.id} 
-                    className="block group"
-                    onClick={() => handleTaskClick(task)}
-                  >
-                    <div className="flex flex-col gap-1 rounded bg-muted/30 p-3 hover:bg-muted/50 transition-colors border cursor-pointer">
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold text-sm tracking-tight">{task.title}</span>
-                        <Badge variant="outline" className="text-[10px] uppercase">{task.status}</Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground truncate">{task.park} • {task.dueDate}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          {/* My Open Issues - Hidden on Mobile per request */}
-          {/* {!isManagement && !isContractor && ( */}
-            <Card>
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-headline">My Open Issues</CardTitle>
-                  <CardDescription className="text-xs">Status of your reported issues</CardDescription>
-                </div>
-                <Badge variant="destructive" className="font-bold">{openMyIssues.length}</Badge>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {openMyIssues.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No open issues reported.</p>
-                ) : (
-                  openMyIssues.slice(0, 3).map(issue => (
-                    <Link href="/issues" key={issue.id} className="block group">
-                      <div className="flex flex-col gap-1 rounded bg-muted/30 p-3 hover:bg-muted/50 transition-colors border">
-                        <div className="flex justify-between items-start">
-                          <span className="font-bold text-sm tracking-tight">{issue.title}</span>
-                          <Badge variant="outline" className="text-[10px] tracking-widest">{issue.status.toUpperCase()}</Badge>
-                        </div>
-                        <span className="text-xs text-muted-foreground truncate">{issue.park} • {issue.category}</span>
-                      </div>
-                    </Link>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+          {/* Notification bar for mobile */}
           {/* Section removed */}
         </div>
       </DashboardShell>
@@ -453,8 +381,11 @@ export default function Dashboard() {
             <div className="text-[10px] text-muted-foreground uppercase font-bold">Materials & Help</div>
           </div>
         </Button>
-         <Link href="/issues" className="block">
-          <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+         <Button 
+            variant="outline" 
+            className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+            onClick={() => setIssueModalOpen(true)}
+          >
             <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
@@ -463,7 +394,6 @@ export default function Dashboard() {
               <div className="text-[10px] text-muted-foreground uppercase font-bold">Report Maintenance</div>
             </div>
           </Button>
-        </Link>
 
         {/* Management Quick Access */}
         {(isManagement || isAdmin) && (
@@ -479,17 +409,19 @@ export default function Dashboard() {
                 </div>
               </Button>
             </Link>
-            <Link href="/assets" className="block">
-              <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
-                <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <MapPin className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="text-left">
-                  <div className="text-sm font-bold">Asset Register</div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
-                </div>
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+              onClick={() => setAssetModalOpen(true)}
+            >
+              <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <MapPin className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-bold">Asset Register</div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
+              </div>
+            </Button>
             <Link href="/issues?tab=unassigned" className="block">
               <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative group">
                 <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
@@ -598,86 +530,8 @@ export default function Dashboard() {
 
       <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
 
-      <div className="grid gap-6 mt-6 md:grid-cols-2">
-        {!isContractor && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">{(isManagement || isAdmin) ? "Global Task Distribution" : "My Task Distribution"}</CardTitle>
-              <CardDescription>{(isManagement || isAdmin) ? "Breakdown of team workload" : "Breakdown of your current and completed workload"}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center">
-               {taskData.length > 0 ? (
-                 <div className="h-[250px] w-full">
-                   <ResponsiveContainer width="100%" height="100%">
-                     <PieChart>
-                       <Pie
-                         data={taskData}
-                         cx="50%"
-                         cy="50%"
-                         innerRadius={60}
-                         outerRadius={80}
-                         paddingAngle={5}
-                         dataKey="value"
-                       >
-                         {taskData.map((entry, index) => (
-                           <Cell key={`cell-${index}`} fill={entry.color} />
-                         ))}
-                       </Pie>
-                       <Tooltip />
-                     </PieChart>
-                   </ResponsiveContainer>
-                 </div>
-               ) : (
-                 <div className="h-[250px] w-full flex items-center justify-center text-muted-foreground">
-                   No task data available.
-                 </div>
-               )}
-              <div className="grid grid-cols-3 w-full gap-4 mt-4">
-                {taskData.map((item) => (
-                  <div key={item.name} className="flex flex-col items-center">
-                    <span className="text-xs text-muted-foreground uppercase font-semibold">{item.name}</span>
-                    <span className="text-lg font-bold">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle className="font-headline">My Assigned and Pending Tasks</CardTitle>
-            <CardDescription>Latest tasks requiring your attention</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-             <div className="divide-y">
-               {activeMyTasks.length === 0 ? (
-                 <p className="text-center py-8 text-muted-foreground">No active tasks.</p>
-               ) : (
-                 activeMyTasks.slice(0, 5).map(task => (
-                   <div 
-                     key={task.id} 
-                     className="p-4 hover:bg-muted/10 flex justify-between items-center transition-colors cursor-pointer group"
-                     onClick={() => handleTaskClick(task)}
-                   >
-                     <div>
-                       <p className="font-bold text-sm group-hover:text-primary transition-colors">{task.title}</p>
-                       <p className="text-xs text-muted-foreground mt-0.5">{task.park}</p>
-                     </div>
-                     <Badge variant="outline">{task.status}</Badge>
-                   </div>
-                 ))
-               )}
-             </div>
-             <div className="p-4 bg-muted/5 border-t text-center">
-               <Button asChild variant="ghost" className="w-full text-sm">
-                 <Link href="/tasks">View All My Tasks</Link>
-               </Button>
-             </div>
-          </CardContent>
-        </Card>
-      </div>
-
+      <IssueModal open={issueModalOpen} onOpenChange={setIssueModalOpen} />
+      <AssetModal open={assetModalOpen} onOpenChange={setAssetModalOpen} />
     </DashboardShell>
   );
 }

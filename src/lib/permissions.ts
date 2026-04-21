@@ -50,8 +50,13 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
     return user.permissions;
   }
 
-  // Fallback map evaluating legacy roles mapping
-  const roles = user?.roles || (user?.role ? [user.role] : []);
+  // Aggregate unique roles from all legacy and new fields
+  const rolesSet = new Set<string>();
+  if (user?.role) rolesSet.add(user.role);
+  if (user?.roles) user.roles.forEach(r => rolesSet.add(r));
+  if (user?.assignedRoles) user.assignedRoles.forEach(ar => rolesSet.add(ar.role));
+  
+  const roles = Array.from(rolesSet);
   const isAdmin = roles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || isSystemAdmin;
   const isContractor = roles.includes('Contractor') && roles.length === 1;
   const isManagement = roles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin;
