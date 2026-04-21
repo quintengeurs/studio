@@ -34,11 +34,14 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const { allParks } = useDataContext();
+  const { allParks, registryConfig } = useDataContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const parks = useMemo(() => allParks.map(p => p.name).sort(), [allParks]);
+  const parks = useMemo(() => {
+    const list = registryConfig?.parks || allParks.map(p => p.name);
+    return Array.from(new Set(list)).sort();
+  }, [allParks, registryConfig]);
 
   const [formData, setFormData] = useState({
     title: "",

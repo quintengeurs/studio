@@ -31,10 +31,13 @@ interface AssetModalProps {
 export function AssetModal({ open, onOpenChange }: AssetModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
-  const { allParks } = useDataContext();
+  const { allParks, registryConfig } = useDataContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const parks = useMemo(() => allParks.map(p => p.name).sort(), [allParks]);
+  const parks = useMemo(() => {
+    const list = registryConfig?.parks || allParks.map(p => p.name);
+    return Array.from(new Set(list)).sort();
+  }, [allParks, registryConfig]);
 
   const [formData, setFormData] = useState({
     name: '',
