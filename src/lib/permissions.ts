@@ -46,9 +46,6 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
     return { ...ALL_FALSE };
   }
   
-  if (user?.permissions) {
-    return user.permissions;
-  }
 
   // Aggregate unique roles from all legacy and new fields
   const rolesSet = new Set<string>();
