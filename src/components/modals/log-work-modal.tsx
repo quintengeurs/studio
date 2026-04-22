@@ -38,10 +38,11 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { profile } = useUserContext();
-  const { allUsers, allParks } = useDataContext();
+  const { allUsers, allParks, registryConfig: contextRegistry } = useDataContext();
   
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registry } = useDoc<RegistryConfig>(registryRef as any);
+  const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
+  const registry = localRegistry || contextRegistry;
 
   const [formData, setFormData] = useState({
     title: "",
