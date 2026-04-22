@@ -132,12 +132,22 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
           </div>
           <div className="grid gap-2">
             <Label htmlFor="depot">Collection Depot</Label>
-            <Input 
-              id="depot" 
-              placeholder="e.g. Millfields Depot" 
-              value={formData.depot}
-              onChange={(e) => setFormData({ ...formData, depot: e.target.value })}
-            />
+            <Select 
+              value={formData.depot} 
+              onValueChange={(v) => setFormData({ ...formData, depot: v })}
+            >
+              <SelectTrigger id="depot">
+                <SelectValue placeholder={configLoading ? "Loading Depots..." : "Select Collection Depot"} />
+              </SelectTrigger>
+              <SelectContent>
+                {depots.map(depot => (
+                  <SelectItem key={depot} value={depot}>{depot}</SelectItem>
+                ))}
+                {depots.length === 0 && !configLoading && (
+                  <SelectItem value="none" disabled>No Depots Found</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="desc">Request Details</Label>
