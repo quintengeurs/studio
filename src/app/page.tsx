@@ -57,6 +57,7 @@ export default function Dashboard() {
 
   const userDisplayName = user?.displayName || user?.email || "";
   const { toast } = useToast();
+  const { allUsers } = useDataContext();
 
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig } = useDoc<RegistryConfig>(registryRef as any);
@@ -529,6 +530,8 @@ export default function Dashboard() {
       )}
 
       <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
+      <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
+      <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={allUsers} />
 
       <IssueModal open={issueModalOpen} onOpenChange={setIssueModalOpen} />
       <AssetModal open={assetModalOpen} onOpenChange={setAssetModalOpen} />
