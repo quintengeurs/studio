@@ -1,26 +1,19 @@
-
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
-  Plus, 
   Search, 
-  Filter, 
   MapPin, 
-  Clock, 
   AlertCircle, 
-  CheckCircle2, 
   Layers,
   LayoutGrid,
-  Maximize2,
-  Minimize2,
   FileDown,
-  X,
   Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,41 +24,42 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from "@/firebase";
-import { collection, query, where, limit, doc } from "firebase/firestore";
-import { Asset, Issue, User, Role, RegistryConfig } from "@/lib/types";
+import { Asset, Issue } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
 
-// Leaflet imports - Only client side
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet.heat';
+// Dynamic import for the Map component to prevent SSR issues
+const MapFrame = dynamic(() => import("@/components/map/MapFrame"), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-muted animate-pulse rounded-xl border-2 border-dashed">
+      <div className="flex flex-col items-center gap-2">
+        <Layers className="h-8 w-8 text-muted-foreground opacity-20" />
+        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground opacity-40">Loading Map Engine...</span>
+      </div>
+    </div>
+  )
+});
 
 export default function MapPage() {
   const router = useRouter();
-  const { user } = useUser();
-  const db = useFirestore();
-  const mapRef = useRef<L.Map | null>(null);
-  const [mapReady, setMapReady] = useState(false);
+  const { permissions } = useUserContext();
+  const { allAssets: assets, allIssues: issues } = useDataContext();
 
-  const { permissions, isAdmin } = useUserContext();
-  const { allUsers, allAssets: assets, allIssues: issues } = useDataContext();
-
-  // States
+  // Map Filter States
   const [showIssues, setShowIssues] = useState(true);
   const [showAssets, setShowAssets] = useState(true);
   const [showHeat, setShowHeat] = useState(false);
   const [search, setSearch] = useState("");
+  
+  // Selected Item Modal States
   const [selectedItem, setSelectedItem] = useState<{ item: Asset | Issue, type: 'Asset' | 'Issue' } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Layers (Initialized in useEffect to be client-safe)
-  const [issueLayer, setIssueLayer] = useState<L.LayerGroup | null>(null);
-  const [assetLayer, setAssetLayer] = useState<L.LayerGroup | null>(null);
-  const heatLayerRef = useRef<any>(null);
+  
+  // FlyTo propagation state
+  const [flyToTarget, setFlyToTarget] = useState<{ item: any; type: 'Issue' | 'Asset'; timestamp: number } | null>(null);
 
   // Filtered List for Sidebar
   const sidebarItems = useMemo(() => {
@@ -83,132 +77,27 @@ export default function MapPage() {
     return [...filteredIssues, ...filteredAssets].sort((a, b) => a.id.localeCompare(b.id));
   }, [issues, assets, search]);
 
-  // Map Initialization
-  useEffect(() => {
-    if (typeof window === "undefined" || !permissions.viewMap) return;
+  const handleShowDetail = useCallback((item: any, type: 'Issue' | 'Asset') => {
+    setSelectedItem({ item, type });
+    setIsModalOpen(true);
+  }, []);
 
-    const mapElement = document.getElementById('map-container');
-    if (!mapElement || mapRef.current) return;
+  const handleFlyTo = (item: any, type: 'Issue' | 'Asset') => {
+    setFlyToTarget({ item, type, timestamp: Date.now() });
+  };
 
-    // Hackney Reference Point (London)
-    const referencePosition: [number, number] = [51.5452, -0.0548];
-
-    const map = L.map('map-container', { 
-      zoomControl: true, 
-      attributionControl: false 
-    }).setView(referencePosition, 15);
-
-    // Initialize layers if not present
-    const iLayer = L.layerGroup();
-    const aLayer = L.layerGroup();
-    setIssueLayer(iLayer);
-    setAssetLayer(aLayer);
-
-    // Add layers to map
-    iLayer.addTo(map);
-    aLayer.addTo(map);
-
-    mapRef.current = map;
-    setMapReady(true);
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-      setMapReady(false);
-    };
-  }, [permissions.viewMap]);
-
-  // Update Markers
-  useEffect(() => {
-    if (!mapReady || !mapRef.current || !issueLayer || !assetLayer) return;
-
-    const map = mapRef.current;
-    issueLayer.clearLayers();
-    assetLayer.clearLayers();
-
-    console.log(`[Map] Updating markers. Issues: ${issues.length}, Assets: ${assets.length}`);
-
-    const bounds = L.latLngBounds([]);
-
-    // Issues
-    let plottedIssues = 0;
-    if (showIssues) {
-      issues.forEach(issue => {
-        const lat = parseFloat((issue.location as any)?.latitude);
-        const lon = parseFloat((issue.location as any)?.longitude);
-        
-        if (isNaN(lat) || isNaN(lon)) return;
-        
-        plottedIssues++;
-        const pos = L.latLng(lat, lon);
-        bounds.extend(pos);
-        
-        const color = getIssueColor(issue.priority);
-        const marker = L.marker(pos, {
-          icon: L.divIcon({
-            className: 'custom-map-marker',
-            html: `<div class="marker-glow" style="background-color: ${color}; box-shadow: 0 0 10px ${color}"></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-          })
-        }).addTo(issueLayer);
-
-        marker.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
-          showDetail(issue, 'Issue');
-        });
-      });
+  const handleExportPDF = async () => {
+    const html2canvas = (await import('html2canvas')).default;
+    const jsPDF = (await import('jspdf')).default;
+    const mapElement = document.getElementById('map-main-area');
+    if (mapElement) {
+      const canvas = await html2canvas(mapElement);
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      pdf.save(`Parks_Map_Export_${new Date().toISOString().split('T')[0]}.pdf`);
     }
-
-    // Assets
-    let plottedAssets = 0;
-    if (showAssets) {
-      assets.forEach(asset => {
-        const lat = parseFloat((asset.gpsLocation as any)?.latitude);
-        const lon = parseFloat((asset.gpsLocation as any)?.longitude);
-
-        if (isNaN(lat) || isNaN(lon)) return;
-
-        plottedAssets++;
-        const pos = L.latLng(lat, lon);
-        bounds.extend(pos);
-
-        const marker = L.marker(pos, {
-          icon: L.divIcon({
-            className: 'custom-map-marker',
-            html: `<div class="marker-glow asset" style="background-color: #1e293b; box-shadow: 0 0 8px rgba(0,0,0,0.5)"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6]
-          })
-        }).addTo(assetLayer);
-
-        marker.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
-          showDetail(asset, 'Asset');
-        });
-      });
-    }
-
-    console.log(`[Map] Plotted ${plottedIssues} issues and ${plottedAssets} assets.`);
-
-    // Auto-zoom if markers exist
-    if (bounds.isValid() && (plottedIssues > 0 || plottedAssets > 0)) {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-    }
-
-    // Heatmap
-    if (showHeat && (L as any).heatLayer) {
-      const heatPoints = issues
-        .filter(i => i.location?.latitude && i.location?.longitude)
-        .map(i => [Number(i.location!.latitude), Number(i.location!.longitude), 1]);
-      
-      if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
-      heatLayerRef.current = (L as any).heatLayer(heatPoints, { radius: 28, blur: 18, maxZoom: 16 }).addTo(map);
-    } else {
-      if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
-    }
-
-  }, [mapReady, issues, assets, showIssues, showAssets, showHeat, issueLayer, assetLayer]);
+  };
 
   const getIssueColor = (priority: string) => {
     switch (priority) {
@@ -216,49 +105,6 @@ export default function MapPage() {
       case 'High': return "#f39c12";
       case 'Medium': return "#f1c40f";
       default: return "#3498db";
-    }
-  };
-
-  const showDetail = (item: any, type: 'Issue' | 'Asset') => {
-    setSelectedItem({ item, type });
-    setIsModalOpen(true);
-    
-    const lat = type === 'Issue' ? item.location?.latitude : item.gpsLocation?.latitude;
-    const lon = type === 'Issue' ? item.location?.longitude : item.gpsLocation?.longitude;
-    
-    if (lat && lon && mapRef.current) {
-      mapRef.current.flyTo([lat, lon], 17, { duration: 2.5 });
-    }
-  };
-
-  const flyTo = (item: any, type: 'Issue' | 'Asset') => {
-    const lat = type === 'Issue' ? item.location?.latitude : item.gpsLocation?.latitude;
-    const lon = type === 'Issue' ? item.location?.longitude : item.gpsLocation?.longitude;
-    
-    if (lat && lon && mapRef.current) {
-      mapRef.current.flyTo([lat, lon], 16, { duration: 2.0 });
-    }
-  };
-
-  const handleResetView = () => {
-    if (mapRef.current) {
-      mapRef.current.flyTo([51.5452, -0.0548], 15, { duration: 2.0 });
-    }
-  };
-
-  const handleExportPDF = async () => {
-    const html2canvas = (await import('html2canvas')).default;
-    const jsPDF = (await import('jspdf')).default;
-    
-    const mapElement = document.getElementById('map-main-area');
-    if (mapElement) {
-      const canvas = await html2canvas(mapElement);
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('l', 'mm', 'a4');
-      const width = pdf.internal.pageSize.getWidth();
-      const height = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-      pdf.save(`Hackney_Map_Export_${new Date().toISOString().split('T')[0]}.pdf`);
     }
   };
 
@@ -278,35 +124,6 @@ export default function MapPage() {
       title="Interactive Infrastructure Map" 
       description="Visual grid layout of all park legacy assets and reported issues"
     >
-      <style jsx global>{`
-        .leaflet-container { 
-          background: repeating-linear-gradient(0deg,#f0f0f0,#f0f0f0 1px,transparent 1px,transparent 40px),
-                      repeating-linear-gradient(90deg,#f0f0f0,#f0f0f0 1px,transparent 1px,transparent 40px);
-          background-size: 80px 80px; 
-          border-radius: 12px;
-          border: 2px solid hsl(var(--border));
-        }
-        .marker-glow {
-          width: 100%;
-          height: 100%;
-          border-radius: 50%;
-          border: 2px solid white;
-          animation: pulse 2s infinite;
-        }
-        .marker-glow.asset {
-          animation: none;
-        }
-        @keyframes pulse {
-          0% { transform: scale(0.95); opacity: 1; }
-          50% { transform: scale(1.1); opacity: 0.8; }
-          100% { transform: scale(0.95); opacity: 1; }
-        }
-        .custom-map-marker {
-          background: transparent;
-          border: none;
-        }
-      `}</style>
-
       <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-250px)] min-h-[600px]" id="map-main-area">
         {/* Main Map View */}
         <div className="flex-1 flex flex-col gap-4">
@@ -339,7 +156,7 @@ export default function MapPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="font-bold text-[10px] uppercase h-8" onClick={handleResetView}>
+              <Button variant="outline" size="sm" className="font-bold text-[10px] uppercase h-8" onClick={() => setFlyToTarget({ item: { location: { latitude: 51.5452, longitude: -0.0548 } }, type: 'Issue', timestamp: Date.now() })}>
                 <Target className="mr-2 h-3.5 w-3.5" /> Reset View
               </Button>
               <Button variant="outline" size="sm" className="font-bold text-[10px] uppercase h-8" onClick={handleExportPDF}>
@@ -348,16 +165,17 @@ export default function MapPage() {
             </div>
           </div>
 
-          <div id="map-container" className="flex-1 w-full min-h-[400px] z-0 shadow-sm overflow-hidden relative">
-            {(issues.length > 0 || assets.length > 0) && mapReady && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/80 text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 pointer-events-none transition-all">
-                {L.latLngBounds([]).isValid() ? (
-                   <><Target className="h-3 w-3 text-green-400 animate-pulse" /> Tracking {issues.filter(i => i.location?.latitude).length + assets.filter(a => a.gpsLocation?.latitude).length} Nodes</>
-                ) : (
-                   <><X className="h-3 w-3 text-red-400" /> No Geodata found in {issues.length + assets.length} items</>
-                )}
-              </div>
-            )}
+          <div className="flex-1 w-full min-h-[400px] bg-muted rounded-xl overflow-hidden relative shadow-sm border">
+            <MapFrame 
+              issues={issues} 
+              assets={assets} 
+              showIssues={showIssues} 
+              showAssets={showAssets} 
+              showHeat={showHeat}
+              onShowDetail={handleShowDetail}
+              flyToData={flyToTarget}
+            />
+            
             <div className="absolute bottom-4 right-4 z-[1000] bg-white/90 backdrop-blur p-3 rounded-lg border shadow-lg text-[10px] space-y-2 pointer-events-none">
               <p className="font-bold border-b pb-1 mb-1">LEGEND</p>
               <div className="flex items-center gap-2">
@@ -373,7 +191,7 @@ export default function MapPage() {
                 <span className="font-medium text-muted-foreground uppercase tracking-tight">Medium Priority</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-[#555] border border-black" />
+                <div className="h-3 w-3 rounded-full bg-[#1e293b] border border-black" />
                 <span className="font-medium text-muted-foreground uppercase tracking-tight">Infrastructure Asset</span>
               </div>
             </div>
@@ -403,7 +221,7 @@ export default function MapPage() {
                 <div 
                   key={item.id} 
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-all border border-transparent hover:border-border group"
-                  onClick={() => flyTo(item, (item as any).mapSearchType)}
+                  onClick={() => handleFlyTo(item, (item as any).mapSearchType)}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -411,23 +229,12 @@ export default function MapPage() {
                       <Badge variant="outline" className={`text-[8px] h-3.5 px-1 font-bold ${(item as any).mapSearchType === 'Issue' ? 'bg-orange-500/5 text-orange-600 border-orange-100' : 'bg-blue-500/5 text-blue-600 border-blue-100'}`}>
                         {(item as any).mapSearchType}
                       </Badge>
-                      {((item as any).location?.latitude || (item as any).gpsLocation?.latitude) && (
-                        <Badge variant="default" className="text-[7px] h-3 px-1 font-bold bg-green-600 hover:bg-green-600">GPS</Badge>
-                      )}
                     </div>
                     <p className="text-xs font-bold truncate pr-4">{(item as any).title || (item as any).name}</p>
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                       <MapPin className="h-2.5 w-2.5" /> {item.park}
-                      {((item as any).location?.latitude || (item as any).gpsLocation?.latitude) && (
-                        <span className="ml-auto font-mono text-[8px] opacity-70">
-                          [{Number((item as any).location?.latitude || (item as any).gpsLocation?.latitude).toFixed(4)}, {Number((item as any).location?.longitude || (item as any).gpsLocation?.longitude).toFixed(4)}]
-                        </span>
-                      )}
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all shrink-0">
-                    <Target className="h-3.5 w-3.5 text-primary" />
-                  </Button>
                 </div>
               ))}
               {sidebarItems.length === 0 && (
@@ -452,7 +259,7 @@ export default function MapPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">No Visual Data Available</span>
                   </div>
                 )}
-                <div className={`absolute top-0 left-0 w-full h-1.5 ${selectedItem.type === 'Issue' ? getIssueColor((selectedItem.item as Issue).priority) : '#555'}`} />
+                <div className={`absolute top-0 left-0 w-full h-1.5 ${selectedItem.type === 'Issue' ? getIssueColor((selectedItem.item as Issue).priority) : '#1e293b'}`} />
                 <Badge className="absolute top-4 right-4 font-bold text-[9px] uppercase tracking-widest shadow-lg">
                   {selectedItem.type}
                 </Badge>
@@ -466,9 +273,9 @@ export default function MapPage() {
                   <DialogTitle className="text-xl font-headline font-bold">
                     {(selectedItem.item as any).title || (selectedItem.item as any).name}
                   </DialogTitle>
-                  <DialogDescription className="flex items-center gap-2 mt-1 font-medium">
+                  <DialogDescription className="flex items-center gap-2 mt-1 font-medium text-xs">
                     <MapPin className="h-3 w-3 text-primary" />
-                    {selectedItem.item.park} • {(selectedItem.item as any).location || (selectedItem.item as any).park}
+                    {selectedItem.item.park}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -479,7 +286,7 @@ export default function MapPage() {
                   </div>
                   <div className="p-3 rounded-lg border bg-muted/30">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Reported / Registered</p>
-                    <p className="text-xs font-bold">{(selectedItem.item as any).createdAt ? new Date((selectedItem.item as any).createdAt).toLocaleDateString() : (selectedItem.item as any).lastInspected}</p>
+                    <p className="text-xs font-bold">{(selectedItem.item as any).createdAt ? new Date((selectedItem.item as any).createdAt).toLocaleDateString() : (selectedItem.item as any).lastInspected || "Initial Record"}</p>
                   </div>
                 </div>
 
