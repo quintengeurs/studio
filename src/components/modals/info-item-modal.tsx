@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Dialog, 
   DialogContent, 
@@ -21,18 +21,20 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore } from "@/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { InfoItemType } from "@/lib/types";
+import { InfoItem, InfoItemType } from "@/lib/types";
 import { Megaphone, FileText, Info, HandMetal } from "lucide-react";
 import { useUserContext } from "@/context/UserContext";
 
 interface InfoItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editItem?: InfoItem | null;
 }
 
-export function InfoItemModal({ open, onOpenChange }: InfoItemModalProps) {
+export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { profile } = useUserContext();
@@ -43,29 +45,59 @@ export function InfoItemModal({ open, onOpenChange }: InfoItemModalProps) {
     title: "",
     content: "",
     url: "",
-    ctaLabel: "I'm interested"
+    ctaLabel: "I'm interested",
+    allowResponse: true
   });
+
+  useEffect(() => {
+    if (editItem) {
+      setFormData({
+        type: editItem.type,
+        title: editItem.title,
+        content: editItem.content,
+        url: editItem.url || "",
+        ctaLabel: editItem.ctaLabel || "I'm interested",
+        allowResponse: editItem.allowResponse !== false
+      });
+    } else {
+      setFormData({
+        type: 'Information',
+        title: "",
+        content: "",
+        url: "",
+        ctaLabel: "I'm interested",
+        allowResponse: true
+      });
+    }
+  }, [editItem, open]);
 
   const handleSubmit = async () => {
     if (!db || !profile || !formData.title || !formData.content) return;
     
     setIsSubmitting(true);
     try {
-      const newItem = {
+      const itemData = {
         type: formData.type,
         title: formData.title,
         content: formData.content,
         url: formData.type === 'Document' ? formData.url : null,
-        ctaLabel: formData.type === 'CTA' ? formData.ctaLabel : null,
-        interestedUserIds: [],
-        createdBy: profile.name,
-        createdAt: new Date().toISOString(),
+        ctaLabel: (formData.type === 'CTA' || formData.allowResponse) ? formData.ctaLabel : null,
+        allowResponse: formData.allowResponse,
+        createdBy: editItem ? editItem.createdBy : profile.name,
+        createdAt: editItem ? editItem.createdAt : new Date().toISOString(),
         isArchived: false,
       };
 
-      await addDoc(collection(db, "info_items"), newItem);
-
-      toast({ title: "Item Added", description: `"${formData.title}" is now live in the Info Corner.` });
+      if (editItem) {
+        await updateDoc(doc(db, "info_items", editItem.id), itemData);
+        toast({ title: "Item Updated", description: `"${formData.title}" has been updated.` });
+      } else {
+        await addDoc(collection(db, "info_items"), {
+            ...itemData,
+            interestedUserIds: []
+        });
+        toast({ title: "Item Added", description: `"${formData.title}" is now live in the Info Corner.` });
+      }
       setFormData({
         type: 'Information',
         title: "",
@@ -95,7 +127,7 @@ export function InfoItemModal({ open, onOpenChange }: InfoItemModalProps) {
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl flex items-center gap-3">
             {getIcon()} 
-            Add Info Corner Item
+            {editItem ? 'Edit' : 'Add'} Info Corner Item
           </DialogTitle>
           <DialogDescription>Share updates, documents, or opportunities with all staff.</DialogDescription>
         </DialogHeader>
@@ -159,6 +191,28 @@ export function InfoItemModal({ open, onOpenChange }: InfoItemModalProps) {
               />
             </div>
           )}
+
+          <div className="flex items-center justify-between p-4 border rounded-xl bg-muted/20">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-bold">Allow Response Engagement</Label>
+              <p className="text-[10px] text-muted-foreground">Enable the &quot;I&quot;m Interested&quot; button for this item.</p>
+            </div>
+            <Switch 
+              checked={formData.allowResponse} 
+              onCheckedChange={v => setFormData({...formData, allowResponse: v})} 
+            />
+          </div>
+
+          {formData.allowResponse && formData.type !== 'CTA' && (
+            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Response Button Label</Label>
+              <Input 
+                placeholder="e.g. I'm Interested" 
+                value={formData.ctaLabel} 
+                onChange={e => setFormData({...formData, ctaLabel: e.target.value})} 
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -167,7 +221,7 @@ export function InfoItemModal({ open, onOpenChange }: InfoItemModalProps) {
             disabled={!formData.title || !formData.content || (formData.type === 'Document' && !formData.url) || isSubmitting}
             onClick={handleSubmit}
           >
-            {isSubmitting ? "Posting..." : "Publish to Corner"}
+            {isSubmitting ? (editItem ? "Saving..." : "Posting...") : (editItem ? "Save Changes" : "Publish to Corner")}
           </Button>
         </DialogFooter>
       </DialogContent>

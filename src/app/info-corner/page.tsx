@@ -22,7 +22,10 @@ import {
   Users,
   Trash2,
   Clock,
-  UserCheck
+  UserCheck,
+  Pencil,
+  Mail,
+  Home
 } from "lucide-react";
 import { useFirestore, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, updateDoc, doc, arrayUnion, arrayRemove } from "firebase/firestore";
@@ -54,6 +57,7 @@ export default function InfoCornerPage() {
   const { allUsers } = useDataContext();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<InfoItem | null>(null);
   const [selectedItemForList, setSelectedItemForList] = useState<InfoItem | null>(null);
 
   const infoQuery = useMemoFirebase(() => {
@@ -147,16 +151,37 @@ export default function InfoCornerPage() {
                       </div>
                     </Badge>
                     {permissions.manageInfoCorner && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleArchive(item.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent><p>Archive Item</p></TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="flex items-center gap-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10" 
+                                onClick={() => {
+                                  setEditingItem(item);
+                                  setIsModalOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Edit Item</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleArchive(item.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Archive Item</p></TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     )}
                   </div>
                   <CardTitle className="font-headline text-xl group-hover:text-primary transition-colors leading-tight">
@@ -182,7 +207,7 @@ export default function InfoCornerPage() {
                         <ExternalLink className="h-3.5 w-3.5" /> View Document
                       </a>
                     </Button>
-                  ) : item.type === 'CTA' ? (
+                  ) : (item.type === 'CTA' || item.allowResponse) ? (
                     <div className="w-full space-y-3">
                       <Button 
                         onClick={() => handleToggleInterest(item)}
@@ -216,38 +241,58 @@ export default function InfoCornerPage() {
         )}
       </div>
 
-      <InfoItemModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+      <InfoItemModal 
+        open={isModalOpen} 
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) setEditingItem(null);
+        }} 
+        editItem={editingItem}
+      />
 
       <Dialog open={!!selectedItemForList} onOpenChange={(open) => !open && setSelectedItemForList(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="font-headline text-2xl">Enthusiasts</DialogTitle>
+            <DialogTitle className="font-headline text-2xl">Engagement Registry</DialogTitle>
             <DialogDescription>
-              The following staff members have expressed interest in:
+              Detailed list of staff members interested in:
               <br/>
               <span className="font-bold text-foreground">"{selectedItemForList?.title}"</span>
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2 max-h-[400px] overflow-y-auto py-4">
+          <div className="grid gap-3 max-h-[480px] overflow-y-auto py-4 pr-2">
             {allUsers
               .filter(u => selectedItemForList?.interestedUserIds?.includes(u.id))
               .map((u) => (
-                <div key={u.id} className="flex items-center justify-between p-3 border rounded-xl bg-muted/10">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9 border-2 border-primary/10">
-                      <AvatarImage src={u.avatar} />
-                      <AvatarFallback>{u.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">{u.name}</span>
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground">{u.role || u.roles?.[0]}</span>
+                <div key={u.id} className="flex flex-col gap-3 p-4 border-2 rounded-2xl bg-muted/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-sm">
+                        <AvatarImage src={u.avatar} />
+                        <AvatarFallback className="bg-primary/5 text-primary font-bold">{u.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                        <span className="text-sm font-bold text-foreground leading-tight">{u.name}</span>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tight">{u.role || u.roles?.[0]}</span>
+                        </div>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] font-bold bg-green-500/5 text-green-700 border-green-200 uppercase tracking-tighter">Interest Logged</Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-dashed">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="h-3 w-3 shrink-0" />
+                        <span className="text-[10px] font-medium truncate">{u.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Home className="h-3 w-3 shrink-0" />
+                        <span className="text-[10px] font-medium truncate">{u.depot || "Generic Depot"}</span>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[9px] font-bold bg-green-500/5 text-green-700 border-green-200">Interested</Badge>
                 </div>
               ))}
           </div>
-          <Button variant="secondary" className="w-full font-bold uppercase tracking-widest" onClick={() => setSelectedItemForList(null)}>Close</Button>
+          <Button variant="secondary" className="w-full font-bold uppercase tracking-widest mt-2" onClick={() => setSelectedItemForList(null)}>Close List</Button>
         </DialogContent>
       </Dialog>
     </DashboardShell>

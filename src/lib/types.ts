@@ -262,6 +262,7 @@ export interface InfoItem {
   url?: string;
   ctaLabel?: string;
   interestedUserIds?: string[];
+  allowResponse?: boolean;
   createdBy: string;
   createdAt: string;
   isArchived: boolean;
