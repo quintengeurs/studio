@@ -144,12 +144,13 @@ export default function MapPage() {
         bounds.extend(pos);
         
         const color = getIssueColor(issue.priority);
-        const marker = L.circleMarker(pos, {
-          radius: 10,
-          fillColor: color,
-          color: "#fff",
-          weight: 3,
-          fillOpacity: 1
+        const marker = L.marker(pos, {
+          icon: L.divIcon({
+            className: 'custom-map-marker',
+            html: `<div class="marker-glow" style="background-color: ${color}; box-shadow: 0 0 10px ${color}"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          })
         }).addTo(issueLayer);
 
         marker.on('click', (e) => {
@@ -172,12 +173,13 @@ export default function MapPage() {
         const pos = L.latLng(lat, lon);
         bounds.extend(pos);
 
-        const marker = L.circleMarker(pos, {
-          radius: 8,
-          fillColor: "#1e293b",
-          color: "#fff",
-          weight: 3,
-          fillOpacity: 1
+        const marker = L.marker(pos, {
+          icon: L.divIcon({
+            className: 'custom-map-marker',
+            html: `<div class="marker-glow asset" style="background-color: #1e293b; box-shadow: 0 0 8px rgba(0,0,0,0.5)"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+          })
         }).addTo(assetLayer);
 
         marker.on('click', (e) => {
@@ -284,7 +286,22 @@ export default function MapPage() {
           border-radius: 12px;
           border: 2px solid hsl(var(--border));
         }
-        .leaflet-div-icon {
+        .marker-glow {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          border: 2px solid white;
+          animation: pulse 2s infinite;
+        }
+        .marker-glow.asset {
+          animation: none;
+        }
+        @keyframes pulse {
+          0% { transform: scale(0.95); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.8; }
+          100% { transform: scale(0.95); opacity: 1; }
+        }
+        .custom-map-marker {
           background: transparent;
           border: none;
         }
