@@ -661,9 +661,18 @@ export default function InspectionsPage() {
                 </div>
               </TabsContent>
               <TabsContent value="completed" className="mt-0">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {completedInspections.map((inspection) => (
+                    <InspectionCard 
+                        key={inspection.id} 
+                        inspection={inspection} 
+                        onStart={openCompleteDialog} 
+                        isAdmin={canManage} 
+                        onDelete={handleDeleteInspection} 
+                        onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                     />
                   ))}
-                  {inspections.filter(i => i.status === 'Completed').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}
+                  {completedInspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}
                 </div>
               </TabsContent>
             </>
