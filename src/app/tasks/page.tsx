@@ -648,7 +648,24 @@ export default function TasksPage() {
                     <CardTitle className="font-headline text-lg group-hover:text-primary">{task.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="pb-4 px-4 flex-1">
-                    <p className="text-sm font-medium text-foreground/80 line-clamp-3">{task.objective}</p>
+                    <p className="text-sm font-medium text-foreground/80 line-clamp-3 mb-4">{task.objective}</p>
+                    
+                    {/* Reassignment trigger for Mobile */}
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <div 
+                        className={`flex items-center gap-2 p-1 rounded-md transition-colors ${permissions.assignTask ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                        onClick={() => permissions.assignTask && handleOpenAssignDialog(task.id)}
+                      >
+                        <div className="h-7 w-7 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0">
+                          <UserIcon className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[8px] font-bold uppercase text-muted-foreground leading-none">Assignee</span>
+                          <span className="text-xs font-semibold truncate">{task.assignedTo}</span>
+                        </div>
+                      </div>
+                      {permissions.assignTask && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleOpenAssignDialog(task.id)}><UserPlus className="h-3.5 w-3.5" /></Button>}
+                    </div>
                   </CardContent>
                   <CardFooter className="p-0 border-t mt-auto">
                     <div className="flex-1 flex items-center justify-center h-12 text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 w-full rounded-b-lg">

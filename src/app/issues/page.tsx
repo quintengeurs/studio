@@ -55,7 +55,7 @@ import {
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit, getDocs } from "firebase/firestore";
 import { Issue, OPERATIVE_ROLES, ParkDetail } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
@@ -284,20 +284,35 @@ function IssuesContent() {
       const issueRef = doc(db, "issues", selectedIssueId);
       await updateDoc(issueRef, { assignedTo: operative.name, status: 'In Progress' });
 
+      // Search for existing task for this issue to update rather than duplicate
+      const tasksQuery = query(collection(db, "tasks"), where("linkedIssueId", "==", selectedIssueId));
+      const taskSnap = await getDocs(tasksQuery);
+      
       const taskData = {
-        title: `Resolve Issue: ${issue.title}`,
+        assignedTo: operative.name,
         objective: assignment.instructions || `Please resolve this reported issue in ${issue.park}.`,
         status: 'Todo',
         dueDate: new Date().toISOString().split('T')[0],
-        assignedTo: operative.name,
         park: issue.park,
         linkedIssueId: selectedIssueId
       };
-      await addDoc(collection(db, "tasks"), taskData);
+
+      if (!taskSnap.empty) {
+        // Update existing task
+        const existingTaskId = taskSnap.docs[0].id;
+        await updateDoc(doc(db, "tasks", existingTaskId), taskData);
+      } else {
+        // Create new task
+        await addDoc(collection(db, "tasks"), {
+          ...taskData,
+          title: `Resolve Issue: ${issue.title}`,
+          createdAt: new Date().toISOString()
+        });
+      }
 
       setIsAssignDialogOpen(false);
       setSelectedIssueId(null);
-      toast({ title: "Issue Assigned", description: `Task created for ${operative.name}.` });
+      toast({ title: "Issue Assigned", description: `Task updated/created for ${operative.name}.` });
     } catch (error) {
         toast({ title: "Error", description: "Failed to assign issue. Please try again.", variant: "destructive" });
     } finally {
@@ -404,9 +419,17 @@ function IssuesContent() {
                   {(issue.status as string) === 'Pending Approval' ? (
                     permissions.approveResolution && <Button variant="default" size="sm" className="h-8 text-[10px] uppercase font-bold bg-accent hover:bg-accent/90 text-accent-foreground px-3" onClick={() => handleApproveResolution(issue.id)}><ThumbsUp className="mr-1.5 h-3.5 w-3.5" /> Approve Resolution</Button>
                   ) : issue.assignedTo ? (
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0"><UserPlus className="h-3.5 w-3.5 text-primary" /></div>
-                        <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
+                    <div 
+                      className={`flex items-center gap-2 min-w-0 p-1 rounded-md transition-colors ${permissions.assignTask ? 'cursor-pointer hover:bg-primary/5' : ''}`}
+                      onClick={() => permissions.assignTask && handleOpenAssignDialog(issue.id)}
+                    >
+                        <div className={`h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0 ${permissions.assignTask ? 'group-hover:bg-primary/20' : ''}`}>
+                          <UserPlus className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[8px] font-bold uppercase text-muted-foreground leading-none">Assignee</span>
+                          <span className="text-[10px] font-bold text-foreground truncate">{issue.assignedTo}</span>
+                        </div>
                     </div>
                   ) : (
                     permissions.assignTask && <Button variant="ghost" size="sm" className="h-8 text-[10px] uppercase font-bold hover:bg-primary/10 hover:text-primary px-2" onClick={() => handleOpenAssignDialog(issue.id)}><UserPlus className="mr-1.5 h-3.5 w-3.5" /> Assign</Button>
