@@ -139,10 +139,42 @@ export default function InspectionsPage() {
   [db, inspectionLimit]);
   const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
 
-  const { profile, permissions, isAdmin } = useUserContext();
+  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   const canManage = permissions.scheduleInspection;
   const isOperational = !permissions.scheduleInspection;
+
+  const filteredInspections = useMemo(() => {
+    if (isAdmin) return inspections;
+
+    const roles = currentUserRoles as string[];
+    const isGlobalMgmt = roles.some(r => ['Area Manager', 'Operations Manager', 'Park Manager'].includes(r));
+    const isDepotMgmt = roles.some(r => ['Head Gardener', 'Assistant Area Manager'].includes(r));
+    const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
+    
+    return inspections.filter(inspection => {
+        const userIdent = user?.displayName || user?.email || "";
+        const userName = profile?.name || userIdent;
+
+        // 1. Own Inspections (Assigned or performed)
+        const isAssignedToMe = inspection.inspectedBy?.toLowerCase() === userIdent.toLowerCase() || 
+                               inspection.inspectedBy?.toLowerCase() === user?.email?.toLowerCase() ||
+                               inspection.inspectedBy === userName;
+                               
+        if (isAssignedToMe) return true;
+        
+        // 2. Global Management visibility
+        if (isGlobalMgmt) return true;
+
+        // 3. Depot Management visibility
+        if (isDepotMgmt) {
+          const parkDetail = allParks.find(d => d.name === inspection.park);
+          if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+        }
+        
+        return false;
+    });
+  }, [inspections, profile, user, allParks, isAdmin, currentUserRoles]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -402,7 +434,8 @@ export default function InspectionsPage() {
     return false;
   };
 
-  const pendingInspections = inspections.filter(i => i.status === 'Pending' && isWithinWindow(i));
+  const pendingInspections = filteredInspections.filter(i => i.status === 'Pending' && isWithinWindow(i));
+  const completedInspections = filteredInspections.filter(i => i.status === 'Completed');
 
   return (
     <DashboardShell 
@@ -598,8 +631,8 @@ export default function InspectionsPage() {
           ) : (
             <>
               <TabsContent value="all" className="mt-0">
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {inspections.map((inspection) => (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredInspections.map((inspection) => (
                     <InspectionCard 
                         key={inspection.id} 
                         inspection={inspection} 
@@ -609,12 +642,12 @@ export default function InspectionsPage() {
                         onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                     />
                   ))}
-                  {inspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No inspection records found.</div>}
+                  {filteredInspections.length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No inspection records found.</div>}
                 </div>
               </TabsContent>
               <TabsContent value="pending" className="mt-0">
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {pendingInspections.map((inspection) => (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredInspections.filter(i => i.status !== 'Completed').map((inspection) => (
                     <InspectionCard 
                         key={inspection.id} 
                         inspection={inspection} 
@@ -628,15 +661,6 @@ export default function InspectionsPage() {
                 </div>
               </TabsContent>
               <TabsContent value="completed" className="mt-0">
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {inspections.filter(i => i.status === 'Completed').map((inspection) => (
-                    <InspectionCard 
-                        key={inspection.id} 
-                        inspection={inspection} 
-                        onStart={openCompleteDialog} 
-                        isAdmin={canManage} 
-                        onDelete={handleDeleteInspection} 
-                        onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                     />
                   ))}
                   {inspections.filter(i => i.status === 'Completed').length === 0 && <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">No completed inspection records.</div>}

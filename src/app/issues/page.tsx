@@ -104,11 +104,20 @@ function IssuesContent() {
   const canDelete = isAdmin || profile?.role === 'Area Manager' || profile?.role === 'Operations Manager';
 
   const filteredIssues = useMemo(() => {
-    const baseList = isAdmin ? issues : issues.filter(issue => {
-        const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
+    if (isAdmin) return issues.filter(i => !i.isArchived);
+
+    const roles = currentUserRoles as string[];
+    const isGlobalMgmt = roles.some(r => ['Area Manager', 'Operations Manager', 'Park Manager'].includes(r));
+    const isDepotMgmt = roles.some(r => ['Head Gardener', 'Assistant Area Manager'].includes(r));
+    const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
+    
+    return issues.filter(issue => {
+        if (issue.isArchived) return false;
+
         const userIdent = user?.displayName || user?.email || "";
         const userName = profile?.name || userIdent;
 
+        // 1. Own Issues (Reported or Assigned)
         const matchesReporter = issue.reportedBy?.toLowerCase() === userIdent.toLowerCase() || 
                                issue.reportedBy?.toLowerCase() === user?.email?.toLowerCase() ||
                                issue.reportedBy === userName;
@@ -119,15 +128,18 @@ function IssuesContent() {
         
         if (matchesReporter || matchesAssignee) return true;
         
-        const parkDetail = allDetails.find(d => d.name === issue.park);
-        if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+        // 2. Global Management visibility
+        if (isGlobalMgmt) return true;
+
+        // 3. Depot Management visibility
+        if (isDepotMgmt) {
+          const parkDetail = allDetails.find(d => d.name === issue.park);
+          if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+        }
         
         return false;
     });
-    
-    // Safety check that what we show in active UI is not archived (in case issuesQuery drops isArchived index in future)
-    return baseList.filter(i => i.isArchived !== true);
-  }, [issues, profile, user, allDetails, isAdmin]);
+  }, [issues, profile, user, allDetails, isAdmin, currentUserRoles]);
 
   const unassignedIssues = useMemo(() => filteredIssues.filter(i => !i.assignedTo), [filteredIssues]);
   const assignedIssues = useMemo(() => filteredIssues.filter(i => i.assignedTo), [filteredIssues]);

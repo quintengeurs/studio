@@ -115,25 +115,31 @@ export default function TasksPage() {
   const filteredTasksForUser = useMemo(() => {
     if (isAdmin) return tasks;
     
+    const roles = currentUserRoles as string[];
+    const isGlobalMgmt = roles.some(r => ['Area Manager', 'Operations Manager', 'Park Manager'].includes(r));
+    const isDepotMgmt = roles.some(r => ['Head Gardener', 'Assistant Area Manager'].includes(r));
     const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
     
     return tasks.filter(t => {
+      // 1. Direct Assignment (Always visible)
       const isDirectlyAssigned = identities.some(ident => 
         t.assignedTo?.toLowerCase() === ident.toLowerCase() || t.assignedTo === ident
       );
-      
       if (isDirectlyAssigned) return true;
 
-      // 2. Depot containment (Visibility for team members)
-      const parkDetail = allDetails.find(d => d.name === t.park);
-      if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+      // 2. Global Management (Sees everything)
+      if (isGlobalMgmt) return true;
 
-      // 3. Fallback for users without depots
-      if (userDepots.length === 0) return isDirectlyAssigned;
+      // 3. Depot Management (Sees all in their depots)
+      if (isDepotMgmt) {
+        const parkDetail = allDetails.find(d => d.name === t.park);
+        if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+      }
 
+      // 4. Operatives (Only see their own assignments - already caught by step 1)
       return false;
     });
-  }, [tasks, isAdmin, profile, allDetails, identities]);
+  }, [tasks, isAdmin, currentUserRoles, profile, allDetails, identities]);
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);

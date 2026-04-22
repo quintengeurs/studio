@@ -127,13 +127,36 @@ export default function Dashboard() {
 
   const { data: myRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
 
-  // Optimized: Removed the global allIssuesQuery fetch, as summaries can be derived from myIssues
+  // Optimized: Use context for summaries if management, or personalized queries if operative
+  const { allIssues, allParks } = useDataContext();
+  const userDepots = useMemo(() => {
+    const list = [...(profile?.depots || []), profile?.depot].filter(Boolean) as string[];
+    return Array.from(new Set(list));
+  }, [profile]);
 
-  // Computed Values
+  const roles = currentUserRoles as string[];
+  const isDepotMgmt = roles.some(r => ['Head Gardener', 'Assistant Area Manager'].includes(r));
+  const isGlobalMgmt = roles.some(r => ['Area Manager', 'Operations Manager', 'Park Manager'].includes(r));
+
+  // Computed Values using role-based visibility
+  const visibleIssues = useMemo(() => {
+    if (isAdmin || isGlobalMgmt) return allIssues;
+    if (isDepotMgmt) {
+      return allIssues.filter(i => {
+        const parkDetail = allParks.find(p => p.name === i.park);
+        return parkDetail?.depot && userDepots.includes(parkDetail.depot);
+      });
+    }
+    return myIssues; // Fallback to personal for operatives
+  }, [isAdmin, isGlobalMgmt, isDepotMgmt, allIssues, allParks, userDepots, myIssues]);
+
+  const openMyIssues = visibleIssues.filter(i => i.status !== 'Resolved' && !i.isArchived);
+  const unassignedCount = openMyIssues.filter(i => !i.assignedTo).length;
+  
+  // Tasks remain personal on dashboard unless in full page
   const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
-  const openMyIssues = myIssues.filter(i => i.status !== 'Resolved');
-  const unassignedCount = myIssues.filter(i => i.status !== 'Resolved' && !i.assignedTo).length;
-  const readyRequests = myRequests.filter(r => r.status === 'Available');
+  
+  const readyRequests = myRequests.filter(r => r.status === 'Available' || r.status === 'Ready');
   const pendingRequests = myRequests.filter(r => r.status === 'Open' || r.status === 'In Progress');
 
   const taskData = useMemo(() => {
