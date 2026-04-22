@@ -162,15 +162,19 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-headline text-2xl flex items-center gap-2">
-            <PlusCircle className="h-6 w-6 text-primary" /> Register New Asset
+      <DialogContent className="sm:max-w-[620px] p-0 overflow-hidden flex flex-col max-h-[96vh] rounded-2xl shadow-2xl border-primary/10">
+        <DialogHeader className="p-6 pb-4 border-b bg-muted/5">
+          <DialogTitle className="font-headline text-2xl flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <PlusCircle className="h-6 w-6 text-primary" />
+            </div>
+            <span>Register New Asset</span>
           </DialogTitle>
-          <DialogDescription>Add infrastructure or high-value items to the park inventory.</DialogDescription>
+          <DialogDescription className="ml-13 text-sm">Add infrastructure or high-value items to the park inventory.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-thin scrollbar-thumb-muted-foreground/20">
+          <div className="space-y-6 pb-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Name</Label>
@@ -268,11 +272,12 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
               </div>
             )}
           </div>
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="p-6 pt-4 border-t bg-muted/5">
           <Button 
-            className="w-full font-bold h-12 uppercase tracking-widest"
+            className="w-full font-bold h-12 uppercase tracking-widest shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all text-sm"
             disabled={!formData.name || !formData.park || isSubmitting}
             onClick={handleSubmit}
           >
