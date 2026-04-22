@@ -74,7 +74,7 @@ function IssuesContent() {
   const db = useFirestore();
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { profile, permissions, isAdmin } = useUserContext();
+  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
   const { allUsers: users, allParks: allDetails } = useDataContext();
   const isOperative = !permissions.assignTask;
 
