@@ -124,7 +124,7 @@ export default function MapPage() {
       title="Interactive Infrastructure Map" 
       description="Visual grid layout of all park legacy assets and reported issues"
     >
-      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-250px)] min-h-[600px]" id="map-main-area">
+      <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[calc(100vh-250px)] min-h-[600px]" id="map-main-area">
         {/* Main Map View */}
         <div className="flex-1 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -165,7 +165,7 @@ export default function MapPage() {
             </div>
           </div>
 
-          <div className="flex-1 w-full min-h-[400px] bg-muted rounded-xl overflow-hidden relative shadow-sm border">
+          <div className="flex-1 w-full h-[400px] lg:h-full bg-muted rounded-xl overflow-hidden relative shadow-sm border">
             <MapFrame 
               issues={issues} 
               assets={assets} 
@@ -199,7 +199,7 @@ export default function MapPage() {
         </div>
 
         {/* Sidebar List */}
-        <Card className="w-full lg:w-[350px] flex flex-col overflow-hidden border-2">
+        <Card className="w-full lg:w-[350px] h-[500px] lg:h-full flex flex-col overflow-hidden border-2">
           <CardHeader className="p-4 border-b bg-muted/30">
             <CardTitle className="text-sm font-headline uppercase tracking-widest flex items-center justify-between">
               Grid Registry
