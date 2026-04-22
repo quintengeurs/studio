@@ -1,6 +1,5 @@
-
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { compressImage } from "@/lib/image-compress";
 import {
   Dialog,
@@ -28,6 +27,7 @@ import { collection, addDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { RequestCategory } from "@/lib/types";
+import { useDataContext } from "@/context/DataContext";
 
 interface RequestModalProps {
   trigger?: React.ReactNode;
@@ -39,6 +39,7 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
+  const { registryConfig, configLoading } = useDataContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -47,6 +48,8 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
     depot: "",
     imageUrl: "",
   });
+
+  const depots = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
