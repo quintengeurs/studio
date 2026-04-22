@@ -65,8 +65,10 @@ export default function MapPage() {
   const sidebarItems = useMemo(() => {
     const s = search.toLowerCase();
     const filteredIssues = issues.filter(i => 
+      i.status !== 'Resolved' && (
       i.title.toLowerCase().includes(s) || 
       i.id.toLowerCase().includes(s)
+      )
     ).map(i => ({ ...i, mapSearchType: 'Issue' as const }));
     
     const filteredAssets = assets.filter(a => 
@@ -189,6 +191,10 @@ export default function MapPage() {
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded-full bg-[#f1c40f] border border-black" />
                 <span className="font-medium text-muted-foreground uppercase tracking-tight">Medium Priority</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-[#10b981] opacity-50 border border-black" />
+                <span className="font-medium text-muted-foreground uppercase tracking-tight">Resolved Issue</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded-full bg-[#1e293b] border border-black" />

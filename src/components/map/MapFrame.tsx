@@ -110,11 +110,12 @@ export default function MapFrame({
         bounds.extend(pos);
         plottedCount++;
 
-        const color = getIssueColor(issue.priority);
+        const isResolved = issue.status === 'Resolved';
+        const color = isResolved ? "#10b981" : getIssueColor(issue.priority);
         const marker = L.marker(pos, {
           icon: L.divIcon({
             className: 'custom-map-marker',
-            html: `<div class="marker-glow" style="background-color: ${color}; box-shadow: 0 0 10px ${color}"></div>`,
+            html: `<div class="marker-glow" style="background-color: ${color}; box-shadow: 0 0 10px ${color}; opacity: ${isResolved ? 0.4 : 1}; animation: ${isResolved ? 'none' : 'pulse 2s infinite'}"></div>`,
             iconSize: [20, 20],
             iconAnchor: [10, 10]
           })
