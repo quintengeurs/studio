@@ -124,7 +124,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       editParksFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
       editParkDevelopment: roles.some(r => ['Parks Development Officer', 'Biodiversity Manager'].includes(r)),
       editDepotsFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
-      viewMap: roles.some(r => ['Area Manager', 'Operations Manager'].includes(r)),
+      viewMap: roles.some(r => ['Area Manager', 'Operations Manager', 'Assistant Area Manager', 'Head Gardener'].includes(r)),
     };
   }
 
