@@ -36,12 +36,11 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { profile } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registry } = useDoc<RegistryConfig>(registryRef as any);
-
-  const currentUserId = user?.uid;
 
   const [formData, setFormData] = useState({
     title: "",
@@ -51,19 +50,22 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
     selectedColleagues: [] as string[]
   });
 
-  const selectedParkDepot = useMemo(() => {
-    if (!formData.park) return null;
-    return allParks.find(p => p.name === formData.park)?.depot;
-  }, [formData.park, allParks]);
+  const userDepots = useMemo(() => {
+    const list = [...(profile?.depots || []), profile?.depot].filter(Boolean) as string[];
+    return Array.from(new Set(list));
+  }, [profile]);
 
   const colleagues = useMemo(() => {
-    if (!selectedParkDepot) return [];
+    if (userDepots.length === 0) return [];
     return allUsers.filter(u => 
       u.email?.toLowerCase() !== user?.email?.toLowerCase() && 
       !u.isArchived && 
-      (u.depots?.includes(selectedParkDepot) || u.depot === selectedParkDepot)
+      (
+        (u.depots?.some(d => userDepots.includes(d))) || 
+        (u.depot && userDepots.includes(u.depot))
+      )
     );
-  }, [allUsers, selectedParkDepot, user?.email]);
+  }, [allUsers, userDepots, user?.email]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
