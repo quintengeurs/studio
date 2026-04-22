@@ -176,7 +176,7 @@ export default function MapPage() {
               flyToData={flyToTarget}
             />
             
-            <div className="absolute bottom-4 right-4 z-[1000] bg-white/90 backdrop-blur p-3 rounded-lg border shadow-lg text-[10px] space-y-2 pointer-events-none">
+            <div className="absolute bottom-4 right-4 z-40 bg-white/90 backdrop-blur p-3 rounded-lg border shadow-lg text-[10px] space-y-2 pointer-events-none">
               <p className="font-bold border-b pb-1 mb-1">LEGEND</p>
               <div className="flex items-center gap-2">
                 <div className="h-3 w-3 rounded-full bg-[#e74c3c] border border-black" />
@@ -221,7 +221,10 @@ export default function MapPage() {
                 <div 
                   key={item.id} 
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-all border border-transparent hover:border-border group"
-                  onClick={() => handleFlyTo(item, (item as any).mapSearchType)}
+                  onClick={() => {
+                    handleFlyTo(item, (item as any).mapSearchType);
+                    handleShowDetail(item, (item as any).mapSearchType);
+                  }}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">

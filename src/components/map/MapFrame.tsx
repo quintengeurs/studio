@@ -209,7 +209,7 @@ export default function MapFrame({
       `}</style>
       
       {/* Dynamic Diagnostic Indicator */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/80 text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 pointer-events-none transition-all shadow-xl">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-black/80 text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 pointer-events-none transition-all shadow-xl">
         {mapReady ? (
           <><Target className="h-3 w-3 text-green-400 animate-pulse" /> Live Tracking Active</>
         ) : (
