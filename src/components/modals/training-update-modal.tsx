@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { User, RegistryConfig } from "@/lib/types";
 import { useFirestore, useDoc } from "@/firebase";
@@ -36,6 +36,7 @@ export function TrainingUpdateModal({ open, onOpenChange, users }: TrainingUpdat
   const db = useFirestore();
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedCourse, setSelectedCourse] = useState<string>("");
+  const [bespokeCourse, setBespokeCourse] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const registryConfigRef = doc(db!, "settings", "registry");
@@ -43,7 +44,8 @@ export function TrainingUpdateModal({ open, onOpenChange, users }: TrainingUpdat
   const trainingOptions = registryConfig?.trainingOptions?.sort() ?? [];
 
   const handleUpdate = async () => {
-    if (!db || !selectedUserId || !selectedCourse) return;
+    const finalCourse = selectedCourse === "Other" ? bespokeCourse : selectedCourse;
+    if (!db || !selectedUserId || !finalCourse) return;
     setIsSubmitting(true);
 
     try {
@@ -56,8 +58,8 @@ export function TrainingUpdateModal({ open, onOpenChange, users }: TrainingUpdat
         ? currentTraining.split(',').map(s => s.trim()).filter(s => s && s !== 'None') 
         : [];
       
-      if (!trainingList.includes(selectedCourse)) {
-        trainingList.push(selectedCourse);
+      if (!trainingList.includes(finalCourse)) {
+        trainingList.push(finalCourse);
       }
 
       const newTrainingString = trainingList.join(', ') || "None";
@@ -68,10 +70,11 @@ export function TrainingUpdateModal({ open, onOpenChange, users }: TrainingUpdat
 
       toast({
         title: "Training Updated",
-        description: `${selectedCourse} has been added to ${userToUpdate.name}'s profile.`,
+        description: `${finalCourse} has been added to ${userToUpdate.name}'s profile.`,
       });
       onOpenChange(false);
       setSelectedCourse("");
+      setBespokeCourse("");
       setSelectedUserId("");
     } catch (error) {
       toast({
@@ -128,15 +131,29 @@ export function TrainingUpdateModal({ open, onOpenChange, users }: TrainingUpdat
                     {option}
                   </SelectItem>
                 ))}
+                <SelectItem value="Other" className="font-bold text-primary border-t mt-1">Other / Bespoke Course</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {selectedCourse === "Other" && (
+            <div className="grid gap-2 animate-in slide-in-from-top-2 duration-300">
+                <Label className="text-xs font-bold uppercase tracking-widest opacity-70">
+                    Bespoke Course Name
+                </Label>
+                <Input 
+                    placeholder="e.g. Bespoke Chainsaw Level 2" 
+                    value={bespokeCourse}
+                    onChange={(e) => setBespokeCourse(e.target.value)}
+                />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button 
             className="w-full font-bold" 
             onClick={handleUpdate} 
-            disabled={!selectedUserId || !selectedCourse || isSubmitting}
+            disabled={!selectedUserId || !selectedCourse || (selectedCourse === "Other" && !bespokeCourse) || isSubmitting}
           >
             {isSubmitting ? "Updating..." : "Update Training Record"}
           </Button>
