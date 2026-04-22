@@ -24,6 +24,7 @@ import { compressImage } from "@/lib/image-compress";
 import { User, RegistryConfig } from "@/lib/types";
 import { format } from "date-fns";
 import { useDataContext } from "@/context/DataContext";
+import { useUserContext } from "@/context/UserContext";
 
 interface LogWorkModalProps {
   open: boolean;
