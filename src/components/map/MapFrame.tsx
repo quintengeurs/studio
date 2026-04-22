@@ -41,15 +41,15 @@ export default function MapFrame({
     const mapElement = document.getElementById('map-container-inner');
     if (!mapElement || mapRef.current) return;
 
-    // Hackney Reference Point (London)
-    const referencePosition: [number, number] = [51.5452, -0.0548];
+    // Borough Benchmark Reference
+    const benchmarkPos: [number, number] = [51.54500, -0.05580];
 
     const map = L.map('map-container-inner', { 
       zoomControl: true, 
       attributionControl: false,
       scrollWheelZoom: true,
       touchZoom: true
-    }).setView(referencePosition, 15);
+    }).setView(benchmarkPos, 15);
 
     // Grid Background (Force CSS to apply to the container Leaflet just found)
     mapElement.classList.add('leaflet-grid-style');
@@ -154,6 +154,19 @@ export default function MapFrame({
       });
     }
 
+    // Add Fixed Borough Benchmark Marker
+    const benchmarkPos: [number, number] = [51.54500, -0.05580];
+    L.marker(benchmarkPos, {
+      icon: L.divIcon({
+        className: 'custom-map-marker',
+        html: `<div class="marker-glow benchmark" style="background-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8)"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      }),
+      zIndexOffset: 1000,
+      interactive: false
+    }).addTo(map);
+
     // Heatmap
     if (showHeat && (L as any).heatLayer) {
       const heatPoints = issues
@@ -200,10 +213,19 @@ export default function MapFrame({
           animation: pulse 2s infinite;
         }
         .marker-glow.asset { animation: none; border-width: 1px; }
+        .marker-glow.benchmark { 
+          animation: pulse-benchmark 3s infinite; 
+          border: 3px solid white;
+        }
         @keyframes pulse {
           0% { transform: scale(0.95); opacity: 1; }
           50% { transform: scale(1.1); opacity: 0.8; }
           100% { transform: scale(0.95); opacity: 1; }
+        }
+        @keyframes pulse-benchmark {
+          0% { transform: scale(0.8); opacity: 1; }
+          50% { transform: scale(1.2); opacity: 0.5; }
+          100% { transform: scale(0.8); opacity: 1; }
         }
         .custom-map-marker { background: transparent; border: none; }
       `}</style>

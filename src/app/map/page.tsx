@@ -156,7 +156,7 @@ export default function MapPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="font-bold text-[10px] uppercase h-8" onClick={() => setFlyToTarget({ item: { location: { latitude: 51.5452, longitude: -0.0548 } }, type: 'Issue', timestamp: Date.now() })}>
+              <Button variant="outline" size="sm" className="font-bold text-[10px] uppercase h-8" onClick={() => setFlyToTarget({ item: { location: { latitude: 51.54500, longitude: -0.05580 } }, type: 'Issue', timestamp: Date.now() })}>
                 <Target className="mr-2 h-3.5 w-3.5" /> Reset View
               </Button>
               <Button variant="outline" size="sm" className="font-bold text-[10px] uppercase h-8" onClick={handleExportPDF}>
