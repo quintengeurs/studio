@@ -26,6 +26,8 @@ const ALL_FALSE: AccessPermissions = {
   editParksFull: false,
   editParkDevelopment: false,
   editDepotsFull: false,
+  viewInfoCorner: false,
+  manageInfoCorner: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
@@ -40,6 +42,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
         viewMyTasks: true,
         viewParks: true,
         viewDepots: true,
+        viewInfoCorner: true,
         createIssue: true,
       };
     }
@@ -86,6 +89,8 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       editParkDevelopment: true,
       editDepotsFull: true,
       viewMap: true,
+      viewInfoCorner: true,
+      manageInfoCorner: true,
     };
   }
 
@@ -125,6 +130,8 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       editParkDevelopment: roles.some(r => ['Parks Development Officer', 'Biodiversity Manager'].includes(r)),
       editDepotsFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
       viewMap: roles.some(r => ['Area Manager', 'Operations Manager', 'Assistant Area Manager', 'Head Gardener'].includes(r)),
+      viewInfoCorner: true,
+      manageInfoCorner: roles.some(r => ['Area Manager', 'Operations Manager'].includes(r)),
     };
   }
 
@@ -135,6 +142,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
     viewMyTasks: true,
     viewParks: true,
     viewDepots: true,
+    viewInfoCorner: true,
     createIssue: true,
   };
 }

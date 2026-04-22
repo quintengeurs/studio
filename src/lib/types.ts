@@ -251,3 +251,18 @@ export interface DepotDetail {
   tools?: string[]; // Pills for tools
   updates?: DepotUpdate[];
 }
+
+export type InfoItemType = 'Document' | 'Information' | 'CTA';
+
+export interface InfoItem {
+  id: string;
+  type: InfoItemType;
+  title: string;
+  content: string;
+  url?: string;
+  ctaLabel?: string;
+  interestedUserIds?: string[];
+  createdBy: string;
+  createdAt: string;
+  isArchived: boolean;
+}

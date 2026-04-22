@@ -18,7 +18,8 @@ import {
   Truck,
   Map,
   Building2,
-  LayoutGrid
+  LayoutGrid,
+  Megaphone
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,6 +45,7 @@ import { User as UserType } from "@/lib/types";
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { title: "Info Corner", icon: Megaphone, href: "/info-corner" },
   { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Parks", icon: Map, href: "/parks" },
@@ -81,6 +83,7 @@ export function AppSidebar() {
         case "All Tasks": return permissions.viewAllTasks;
         case "Users": return permissions.viewUsers;
         case "Parks Map": return permissions.viewMap;
+        case "Info Corner": return permissions.viewInfoCorner;
         default: return false;
       }
     });

@@ -15,7 +15,8 @@ import {
   Truck,
   Building2,
   Map,
-  LayoutGrid
+  LayoutGrid,
+  Megaphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
@@ -24,6 +25,7 @@ import { useUserContext } from "@/context/UserContext";
 
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { title: "Info Corner", icon: Megaphone, href: "/info-corner" },
   { title: "My Tasks", icon: ListTodo, href: "/my-tasks" },
   { title: "Asset Register", icon: MapPin, href: "/assets" },
   { title: "Parks", icon: Map, href: "/parks" },
@@ -56,6 +58,7 @@ export function MobileBottomNav() {
           case "Staff Requests": return permissions.viewStaffRequests;
           case "All Tasks": return permissions.viewAllTasks;
           case "Users": return permissions.viewUsers;
+          case "Info Corner": return permissions.viewInfoCorner;
           default: return false;
       }
     });
