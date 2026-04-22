@@ -279,7 +279,7 @@ export default function Dashboard() {
           <AssetModal open={assetModalOpen} onOpenChange={setAssetModalOpen} />
           <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
           <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />
-          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={profile ? [profile] : []} />
+          <TrainingUpdateModal open={trainingModalOpen} onOpenChange={setTrainingModalOpen} users={allUsers} />
           
           <TaskDetailModal 
             open={taskDetailOpen} 
