@@ -56,6 +56,11 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
     return Array.from(new Set(list));
   }, [profile]);
 
+  const parks = useMemo(() => {
+    const list = [...(registry?.parks || []), ...allParks.map(p => p.name)];
+    return Array.from(new Set(list)).sort();
+  }, [allParks, registry]);
+
   const colleagues = useMemo(() => {
     if (userDepots.length === 0) return [];
     return allUsers.filter(u => 
@@ -143,7 +148,7 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
             <Select value={formData.park} onValueChange={v => setFormData(prev => ({ ...prev, park: v }))}>
               <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
               <SelectContent>
-                {registry?.parks?.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

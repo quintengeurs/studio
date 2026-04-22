@@ -41,7 +41,7 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
   const registry = localRegistry || contextRegistry;
 
   const parks = useMemo(() => {
-    const list = registry?.parks || allParks.map(p => p.name);
+    const list = [...(registry?.parks || []), ...allParks.map(p => p.name)];
     return Array.from(new Set(list)).sort();
   }, [allParks, registry]);
 
