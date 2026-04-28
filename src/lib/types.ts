@@ -33,6 +33,9 @@ export interface AccessPermissions {
   viewArchivedTasks: boolean;
   viewUsers: boolean;
   viewArchivedStaff: boolean;
+  viewSmartTasking: boolean;
+  viewInfoCorner: boolean;
+  manageInfoCorner: boolean;
 
   // Core Functions
   createTask: boolean;
@@ -128,6 +131,7 @@ export interface Task {
   isBespoke?: boolean;
   isArchived?: boolean;
   completedAt?: string;
+  source?: 'manual' | 'smart-engine';
 }
 
 export interface RecurringSchedule {
@@ -268,3 +272,16 @@ export interface InfoItem {
   createdAt: string;
   isArchived: boolean;
 }
+
+export interface DailyCondition {
+  id?: string;
+  parkId: string;
+  date: string; // ISO string
+  temperature: number; // Celsius
+  windSpeed: number; // mph or km/h
+  humidity: number; // Percentage
+  expectedFootfall: 'Low' | 'Medium' | 'High' | 'Emergency';
+  loggedBy: string; // user ID
+  createdAt: string; // ISO string
+}
+

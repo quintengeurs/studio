@@ -19,7 +19,8 @@ import {
   Map,
   Building2,
   LayoutGrid,
-  Megaphone
+  Megaphone,
+  BrainCircuit
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,6 +57,7 @@ const navItems = [
   { title: "Staff Requests", icon: Truck, href: "/requests" },
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
+  { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
 ];
 
 export function AppSidebar() {
@@ -84,6 +86,7 @@ export function AppSidebar() {
         case "Users": return permissions.viewUsers;
         case "Parks Map": return permissions.viewMap;
         case "Info Corner": return permissions.viewInfoCorner;
+        case "Smart Tasking": return permissions.viewSmartTasking;
         default: return false;
       }
     });

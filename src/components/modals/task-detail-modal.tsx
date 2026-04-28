@@ -22,9 +22,10 @@ import {
   Send, 
   MapPin, 
   AlertCircle,
-  Users,
   CheckCircle2,
-  X
+  X,
+  BrainCircuit,
+  Users
 } from "lucide-react";
 import Image from "next/image";
 import { useFirestore, useUser } from "@/firebase";
@@ -138,8 +139,13 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
             <MapPin className="h-3 w-3" /> {task.park}
           </div>
           <DialogTitle className="text-2xl font-headline font-bold text-primary">{task.title}</DialogTitle>
-          <DialogDescription className="text-sm font-medium text-foreground/80 mt-1">
-            Due {task.dueDate} • Status: <Badge variant="outline" className="ml-1 uppercase text-[10px] bg-primary/5">{task.status}</Badge>
+          <DialogDescription className="text-sm font-medium text-foreground/80 mt-1 flex items-center gap-2 flex-wrap">
+            <span>Due {task.dueDate} • Status: <Badge variant="outline" className="ml-1 uppercase text-[10px] bg-primary/5">{task.status}</Badge></span>
+            {task.source === 'smart-engine' && (
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 flex items-center gap-1 uppercase text-[9px] font-bold">
+                <BrainCircuit className="h-3 w-3" /> Auto-Generated: Weather
+              </Badge>
+            )}
           </DialogDescription>
         </DialogHeader>
 

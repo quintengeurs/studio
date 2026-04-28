@@ -28,6 +28,7 @@ const ALL_FALSE: AccessPermissions = {
   editDepotsFull: false,
   viewInfoCorner: false,
   manageInfoCorner: false,
+  viewSmartTasking: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
@@ -91,6 +92,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewMap: true,
       viewInfoCorner: true,
       manageInfoCorner: true,
+      viewSmartTasking: true,
     };
   }
 
