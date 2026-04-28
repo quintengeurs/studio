@@ -44,16 +44,20 @@ export function PermissionsMatrix({ users }: PermissionsMatrixProps) {
   const db = useFirestore();
   const { toast } = useToast();
   
-  // Local state for optimistic updates and batch saving
+  // Initialise from saved permissions first; fall back to role-based defaults only if none saved
   const [localPermissions, setLocalPermissions] = useState<Record<string, AccessPermissions>>(
     () => users.reduce((acc, user) => {
-      acc[user.id] = getDefaultPermissionsForUser(user);
+      // Use saved custom permissions if they exist, otherwise derive from role
+      acc[user.id] = (user.permissions && Object.keys(user.permissions).length > 0)
+        ? { ...getDefaultPermissionsForUser(user), ...user.permissions }
+        : getDefaultPermissionsForUser(user);
       return acc;
     }, {} as Record<string, AccessPermissions>)
   );
   
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [changedUserIds, setChangedUserIds] = useState<Set<string>>(new Set());
 
   const togglePermission = (userId: string, key: keyof AccessPermissions, value: boolean) => {
     setLocalPermissions(prev => ({
@@ -64,21 +68,24 @@ export function PermissionsMatrix({ users }: PermissionsMatrixProps) {
       }
     }));
     setHasChanges(true);
+    setChangedUserIds(prev => new Set(prev).add(userId));
   };
 
   const saveAllChanges = async () => {
     if (!db) return;
     setIsSaving(true);
     try {
-      // Loop sequentially since batch has a limit and could be heavy
-      for (const user of users) {
+      // Only save users whose permissions were actually changed
+      const usersToSave = users.filter(u => changedUserIds.has(u.id));
+      for (const user of usersToSave) {
         const p = localPermissions[user.id];
         if (p) {
           await updateDoc(doc(db, "users", user.id), { permissions: p });
         }
       }
       setHasChanges(false);
-      toast({ title: "Permissions Saved", description: "The active matrix was synced to the cloud successfully." });
+      setChangedUserIds(new Set());
+      toast({ title: "Permissions Saved", description: `Custom permissions saved for ${usersToSave.length} user(s).` });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
