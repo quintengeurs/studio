@@ -112,10 +112,10 @@ export default function Dashboard() {
 
   const myIssuesQuery = useMemoFirebase(() => {
     if (!db) return null;
-    if (isManagement) return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(15));
-    if (userEffectiveName) return query(collection(db, "issues"), where("reportedBy", "==", userEffectiveName), where("status", "!=", "Resolved"), limit(10));
-    return null;
-  }, [db, userEffectiveName, isManagement]);
+    // Fetch all unresolved issues; we filter client-side for personal users
+    // to handle multiple possible identity values (name vs email vs displayName)
+    return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(50));
+  }, [db]);
 
   const { data: myIssues = [], loading: issuesLoading } = useCollection<Issue>(myIssuesQuery as any);
 
@@ -148,10 +148,22 @@ export default function Dashboard() {
         return parkDetail?.depot && userDepots.includes(parkDetail.depot);
       });
     }
-    return myIssues; // Fallback to personal for operatives
-  }, [isAdmin, isGlobalMgmt, isDepotMgmt, allIssues, allParks, userDepots, myIssues]);
+    // For personal users, return all so openMyIssues can filter by identity
+    return allIssues;
+  }, [isAdmin, isGlobalMgmt, isDepotMgmt, allIssues, allParks, userDepots]);
 
-  const openMyIssues = visibleIssues.filter(i => i.status !== 'Resolved' && !i.isArchived);
+  const openMyIssues = useMemo(() => {
+    const open = visibleIssues.filter(i => i.status !== 'Resolved' && !i.isArchived);
+    // For non-management, additionally filter to only issues the user is personally involved with
+    if (isAdmin || isGlobalMgmt || isDepotMgmt) return open;
+    // Personal: reported by or assigned to any of the user's identities
+    return open.filter(i => 
+      identities.some(id => 
+        i.reportedBy?.toLowerCase() === id.toLowerCase() ||
+        i.assignedTo?.toLowerCase() === id.toLowerCase()
+      )
+    );
+  }, [visibleIssues, isAdmin, isGlobalMgmt, isDepotMgmt, identities]);
   const unassignedCount = openMyIssues.filter(i => !i.assignedTo).length;
   
   // Tasks remain personal on dashboard unless in full page
