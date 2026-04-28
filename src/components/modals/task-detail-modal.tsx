@@ -154,15 +154,68 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
 
             {linkedIssue && (
               <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Contextual Reference</Label>
-                <div className="rounded-lg border overflow-hidden bg-muted/5">
-                  {linkedIssue.imageUrl && (
+                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1.5">
+                  <AlertCircle className="h-3 w-3" /> Linked Issue Context
+                </Label>
+                <div className="rounded-xl border-2 border-yellow-200 overflow-hidden bg-yellow-50/30 dark:bg-yellow-900/10">
+                  {linkedIssue.imageUrl ? (
                     <div className="relative aspect-video w-full">
                       <Image src={linkedIssue.imageUrl} alt="Issue Reference" fill className="object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
+                        {linkedIssue.priority && (
+                          <Badge className={`text-[9px] font-bold uppercase px-2 ${
+                            linkedIssue.priority === 'Emergency' ? 'bg-red-600 text-white' :
+                            linkedIssue.priority === 'High' ? 'bg-yellow-500 text-white' :
+                            linkedIssue.priority === 'Medium' ? 'bg-blue-500 text-white' :
+                            'bg-green-600 text-white'
+                          }`}>{linkedIssue.priority}</Badge>
+                        )}
+                        {linkedIssue.category && (
+                          <Badge variant="secondary" className="text-[9px] font-bold uppercase px-2 bg-white/80 text-foreground">{linkedIssue.category}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-24 bg-yellow-100/50 flex items-center justify-center gap-2 text-yellow-700">
+                      <AlertCircle className="h-5 w-5" />
+                      <span className="text-xs font-bold uppercase">No Image Provided</span>
                     </div>
                   )}
-                  <div className="p-3 bg-white border-t">
-                    <p className="text-xs font-bold text-primary">{linkedIssue.title}</p>
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="text-sm font-bold text-foreground leading-tight">{linkedIssue.title}</p>
+                        {!linkedIssue.imageUrl && linkedIssue.priority && (
+                          <Badge className={`text-[9px] font-bold uppercase px-2 shrink-0 ${
+                            linkedIssue.priority === 'Emergency' ? 'bg-red-600 text-white' :
+                            linkedIssue.priority === 'High' ? 'bg-yellow-500 text-white' :
+                            linkedIssue.priority === 'Medium' ? 'bg-blue-500 text-white' :
+                            'bg-green-600 text-white'
+                          }`}>{linkedIssue.priority}</Badge>
+                        )}
+                      </div>
+                      {linkedIssue.description && (
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{linkedIssue.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 pt-2 border-t border-yellow-200/60">
+                      {linkedIssue.reportedBy && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Users className="h-3 w-3" /> Reported by <strong>{linkedIssue.reportedBy}</strong>
+                        </span>
+                      )}
+                      {linkedIssue.createdAt && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" /> {new Date(linkedIssue.createdAt).toLocaleDateString()}
+                        </span>
+                      )}
+                      {linkedIssue.location && (
+                        <span className="text-[10px] text-primary flex items-center gap-1 font-bold">
+                          <MapPin className="h-3 w-3" /> GPS Tagged
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
