@@ -178,6 +178,41 @@ export default function TasksPage() {
   const [archiveFilterPark, setArchiveFilterPark] = useState<string>("All");
   const [archiveFilterDate, setArchiveFilterDate] = useState("");
 
+  const [activeTaskSearch, setActiveTaskSearch] = useState("");
+  const [activeTaskFilterPark, setActiveTaskFilterPark] = useState<string>("All");
+  const [activeTaskFilterAssignee, setActiveTaskFilterAssignee] = useState<string>("All");
+
+  const displayActiveTasks = useMemo(() => {
+    let result = filteredTasksForUser.filter(t => t.status !== 'Pending Approval');
+    
+    if (activeTaskSearch) {
+      const s = activeTaskSearch.toLowerCase();
+      result = result.filter(t => 
+        t.title.toLowerCase().includes(s) || 
+        (t.assignedTo && t.assignedTo.toLowerCase().includes(s)) ||
+        (t.objective && t.objective.toLowerCase().includes(s))
+      );
+    }
+    
+    if (activeTaskFilterPark !== "All") {
+      result = result.filter(t => t.park === activeTaskFilterPark);
+    }
+
+    if (activeTaskFilterAssignee !== "All") {
+      result = result.filter(t => t.assignedTo === activeTaskFilterAssignee);
+    }
+    
+    return result;
+  }, [filteredTasksForUser, activeTaskSearch, activeTaskFilterPark, activeTaskFilterAssignee]);
+
+  const activeAssignees = useMemo(() => {
+    const assignees = new Set<string>();
+    filteredTasksForUser.filter(t => t.status !== 'Pending Approval').forEach(t => {
+      if (t.assignedTo) assignees.add(t.assignedTo);
+    });
+    return Array.from(assignees).sort();
+  }, [filteredTasksForUser]);
+
   const filteredArchivedTasks = useMemo(() => {
     let result = archivedTasks;
     
@@ -479,17 +514,46 @@ export default function TasksPage() {
           </TabsList>
 
           <TabsContent value="active">
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search by title, operative, or objective..." 
+                  className="pl-9 bg-background shadow-sm"
+                  value={activeTaskSearch}
+                  onChange={(e) => setActiveTaskSearch(e.target.value)}
+                />
+              </div>
+              <Select value={activeTaskFilterPark} onValueChange={setActiveTaskFilterPark}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-background shadow-sm">
+                  <SelectValue placeholder="Filter by Site" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Sites</SelectItem>
+                  {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={activeTaskFilterAssignee} onValueChange={setActiveTaskFilterAssignee}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-background shadow-sm">
+                  <SelectValue placeholder="Filter by Assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Assignees</SelectItem>
+                  {activeAssignees.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             {tasksLoading ? (
               <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-            ) : filteredTasksForUser.filter(t => t.status !== 'Pending Approval').length === 0 ? (
+            ) : displayActiveTasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
                  <ListTodo className="h-12 w-12 mb-4" />
-                 <p className="font-bold">No active tasks for today</p>
+                 <p className="font-bold">No active tasks found</p>
               </div>
             ) : (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                {filteredTasksForUser.filter(t => t.status !== 'Pending Approval').map((task) => (
-                  <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col">
+                {displayActiveTasks.map((task) => (
+                  <Card key={task.id} className="group relative overflow-hidden border-2 hover:border-primary/40 transition-all shadow-sm flex flex-col cursor-pointer" onClick={() => handleOpenTaskDetails(task.id)}>
                     <CardHeader className="pb-3 px-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                           <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
@@ -513,7 +577,7 @@ export default function TasksPage() {
                           <Progress value={task.status === 'Pending Approval' ? 100 : task.status === 'Doing' ? 45 : 0} className="h-2" />
                         </div>
                           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
-                          <div className={`flex items-center gap-2 p-1 rounded-md transition-colors ${canUserReassignTask(task) ? 'cursor-pointer hover:bg-muted/50' : ''}`} onClick={() => canUserReassignTask(task) && handleOpenAssignDialog(task.id)}>
+                          <div className={`flex items-center gap-2 p-1 rounded-md transition-colors ${canUserReassignTask(task) ? 'cursor-pointer hover:bg-muted/50' : ''}`} onClick={(e) => { e.stopPropagation(); canUserReassignTask(task) && handleOpenAssignDialog(task.id); }}>
                             <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
                             <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
                           </div>
@@ -530,9 +594,9 @@ export default function TasksPage() {
                     </CardContent>
                     <CardFooter className="p-0 mt-auto border-t">
                       {task.status === 'Pending Approval' ? (
-                        <Button variant="default" className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}><ThumbsUp className="mr-2 h-4 w-4" /> {isSubmitting ? "Approving..." : "Approve & Archive"}</Button>
+                        <Button variant="default" className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm" onClick={(e) => { e.stopPropagation(); handleApproveTask(task.id); }} disabled={isSubmitting}><ThumbsUp className="mr-2 h-4 w-4" /> {isSubmitting ? "Approving..." : "Approve & Archive"}</Button>
                       ) : (
-                        <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm" onClick={() => handleOpenTaskDetails(task.id)}>Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                        <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm" onClick={(e) => { e.stopPropagation(); handleOpenTaskDetails(task.id); }}>Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
                       )}
                     </CardFooter>
                   </Card>
@@ -745,7 +809,7 @@ export default function TasksPage() {
           ) : (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
               {filteredTasksForUser.map((task) => (
-                <Card key={task.id} className="relative overflow-hidden border-2 hover:border-primary/40 transition-all flex flex-col">
+                <Card key={task.id} className="relative overflow-hidden border-2 hover:border-primary/40 transition-all flex flex-col cursor-pointer" onClick={() => handleOpenTaskDetails(task.id)}>
                   <CardHeader className="pb-3 px-4">
                     <div className="flex justify-between items-center mb-2">
                        <Badge variant="outline" className="text-[10px] font-bold text-primary uppercase">{task.park}</Badge>
@@ -760,7 +824,7 @@ export default function TasksPage() {
                     <div className="flex items-center justify-between pt-3 border-t">
                       <div 
                         className={`flex items-center gap-2 p-1 rounded-md transition-colors ${canUserReassignTask(task) ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-                        onClick={() => canUserReassignTask(task) && handleOpenAssignDialog(task.id)}
+                        onClick={(e) => { e.stopPropagation(); canUserReassignTask(task) && handleOpenAssignDialog(task.id); }}
                       >
                         <div className="h-7 w-7 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0">
                           <UserIcon className="h-3.5 w-3.5 text-primary" />
@@ -770,7 +834,7 @@ export default function TasksPage() {
                           <span className="text-xs font-semibold truncate">{task.assignedTo}</span>
                         </div>
                       </div>
-                      {canUserReassignTask(task) && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleOpenAssignDialog(task.id)}><UserPlus className="h-3.5 w-3.5" /></Button>}
+                      {canUserReassignTask(task) && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); handleOpenAssignDialog(task.id); }}><UserPlus className="h-3.5 w-3.5" /></Button>}
                     </div>
                   </CardContent>
                   <CardFooter className="p-0 border-t mt-auto">

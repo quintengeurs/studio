@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,9 @@ import {
   Info,
   Truck
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, doc, updateDoc, limit } from "firebase/firestore";
 import Image from "next/image";
@@ -35,6 +38,10 @@ export default function RequestsManagementPage() {
   const { permissions, loading: userLoading } = useUserContext();
   const { allUsers } = useDataContext();
   const canViewRequests = permissions.viewStaffRequests;
+
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [managerNote, setManagerNote] = useState("");
 
   const requestsQuery = useMemoFirebase(() => {
     if (!db || !canViewRequests) return null;
@@ -57,10 +64,13 @@ export default function RequestsManagementPage() {
       return null; // Will redirect via useEffect
   }
 
-  const handleUpdateStatus = async (id: string, newStatus: string) => {
+  const handleUpdateStatus = async (id: string, newStatus: string, note?: string) => {
     if (!db) return;
     try {
-      await updateDoc(doc(db, "requests", id), { status: newStatus });
+      const updateData: any = { status: newStatus };
+      if (note) updateData.managerNote = note;
+
+      await updateDoc(doc(db, "requests", id), updateData);
       
       if (newStatus === 'Available') {
         toast({ 
@@ -76,6 +86,20 @@ export default function RequestsManagementPage() {
         description: "Your account does not have authorization to modify requests on the live database. Setup your Firestore rules to allow this.", 
         variant: "destructive" 
       });
+    }
+  };
+
+  const handleOpenNoteModal = (id: string) => {
+    setSelectedRequestId(id);
+    setManagerNote("");
+    setNoteModalOpen(true);
+  };
+
+  const handleConfirmAvailable = () => {
+    if (selectedRequestId) {
+      handleUpdateStatus(selectedRequestId, 'Available', managerNote);
+      setNoteModalOpen(false);
+      setSelectedRequestId(null);
     }
   };
 
@@ -169,7 +193,7 @@ export default function RequestsManagementPage() {
                 <Button 
                   variant="ghost" 
                   className={`flex-1 rounded-none h-12 text-[10px] font-bold uppercase ${request.status === 'Collected' ? 'text-blue-700 opacity-60' : 'hover:bg-green-50 hover:text-green-700'}`}
-                  onClick={() => handleUpdateStatus(request.id, 'Available')}
+                  onClick={() => handleOpenNoteModal(request.id)}
                   disabled={request.status === 'Available' || request.status === 'Collected'}
                 >
                   <Truck className="mr-2 h-4 w-4" /> 
@@ -187,6 +211,33 @@ export default function RequestsManagementPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Item Available</DialogTitle>
+            <DialogDescription>
+              Notify the staff member that their item is ready for collection. You can optionally add a note.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="note">Note (Optional)</Label>
+              <Textarea
+                id="note"
+                placeholder="e.g. Items are left in the main depot office. The door code is 1234."
+                value={managerNote}
+                onChange={(e) => setManagerNote(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmAvailable}>Confirm & Notify</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardShell>
   );
 }

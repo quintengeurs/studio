@@ -337,12 +337,20 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="space-y-3 pb-4">
                 {readyRequests.map((req, i) => (
-                  <div key={req.id || i} className="flex justify-between items-center rounded bg-background p-3 shadow-sm text-sm border border-green-100 dark:border-green-900/50">
-                    <div>
-                      <p className="font-bold">{req.category}</p>
-                      <p className="text-xs text-muted-foreground">{req.depot}</p>
+                  <div key={req.id || i} className="flex flex-col gap-2 rounded bg-background p-3 shadow-sm text-sm border border-green-100 dark:border-green-900/50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold">{req.category}</p>
+                        <p className="text-xs text-muted-foreground">{req.depot}</p>
+                      </div>
+                      <Button size="sm" className="h-7 text-[10px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
                     </div>
-                    <Button size="sm" className="h-7 text-[10px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
+                    {req.managerNote && (
+                      <div className="text-xs bg-muted/50 p-2 rounded border border-muted">
+                        <span className="font-bold text-[10px] uppercase text-muted-foreground block mb-1">Note</span>
+                        {req.managerNote}
+                      </div>
+                    )}
                   </div>
                 ))}
               </CardContent>
@@ -558,14 +566,22 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     readyRequests.map((req, i) => (
-                      <div key={req.id || i} className="flex justify-between items-center rounded bg-background p-3 shadow-md text-sm border border-green-100 dark:border-green-900/50 hover:border-green-300 transition-colors">
-                        <div>
-                          <p className="font-bold">{req.category}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                            <MapPin className="h-3 w-3" /> {req.depot}
-                          </p>
+                      <div key={req.id || i} className="flex flex-col gap-2 rounded bg-background p-3 shadow-md text-sm border border-green-100 dark:border-green-900/50 hover:border-green-300 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold">{req.category}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                              <MapPin className="h-3 w-3" /> {req.depot}
+                            </p>
+                          </div>
+                          <Button size="sm" className="h-8 text-[11px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
                         </div>
-                        <Button size="sm" className="h-8 text-[11px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
+                        {req.managerNote && (
+                          <div className="text-xs bg-muted/50 p-2 rounded border border-muted">
+                            <span className="font-bold text-[10px] uppercase text-muted-foreground block mb-1">Note</span>
+                            {req.managerNote}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
