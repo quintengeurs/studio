@@ -368,7 +368,7 @@ export default function ParksPage() {
       title="Parks and Green Spaces"
       description="View and manage all parks and green spaces."
       actions={
-        !isMobile && (
+        isAdmin && !isMobile && (
           <Button
             variant="outline"
             className="font-bold"
