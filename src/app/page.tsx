@@ -155,7 +155,7 @@ export default function Dashboard() {
   const unassignedCount = openMyIssues.filter(i => !i.assignedTo).length;
   
   // Tasks remain personal on dashboard unless in full page
-  const activeMyTasks = myTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
+  const activeMyTasks = myTasks.filter(t => t.status !== 'Completed');
   
   const readyRequests = myRequests.filter(r => r.status === 'Available' || r.status === 'Ready');
   const pendingRequests = myRequests.filter(r => r.status === 'Open' || r.status === 'In Progress');

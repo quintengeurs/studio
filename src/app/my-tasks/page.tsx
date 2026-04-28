@@ -40,7 +40,8 @@ import Image from "next/image";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, updateDoc, doc, query, where, limit } from "firebase/firestore";
 import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
-import { format } from "date-fns";
+import { format, isToday, isThisWeek, isThisMonth, parseISO, isBefore, startOfDay } from "date-fns";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function MyTasksPage() {
   const { toast } = useToast();
@@ -215,8 +216,117 @@ export default function MyTasksPage() {
     );
   });
 
-  const activeTasks = filteredTasks.filter(t => t.status !== 'Completed' && t.dueDate <= today);
+  const activeTasks = filteredTasks.filter(t => t.status !== 'Completed');
   const archivedTasks = filteredTasks.filter(t => t.status === 'Completed' && t.dueDate === today);
+
+  const isMobile = useIsMobile();
+  const todayDate = startOfDay(new Date());
+
+  const mobileTasks = activeTasks.filter(t => {
+      if (!t.dueDate) return true;
+      const d = parseISO(t.dueDate);
+      return isBefore(d, todayDate) || isToday(d);
+  });
+
+  const desktopToday = activeTasks.filter(t => {
+      if (!t.dueDate) return true;
+      const d = parseISO(t.dueDate);
+      return isBefore(d, todayDate) || isToday(d);
+  });
+  const desktopThisWeek = activeTasks.filter(t => {
+      if (!t.dueDate) return false;
+      const d = parseISO(t.dueDate);
+      return !isBefore(d, todayDate) && !isToday(d) && isThisWeek(d, { weekStartsOn: 1 });
+  });
+  const desktopThisMonth = activeTasks.filter(t => {
+      if (!t.dueDate) return false;
+      const d = parseISO(t.dueDate);
+      return !isBefore(d, todayDate) && !isToday(d) && !isThisWeek(d, { weekStartsOn: 1 }) && isThisMonth(d);
+  });
+  const desktopLater = activeTasks.filter(t => {
+      if (!t.dueDate) return false;
+      const d = parseISO(t.dueDate);
+      return !isBefore(d, todayDate) && !isToday(d) && !isThisWeek(d, { weekStartsOn: 1 }) && !isThisMonth(d);
+  });
+
+  const renderTaskCard = (task: any) => (
+    <Card 
+      key={task.id} 
+      className="border-2 hover:border-primary/40 transition-all group flex flex-col cursor-pointer"
+      onClick={() => {
+        setSelectedTaskId(task.id);
+        setIsDetailDialogOpen(true);
+      }}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
+            <MapPin className="h-3 w-3" />
+            {task.park}
+          </div>
+          {getStatusBadge(task.status)}
+        </div>
+        <CardTitle className="text-xl font-headline group-hover:text-primary transition-colors">{task.title}</CardTitle>
+        <CardDescription className="text-sm font-medium text-foreground/70 line-clamp-3 min-h-[4rem]">
+          {task.objective}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pb-4 flex-1">
+        <div className="space-y-4">
+          {task.linkedIssueId && (
+            <div className="p-2 rounded bg-yellow-50 border border-yellow-100 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <span className="text-[10px] font-bold text-yellow-700 uppercase">Linked to Issue</span>
+            </div>
+          )}
+          {!isOperational && (
+            <>
+              <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
+                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
+                <span>{task.status === 'Doing' ? '45%' : task.status === 'Pending Approval' ? '100%' : '0%'}</span>
+              </div>
+              <Progress value={task.status === 'Doing' ? 45 : task.status === 'Pending Approval' ? 100 : 0} className="h-2" />
+            </>
+          )}
+          {isOperational && (
+              <div className="flex items-center text-[10px] font-bold text-muted-foreground">
+                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
+              </div>
+          )}
+        </div>
+      </CardContent>
+      <CardFooter className="p-0 border-t flex divide-x mt-auto">
+        {task.status === 'Todo' ? (
+          <Button 
+            variant="ghost" 
+            className="flex-1 rounded-none h-12 text-xs font-bold hover:bg-accent/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusUpdate(task.id, 'Doing');
+            }}
+          >
+            <PlayCircle className="mr-2 h-4 w-4" /> Start Task
+          </Button>
+        ) : task.status === 'Doing' ? (
+          <Button 
+            variant="ghost" 
+            className="flex-1 rounded-none h-12 text-xs font-bold text-primary hover:bg-primary/5"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedTaskId(task.id);
+              setIsDetailDialogOpen(true);
+            }}
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" /> Submit Proof
+          </Button>
+        ) : (
+          <div className="flex-1 flex items-center justify-center h-12 text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 w-full rounded-b-lg">
+            Reviewing Details
+          </div>
+        )}
+      </CardFooter>
+    </Card>
+  );
 
   return (
     <DashboardShell 
@@ -245,92 +355,59 @@ export default function MyTasksPage() {
         <TabsContent value="active">
           {loading ? (
              <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-          ) : activeTasks.length > 0 ? (
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {activeTasks.map((task) => (
-                <Card 
-                  key={task.id} 
-                  className="border-2 hover:border-primary/40 transition-all group flex flex-col cursor-pointer"
-                  onClick={() => {
-                    setSelectedTaskId(task.id);
-                    setIsDetailDialogOpen(true);
-                  }}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
-                        <MapPin className="h-3 w-3" />
-                        {task.park}
-                      </div>
-                      {getStatusBadge(task.status)}
-                    </div>
-                    <CardTitle className="text-xl font-headline group-hover:text-primary transition-colors">{task.title}</CardTitle>
-                    <CardDescription className="text-sm font-medium text-foreground/70 line-clamp-3 min-h-[4rem]">
-                      {task.objective}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-4 flex-1">
-                    <div className="space-y-4">
-                      {task.linkedIssueId && (
-                        <div className="p-2 rounded bg-yellow-50 border border-yellow-100 flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                          <span className="text-[10px] font-bold text-yellow-700 uppercase">Linked to Issue</span>
-                        </div>
-                      )}
-                      {!isOperational && (
-                        <>
-                          <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground">
-                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
-                            <span>{task.status === 'Doing' ? '45%' : task.status === 'Pending Approval' ? '100%' : '0%'}</span>
-                          </div>
-                          <Progress value={task.status === 'Doing' ? 45 : task.status === 'Pending Approval' ? 100 : 0} className="h-2" />
-                        </>
-                      )}
-                      {isOperational && (
-                         <div className="flex items-center text-[10px] font-bold text-muted-foreground">
-                            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Due {task.dueDate}</span>
-                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-0 border-t flex divide-x mt-auto">
-                    {task.status === 'Todo' ? (
-                      <Button 
-                        variant="ghost" 
-                        className="flex-1 rounded-none h-12 text-xs font-bold hover:bg-accent/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStatusUpdate(task.id, 'Doing');
-                        }}
-                      >
-                        <PlayCircle className="mr-2 h-4 w-4" /> Start Task
-                      </Button>
-                    ) : task.status === 'Doing' ? (
-                      <Button 
-                        variant="ghost" 
-                        className="flex-1 rounded-none h-12 text-xs font-bold text-primary hover:bg-primary/5"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedTaskId(task.id);
-                          setIsDetailDialogOpen(true);
-                        }}
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4" /> Submit Proof
-                      </Button>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center h-12 text-[10px] font-bold text-muted-foreground uppercase bg-muted/20 w-full rounded-b-lg">
-                        Reviewing Details
-                      </div>
-                    )}
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+          ) : isMobile ? (
+             mobileTasks.length > 0 ? (
+               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                 {mobileTasks.map(renderTaskCard)}
+               </div>
+             ) : (
+               <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
+                 <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
+                 <p className="font-bold">All caught up for today!</p>
+               </div>
+             )
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
-              <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
-              <p className="font-bold">All caught up!</p>
-            </div>
+             activeTasks.length > 0 ? (
+               <div className="space-y-10">
+                 {desktopToday.length > 0 && (
+                   <section>
+                     <h3 className="text-sm font-bold text-destructive uppercase tracking-wider mb-4 flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Due Today or Overdue</h3>
+                     <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                       {desktopToday.map(renderTaskCard)}
+                     </div>
+                   </section>
+                 )}
+                 {desktopThisWeek.length > 0 && (
+                   <section>
+                     <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2"><Clock className="h-4 w-4" /> Due This Week</h3>
+                     <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                       {desktopThisWeek.map(renderTaskCard)}
+                     </div>
+                   </section>
+                 )}
+                 {desktopThisMonth.length > 0 && (
+                   <section>
+                     <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Due This Month</h3>
+                     <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                       {desktopThisMonth.map(renderTaskCard)}
+                     </div>
+                   </section>
+                 )}
+                 {desktopLater.length > 0 && (
+                   <section>
+                     <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 opacity-60">Later</h3>
+                     <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                       {desktopLater.map(renderTaskCard)}
+                     </div>
+                   </section>
+                 )}
+               </div>
+             ) : (
+               <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
+                 <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
+                 <p className="font-bold">All caught up!</p>
+               </div>
+             )
           )}
         </TabsContent>
 
