@@ -406,32 +406,21 @@ export default function InspectionsPage() {
   const todayStr = format(today, 'yyyy-MM-dd');
 
   const isWithinWindow = (inspection: Inspection) => {
-    // Managers/Admins see everything
-    if (!isOperational) return true;
-
     if (inspection.status === 'Completed') return true;
     
-    // Manual/Overdue check
     const dueDateStr = inspection.dueDate;
     if (dueDateStr <= todayStr) return true;
 
+    const dDateNum = parseISO(dueDateStr);
+    
     if (inspection.frequency === 'Weekly') {
-      const dDateNum = parseISO(dueDateStr);
-      return isWithinInterval(dDateNum, { 
-        start: startOfWeek(today, { weekStartsOn: 1 }), 
-        end: endOfWeek(today, { weekStartsOn: 1 }) 
-      });
+      const activeStart = startOfWeek(dDateNum, { weekStartsOn: 1 });
+      return today >= activeStart;
     }
 
-    if (inspection.frequency === 'Monthly') {
-      const dDateNum = parseISO(dueDateStr);
-      return isWithinInterval(dDateNum, { 
-        start: startOfMonth(today), 
-        end: endOfMonth(today) 
-      });
-    }
-
-    return false;
+    // Default for Monthly, Six Monthly, Yearly, One-off, and Bespoke
+    const activeStart = startOfMonth(dDateNum);
+    return today >= activeStart;
   };
 
   const pendingInspections = filteredInspections.filter(i => i.status === 'Pending' && isWithinWindow(i));
@@ -647,7 +636,7 @@ export default function InspectionsPage() {
               </TabsContent>
               <TabsContent value="pending" className="mt-0">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredInspections.filter(i => i.status !== 'Completed').map((inspection) => (
+                  {pendingInspections.map((inspection) => (
                     <InspectionCard 
                         key={inspection.id} 
                         inspection={inspection} 
@@ -688,7 +677,7 @@ export default function InspectionsPage() {
              <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
           ) : (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {pendingInspections.filter(i => i.dueDate <= todayStr).map((inspection) => (
+              {pendingInspections.map((inspection) => (
                 <InspectionCard 
                   key={inspection.id} 
                   inspection={inspection} 
@@ -698,7 +687,7 @@ export default function InspectionsPage() {
                   onEdit={(i) => { setEditingInspection(i); setIsEditDialogOpen(true); }}
                 />
               ))}
-              {pendingInspections.filter(i => i.dueDate <= todayStr).length === 0 && (
+              {pendingInspections.length === 0 && (
                 <div className="col-span-full py-20 text-center text-muted-foreground border-2 border-dashed rounded-xl flex flex-col items-center gap-3">
                   <CheckCircle2 className="h-10 w-10 opacity-20" />
                   <p className="font-bold">No inspections due today.</p>
@@ -823,7 +812,6 @@ export default function InspectionsPage() {
                                 accept="image/*" 
                                 id={`upload-${idx}`} 
                                 className="hidden" 
-                                capture="environment"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) handleCheckImageUpload(file, idx);

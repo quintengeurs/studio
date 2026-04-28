@@ -77,6 +77,7 @@ export default function Dashboard() {
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 
   const isContractor = currentUserRoles.includes('Contractor') && currentUserRoles.length === 1 && !isAdmin;
+  const isUserGroup = currentUserRoles.includes('User Group Chair') && currentUserRoles.length === 1 && !isAdmin;
   
   const isOfficeStaff = currentUserRoles.some(r => OFFICE_ROLES.includes(r as any)) || isAdmin;
   const isOpsStaff = currentUserRoles.some(r => OPS_ROLES.includes(r as any)) || isAdmin;
@@ -198,20 +199,21 @@ export default function Dashboard() {
         <div className="flex flex-col gap-6 pb-20">
           
           {/* Quick Actions - Granular Role Logic */}
-          {!isContractor && (
-            <div className="space-y-6">
-              {/* Common Actions (Office & Field) */}
-              <div className="space-y-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Quick Actions</span>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
-                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                    onClick={() => setIssueModalOpen(true)}
-                  >
-                    <AlertTriangle className="h-6 w-6 text-destructive" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
-                  </Button>
+          <div className="space-y-6">
+            {/* Common Actions (Office & Field) */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Quick Actions</span>
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                  onClick={() => setIssueModalOpen(true)}
+                >
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
+                </Button>
+                
+                {!isContractor && (
                   <Button 
                     variant="outline" 
                     className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
@@ -220,84 +222,95 @@ export default function Dashboard() {
                     <Package className="h-6 w-6 text-primary" />
                     <span className="text-xs font-bold uppercase tracking-wider">Request Something</span>
                   </Button>
-                </div>
-              </div>
+                )}
 
-              {/* Operations Section - Visible to Ops, Senior Ops, and Mgmt */}
-              {(isOpsStaff || isSeniorOps || isSeniorMgmt) && (
-                <div className="space-y-3">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Operational Checks</span>
-                  <div className="grid grid-cols-2 gap-3">
+                {isContractor && (
+                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                    <Link href="/my-tasks">
+                      <ListTodo className="h-6 w-6 text-primary" />
+                      <span className="text-xs font-bold uppercase tracking-wider">My Tasks</span>
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Operations Section - Visible to Ops, Senior Ops, Mgmt, and Contractors */}
+            {(!isUserGroup && (isOpsStaff || isSeniorOps || isSeniorMgmt || isContractor)) && (
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Operational Checks</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {!isContractor && (
                     <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
                       <Link href="/inspections">
                         <ClipboardCheck className="h-6 w-6 text-green-600" />
                         <span className="text-xs font-bold uppercase tracking-wider">Inspections</span>
                       </Link>
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                      onClick={() => setLogWorkModalOpen(true)}
-                    >
-                      <ClipboardList className="h-6 w-6 text-accent-foreground" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Log Ad-Hoc Work</span>
-                    </Button>
-                  </div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                    onClick={() => setLogWorkModalOpen(true)}
+                  >
+                    <ClipboardList className="h-6 w-6 text-accent-foreground" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Log Ad-Hoc Work</span>
+                  </Button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Advanced Actions - Visible to Senior Ops and Mgmt */}
-              {(isSeniorOps || isSeniorMgmt) && (
-                <div className="space-y-3">
-                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Administrative Tools</span>
-                   <div className="grid grid-cols-2 gap-3">
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                      onClick={() => setTrainingModalOpen(true)}
-                    >
-                      <Users className="h-6 w-4 text-orange-500" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Add Training</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                      onClick={() => setAssetModalOpen(true)}
-                    >
-                      <PlusCircle className="h-6 w-6 text-green-600" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Add Asset</span>
-                    </Button>
-                   </div>
-                </div>
-              )}
+            {/* Advanced Actions - Visible to Senior Ops and Mgmt */}
+            {(!isUserGroup && !isContractor && (isSeniorOps || isSeniorMgmt)) && (
+              <div className="space-y-3">
+                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Administrative Tools</span>
+                 <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                    onClick={() => setTrainingModalOpen(true)}
+                  >
+                    <Users className="h-6 w-4 text-orange-500" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Add Training</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                    onClick={() => setAssetModalOpen(true)}
+                  >
+                    <PlusCircle className="h-6 w-6 text-green-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Add Asset</span>
+                  </Button>
+                 </div>
+              </div>
+            )}
 
-              {/* Management Section - Visible to Mgmt only */}
-              {(isSeniorMgmt) && (
-                <div className="space-y-3">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Strategic Management</span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                      <Link href="/tasks">
-                        <ListTodo className="h-6 w-6 text-primary" />
-                        <span className="text-xs font-bold uppercase tracking-wider">All Tasks</span>
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative overflow-visible">
-                      <Link href="/issues?tab=unassigned">
-                        <AlertTriangle className="h-6 w-6 text-destructive" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Unassigned Issues</span>
-                        {unassignedCount > 0 && (
-                          <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-lg animate-bounce">
-                            {unassignedCount}
-                          </span>
-                        )}
-                      </Link>
-                    </Button>
-                  </div>
+            {/* Management Section - Visible to Mgmt only */}
+            {(!isUserGroup && !isContractor && isSeniorMgmt) && (
+              <div className="space-y-3">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Strategic Management</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                    <Link href="/tasks">
+                      <ListTodo className="h-6 w-6 text-primary" />
+                      <span className="text-xs font-bold uppercase tracking-wider">All Tasks</span>
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative overflow-visible">
+                    <Link href="/issues?tab=unassigned">
+                      <AlertTriangle className="h-6 w-6 text-destructive" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Unassigned Issues</span>
+                      {unassignedCount > 0 && (
+                        <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-lg animate-bounce">
+                          {unassignedCount}
+                        </span>
+                      )}
+                    </Link>
+                  </Button>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           <IssueModal open={issueModalOpen} onOpenChange={setIssueModalOpen} />
           <AssetModal open={assetModalOpen} onOpenChange={setAssetModalOpen} />
@@ -356,55 +369,62 @@ export default function Dashboard() {
                <TrendingUp className="h-3 w-3" /> Quick Access
             </h3>
         </div>
-        
-        <Link href="/my-tasks" className="block">
-          <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+        {!isUserGroup && (
+          <Link href="/my-tasks" className="block">
+            <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ListTodo className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-bold">My Tasks</div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold">Current Assignments</div>
+              </div>
+            </Button>
+          </Link>
+        )}
+        {(!isContractor && !isUserGroup) && (
+          <Link href="/inspections" className="block">
+            <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+              <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <ClipboardCheck className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-bold">Inspections Tracker</div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold">Safety Checks</div>
+              </div>
+            </Button>
+          </Link>
+        )}
+        {!isUserGroup && (
+          <Button 
+            variant="outline" 
+            className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+            onClick={() => setLogWorkModalOpen(true)}
+          >
+            <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
+              <ClipboardList className="h-5 w-5 text-accent-foreground" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold">Log Ad-Hoc Work</div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold">Report completed task</div>
+            </div>
+          </Button>
+        )}
+        {!isContractor && (
+          <Button 
+            variant="outline" 
+            className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+            onClick={() => setRequestModalOpen(true)}
+          >
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <ListTodo className="h-5 w-5 text-primary" />
+              <Package className="h-5 w-5 text-primary" />
             </div>
             <div className="text-left">
-              <div className="text-sm font-bold">My Tasks</div>
-              <div className="text-[10px] text-muted-foreground uppercase font-bold">Current Assignments</div>
+              <div className="text-sm font-bold">Request Something</div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold">Materials & Help</div>
             </div>
           </Button>
-        </Link>
-        <Link href="/inspections" className="block">
-          <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
-            <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <ClipboardCheck className="h-5 w-5 text-green-600" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-bold">Inspections Tracker</div>
-              <div className="text-[10px] text-muted-foreground uppercase font-bold">Safety Checks</div>
-            </div>
-          </Button>
-        </Link>
-        <Button 
-          variant="outline" 
-          className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
-          onClick={() => setLogWorkModalOpen(true)}
-        >
-          <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
-            <ClipboardList className="h-5 w-5 text-accent-foreground" />
-          </div>
-          <div className="text-left">
-            <div className="text-sm font-bold">Log Ad-Hoc Work</div>
-            <div className="text-[10px] text-muted-foreground uppercase font-bold">Report completed task</div>
-          </div>
-        </Button>
-        <Button 
-          variant="outline" 
-          className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
-          onClick={() => setRequestModalOpen(true)}
-        >
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Package className="h-5 w-5 text-primary" />
-          </div>
-          <div className="text-left">
-            <div className="text-sm font-bold">Request Something</div>
-            <div className="text-[10px] text-muted-foreground uppercase font-bold">Materials & Help</div>
-          </div>
-        </Button>
+        )}
          <Button 
             variant="outline" 
             className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
@@ -466,8 +486,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {!isContractor && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {!isUserGroup && (
           <Link href="/tasks" className="block">
             <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -480,77 +500,81 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </Link>
+        )}
 
-          <Link href="/issues" className="block">
-            <Card className="border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Open Issues" : "My Open Issues"}</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold font-headline">{openMyIssues.length}</div>
-                <p className="text-xs text-muted-foreground mt-1">Issues reported by you</p>
-              </CardContent>
-            </Card>
-          </Link>
-          
-          <div className="block" onClick={() => setRequestModalOpen(true)}>
-            <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Pending Requests" : "My Pending Requests"}</CardTitle>
-                <Package className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold font-headline">{pendingRequests.length}</div>
-                <p className="text-xs text-muted-foreground mt-1">Material requests in progress</p>
-              </CardContent>
-            </Card>
-          </div>
+        <Link href="/issues" className="block">
+          <Card className="border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Open Issues" : "My Open Issues"}</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-headline">{openMyIssues.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Issues reported by you</p>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        {!isContractor && (
+          <>
+            <Link href="/requests" className="block">
+              <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{isManagement ? "Global Pending Requests" : "My Pending Requests"}</CardTitle>
+                  <Package className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold font-headline">{pendingRequests.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Material requests in progress</p>
+                </CardContent>
+              </Card>
+            </Link>
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <div className="block relative cursor-pointer hover:shadow-md transition-all">
-                <Card className="border-l-4 border-l-green-500 shadow-sm transition-all h-full bg-green-50/30 dark:bg-green-950/20 hover:bg-green-50/60 dark:hover:bg-green-900/30">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-green-700 uppercase tracking-wider dark:text-green-400">Ready for Collection</CardTitle>
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold font-headline text-green-600 dark:text-green-300">{readyRequests.length}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Requests sorted and ready to pickup</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[450px]">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-green-700 dark:text-green-400 font-headline">
-                  <CheckCircle2 className="h-5 w-5" /> Ready for Collection
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-col gap-3 py-4 max-h-[400px] overflow-y-auto pr-2">
-                {readyRequests.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
-                    No items currently waiting for collection!
-                  </div>
-                ) : (
-                  readyRequests.map((req, i) => (
-                    <div key={req.id || i} className="flex justify-between items-center rounded bg-background p-3 shadow-md text-sm border border-green-100 dark:border-green-900/50 hover:border-green-300 transition-colors">
-                      <div>
-                        <p className="font-bold">{req.category}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" /> {req.depot}
-                        </p>
-                      </div>
-                      <Button size="sm" className="h-8 text-[11px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <div className="block relative cursor-pointer hover:shadow-md transition-all">
+                  <Card className="border-l-4 border-l-green-500 shadow-sm transition-all h-full bg-green-50/30 dark:bg-green-950/20 hover:bg-green-50/60 dark:hover:bg-green-900/30">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-green-700 uppercase tracking-wider dark:text-green-400">Ready for Collection</CardTitle>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold font-headline text-green-600 dark:text-green-300">{readyRequests.length}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Requests sorted and ready to pickup</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[450px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-green-700 dark:text-green-400 font-headline">
+                    <CheckCircle2 className="h-5 w-5" /> Ready for Collection
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-3 py-4 max-h-[400px] overflow-y-auto pr-2">
+                  {readyRequests.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
+                      No items currently waiting for collection!
                     </div>
-                  ))
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
+                  ) : (
+                    readyRequests.map((req, i) => (
+                      <div key={req.id || i} className="flex justify-between items-center rounded bg-background p-3 shadow-md text-sm border border-green-100 dark:border-green-900/50 hover:border-green-300 transition-colors">
+                        <div>
+                          <p className="font-bold">{req.category}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            <MapPin className="h-3 w-3" /> {req.depot}
+                          </p>
+                        </div>
+                        <Button size="sm" className="h-8 text-[11px] uppercase font-bold" onClick={() => handleCollectItem(req.id)}>Collect</Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
+      </div>
 
       <RequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
       <LogWorkModal open={logWorkModalOpen} onOpenChange={setLogWorkModalOpen} />

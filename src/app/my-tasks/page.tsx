@@ -454,7 +454,7 @@ export default function MyTasksPage() {
                             <span className="text-xs font-bold text-muted-foreground uppercase">Upload Proof Image</span>
                           </Button>
                         )}
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleImageUpload} />
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                       </div>
                     </div>
 

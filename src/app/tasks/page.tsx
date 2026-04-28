@@ -32,10 +32,12 @@ import {
   Inbox,
   FolderArchive,
   Search,
-  Filter
+  Filter,
+  X
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import {
   Dialog,
   DialogContent,
@@ -56,7 +58,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit } from "firebase/firestore";
 import { Role, Frequency, Task, Asset } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
@@ -88,9 +90,18 @@ export default function TasksPage() {
   [db]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
+  const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
+
   const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers: users, allParks: allDetails } = useDataContext();
-  const parks = useMemo(() => allDetails.map(p => p.name).sort(), [allDetails]);
+  const { allUsers: users, allParks: allDetails, registryConfig: contextRegistry } = useDataContext();
+  
+  const registry = localRegistry || contextRegistry;
+  
+  const parks = useMemo(() => {
+    const list = [...(registry?.parks || []), ...allDetails.map(p => p.name)];
+    return Array.from(new Set(list)).sort();
+  }, [allDetails, registry]);
   const isOperational = !permissions.viewAllTasks;
 
   const currentUserName = profile?.name || user?.displayName || user?.email || "";
@@ -141,11 +152,58 @@ export default function TasksPage() {
     });
   }, [tasks, isAdmin, currentUserRoles, profile, allDetails, identities]);
 
+  const canUserReassignTask = (task: Task) => {
+    if (isAdmin) return true;
+    if (!permissions.assignTask) return false;
+    
+    const isDirectlyAssigned = identities.some(ident => 
+      task.assignedTo?.toLowerCase() === ident.toLowerCase() || task.assignedTo === ident
+    );
+    
+    return !isDirectlyAssigned;
+  };
+
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedDetailTaskId, setSelectedDetailTaskId] = useState<string | null>(null);
+  const selectedDetailTask = useMemo(() => 
+    tasks.find(t => t.id === selectedDetailTaskId) || archivedTasks.find(t => t.id === selectedDetailTaskId), 
+  [tasks, archivedTasks, selectedDetailTaskId]);
   const [showAllStaff, setShowAllStaff] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
+  
+  const [archiveSearch, setArchiveSearch] = useState("");
+  const [archiveFilterPark, setArchiveFilterPark] = useState<string>("All");
+  const [archiveFilterDate, setArchiveFilterDate] = useState("");
+
+  const filteredArchivedTasks = useMemo(() => {
+    let result = archivedTasks;
+    
+    if (archiveSearch) {
+      const s = archiveSearch.toLowerCase();
+      result = result.filter(t => 
+        t.title.toLowerCase().includes(s) || 
+        (t.assignedTo && t.assignedTo.toLowerCase().includes(s)) ||
+        (t.objective && t.objective.toLowerCase().includes(s)) ||
+        (t.completionNote && t.completionNote.toLowerCase().includes(s))
+      );
+    }
+    
+    if (archiveFilterPark !== "All") {
+      result = result.filter(t => t.park === archiveFilterPark);
+    }
+    
+    if (archiveFilterDate) {
+      result = result.filter(t => {
+        const taskDate = t.completedAt ? new Date(t.completedAt).toISOString().split('T')[0] : t.dueDate;
+        return taskDate === archiveFilterDate;
+      });
+    }
+    
+    return result;
+  }, [archivedTasks, archiveSearch, archiveFilterPark, archiveFilterDate]);
 
   const selectedTask = useMemo(() => tasks.find(t => t.id === selectedTaskId), [tasks, selectedTaskId]);
   const targetDepot = useMemo(() => {
@@ -249,6 +307,11 @@ export default function TasksPage() {
     setShowAllStaff(false);
     setAssignSearch("");
     setIsAssignDialogOpen(true);
+  };
+
+  const handleOpenTaskDetails = (id: string) => {
+    setSelectedDetailTaskId(id);
+    setIsDetailDialogOpen(true);
   };
 
   const handleAssign = async (operativeName: string) => {
@@ -450,7 +513,7 @@ export default function TasksPage() {
                           <Progress value={task.status === 'Pending Approval' ? 100 : task.status === 'Doing' ? 45 : 0} className="h-2" />
                         </div>
                           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
-                          <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded-md transition-colors" onClick={() => handleOpenAssignDialog(task.id)}>
+                          <div className={`flex items-center gap-2 p-1 rounded-md transition-colors ${canUserReassignTask(task) ? 'cursor-pointer hover:bg-muted/50' : ''}`} onClick={() => canUserReassignTask(task) && handleOpenAssignDialog(task.id)}>
                             <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
                             <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
                           </div>
@@ -469,7 +532,7 @@ export default function TasksPage() {
                       {task.status === 'Pending Approval' ? (
                         <Button variant="default" className="w-full rounded-none h-12 font-bold bg-primary hover:bg-primary/90 text-sm" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}><ThumbsUp className="mr-2 h-4 w-4" /> {isSubmitting ? "Approving..." : "Approve & Archive"}</Button>
                       ) : (
-                        <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm">Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                        <Button variant="ghost" className="w-full rounded-none h-12 font-headline font-bold text-primary bg-primary/5 hover:bg-primary/10 text-sm" onClick={() => handleOpenTaskDetails(task.id)}>Monitor Progress <ChevronRight className="ml-2 h-4 w-4" /></Button>
                       )}
                     </CardFooter>
                   </Card>
@@ -577,6 +640,45 @@ export default function TasksPage() {
             </div>
           </TabsContent>
           <TabsContent value="archived">
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search by title, operative, or notes..." 
+                  className="pl-9 bg-background shadow-sm"
+                  value={archiveSearch}
+                  onChange={(e) => setArchiveSearch(e.target.value)}
+                />
+              </div>
+              <Select value={archiveFilterPark} onValueChange={setArchiveFilterPark}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-background shadow-sm">
+                  <SelectValue placeholder="Filter by Site" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Sites</SelectItem>
+                  {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-[160px]">
+                <Input 
+                  type="date" 
+                  className="w-full bg-background shadow-sm"
+                  value={archiveFilterDate}
+                  onChange={(e) => setArchiveFilterDate(e.target.value)}
+                />
+                {archiveFilterDate && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6" 
+                    onClick={() => setArchiveFilterDate("")}
+                  >
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
             <Card className="overflow-hidden border-2">
               <Table>
                 <TableHeader>
@@ -595,15 +697,19 @@ export default function TasksPage() {
                         Loading archives...
                       </TableCell>
                     </TableRow>
-                  ) : archivedTasks.length === 0 ? (
+                  ) : filteredArchivedTasks.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
-                        No archived tasks found.
+                        No archived tasks found matching your filters.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    archivedTasks.map((task) => (
-                      <TableRow key={task.id} className="hover:bg-accent/5 transition-colors">
+                    filteredArchivedTasks.map((task) => (
+                      <TableRow 
+                        key={task.id} 
+                        className="hover:bg-accent/10 transition-colors cursor-pointer"
+                        onClick={() => handleOpenTaskDetails(task.id)}
+                      >
                         <TableCell className="font-medium">
                           <div className="flex flex-col">
                             <span className="text-sm font-bold line-clamp-1">{task.title}</span>
@@ -653,8 +759,8 @@ export default function TasksPage() {
                     {/* Reassignment trigger for Mobile */}
                     <div className="flex items-center justify-between pt-3 border-t">
                       <div 
-                        className={`flex items-center gap-2 p-1 rounded-md transition-colors ${permissions.assignTask ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-                        onClick={() => permissions.assignTask && handleOpenAssignDialog(task.id)}
+                        className={`flex items-center gap-2 p-1 rounded-md transition-colors ${canUserReassignTask(task) ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                        onClick={() => canUserReassignTask(task) && handleOpenAssignDialog(task.id)}
                       >
                         <div className="h-7 w-7 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0">
                           <UserIcon className="h-3.5 w-3.5 text-primary" />
@@ -664,7 +770,7 @@ export default function TasksPage() {
                           <span className="text-xs font-semibold truncate">{task.assignedTo}</span>
                         </div>
                       </div>
-                      {permissions.assignTask && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleOpenAssignDialog(task.id)}><UserPlus className="h-3.5 w-3.5" /></Button>}
+                      {canUserReassignTask(task) && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleOpenAssignDialog(task.id)}><UserPlus className="h-3.5 w-3.5" /></Button>}
                     </div>
                   </CardContent>
                   <CardFooter className="p-0 border-t mt-auto">
@@ -743,6 +849,13 @@ export default function TasksPage() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      <TaskDetailModal 
+        open={isDetailDialogOpen} 
+        onOpenChange={setIsDetailDialogOpen} 
+        task={selectedDetailTask || null} 
+        allUsers={users}
+      />
     </DashboardShell>
   );
 }

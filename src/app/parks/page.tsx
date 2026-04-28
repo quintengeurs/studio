@@ -112,9 +112,16 @@ export default function ParksPage() {
     });
   }, [parks, allDetails, currentUserData, isAdmin]);
 
-  const headGardeners = useMemo(() => allUsers.filter(u => u.role === 'Head Gardener'), [allUsers]);
-  const areaManagers = useMemo(() => allUsers.filter(u => u.role === 'Area Manager'), [allUsers]);
-  const parkOfficers = useMemo(() => allUsers.filter(u => u.role === 'Parks Development Officer'), [allUsers]);
+  const hasRole = (u: User, roleName: string) => {
+    if (u.role === roleName) return true;
+    if (u.roles?.includes(roleName as Role)) return true;
+    if (u.assignedRoles?.some(ar => ar.role === roleName)) return true;
+    return false;
+  };
+
+  const headGardeners = useMemo(() => allUsers.filter(u => !u.isArchived && hasRole(u, 'Head Gardener')), [allUsers]);
+  const areaManagers = useMemo(() => allUsers.filter(u => !u.isArchived && hasRole(u, 'Area Manager')), [allUsers]);
+  const parkOfficers = useMemo(() => allUsers.filter(u => !u.isArchived && hasRole(u, 'Parks Development Officer')), [allUsers]);
   const teams = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
 
   const selectedParkDetail = useMemo(() => {
@@ -304,11 +311,20 @@ export default function ParksPage() {
     const isUnassigned = depotValue === "unassigned";
     const selectedDepot = isUnassigned ? "" : depotValue;
     
+    const hasDepot = (u: User, d: string) => {
+      if (!d) return false;
+      const dClean = d.trim();
+      if (u.depot?.trim() === dClean) return true;
+      if (u.depots?.some(ud => ud.trim() === dClean)) return true;
+      if (u.assignedRoles?.some(ar => ar.depotIds?.includes(dClean))) return true;
+      return false;
+    };
+
     // Find management for this depot
     // Note: If multiple exist, we take the first match as a primary suggestion
-    const hg = allUsers.find(u => !u.isArchived && u.role === 'Head Gardener' && ((u.depots || []).some(d => d.trim() === selectedDepot.trim()) || u.depot?.trim() === selectedDepot.trim()));
-    const am = allUsers.find(u => !u.isArchived && u.role === 'Area Manager' && ((u.depots || []).some(d => d.trim() === selectedDepot.trim()) || u.depot?.trim() === selectedDepot.trim()));
-    const po = allUsers.find(u => !u.isArchived && u.role === 'Parks Development Officer' && ((u.depots || []).some(d => d.trim() === selectedDepot.trim()) || u.depot?.trim() === selectedDepot.trim()));
+    const hg = allUsers.find(u => !u.isArchived && hasRole(u, 'Head Gardener') && hasDepot(u, selectedDepot));
+    const am = allUsers.find(u => !u.isArchived && hasRole(u, 'Area Manager') && hasDepot(u, selectedDepot));
+    const po = allUsers.find(u => !u.isArchived && hasRole(u, 'Parks Development Officer') && hasDepot(u, selectedDepot));
     
     setEditForm(prev => ({
         ...prev,

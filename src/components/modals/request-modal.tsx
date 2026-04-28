@@ -190,7 +190,6 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
               ref={fileInputRef} 
               className="hidden" 
               accept="image/*" 
-              capture="environment" 
               onChange={handleImageUpload} 
             />
           </div>
