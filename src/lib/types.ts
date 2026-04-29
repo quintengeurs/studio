@@ -285,3 +285,25 @@ export interface DailyCondition {
   createdAt: string; // ISO string
 }
 
+export type Operator = '>' | '<' | '==' | '>=' | '<=';
+
+export interface RuleCondition {
+  field: 'temperature' | 'windSpeed' | 'humidity' | 'expectedFootfall';
+  operator: Operator;
+  value: string | number;
+}
+
+export interface SmartRule {
+  id?: string;
+  name: string;
+  isActive: boolean;
+  conditions: RuleCondition[];
+  conditionLogic: 'AND' | 'OR';
+  tasksToGenerate: {
+    title: string;
+    objective: string;
+    assignedTo: string;
+  }[];
+  createdAt?: string;
+}
+
