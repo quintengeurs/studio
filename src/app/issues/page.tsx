@@ -75,29 +75,13 @@ function IssuesContent() {
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers: users, allParks: allDetails } = useDataContext();
+  const { allUsers: users, allParks: allDetails, allIssues, loading: issuesLoading } = useDataContext();
   const isOperative = !permissions.assignTask;
 
-  const [issueLimit, setIssueLimit] = useState(25);
-  const issuesQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(issueLimit));
-  }, [db, issueLimit]);
-  const { data: issues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
-
-  const [resolvedLimit, setResolvedLimit] = useState(25);
-  const resolvedQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "issues"), where("status", "==", "Resolved"), limit(resolvedLimit));
-  }, [db, resolvedLimit]);
-  const { data: resolvedIssuesRaw = [], loading: resolvedLoading } = useCollection<Issue>(resolvedQuery as any);
-
-  const [archivedLimit, setArchivedLimit] = useState(25);
-  const archivedQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "issues"), where("isArchived", "==", true), limit(archivedLimit));
-  }, [db, archivedLimit]);
-  const { data: archivedIssuesRaw = [], loading: archivedLoading } = useCollection<Issue>(archivedQuery as any);
+  // Derive the three subsets from the single allIssues collection (avoids Firestore composite index requirement)
+  const issues = useMemo(() => allIssues.filter(i => i.status !== 'Resolved'), [allIssues]);
+  const resolvedIssuesRaw = useMemo(() => allIssues.filter(i => i.status === 'Resolved'), [allIssues]);
+  const archivedIssuesRaw = useMemo(() => allIssues.filter(i => i.isArchived === true), [allIssues]);
 
   const parks = useMemo(() => allDetails.map(p => p.name).sort(), [allDetails]);
 
@@ -605,21 +589,11 @@ function IssuesContent() {
         </TabsContent>
 
         <TabsContent value="resolved">
-          {renderIssueList(resolvedIssues, resolvedLoading)}
-          {resolvedIssuesRaw.length >= resolvedLimit && !resolvedLoading && (
-            <div className="flex justify-center pt-6 pb-2">
-              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setResolvedLimit(p => p + 25)}>Load More Resolved</Button>
-            </div>
-          )}
+          {renderIssueList(resolvedIssues, false)}
         </TabsContent>
 
         <TabsContent value="archived">
-          {renderIssueList(archivedIssues, archivedLoading)}
-          {archivedIssuesRaw.length >= archivedLimit && !archivedLoading && (
-            <div className="flex justify-center pt-6 pb-2">
-              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setArchivedLimit(p => p + 25)}>Load More Archives</Button>
-            </div>
-          )}
+          {renderIssueList(archivedIssues, false)}
         </TabsContent>
       </Tabs>
 
