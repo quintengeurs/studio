@@ -1303,6 +1303,25 @@ export default function UserManagement() {
                       </div>
                     </div>
                     
+                    {isAdmin && (
+                      <div className="grid gap-4 p-4 border-2 border-primary/20 rounded-xl bg-primary/5">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Shield className="h-4 w-4 text-primary" />
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">System Security (Admin Only)</Label>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs font-bold">User Password</Label>
+                          <Input 
+                            value={selectedUser?.password || ""} 
+                            onChange={e => selectedUser && setSelectedUser({...selectedUser, password: e.target.value})} 
+                            className="font-medium bg-background" 
+                            placeholder="Update password..."
+                          />
+                          <p className="text-[10px] text-muted-foreground italic">Updating this field will change the staff member's login password immediately.</p>
+                        </div>
+                      </div>
+                    )}
+                    
                     <Separator className="my-2" />
 
                     <div className="space-y-4">
@@ -1523,6 +1542,19 @@ export default function UserManagement() {
                               <span className="text-sm font-bold">{selectedUser.radioCallSign}</span>
                             </div>
                           )}
+                        </div>
+                      </div>
+                    )}
+
+                    {isAdmin && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-primary" />
+                          <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-60">System Access (Admin Only)</h4>
+                        </div>
+                        <div className="p-4 border-2 border-primary/20 rounded-xl bg-primary/5 flex flex-col gap-1 shadow-sm">
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground">Current Password</span>
+                          <span className="text-sm font-mono font-bold tracking-widest">{selectedUser?.password || 'None Set'}</span>
                         </div>
                       </div>
                     )}
