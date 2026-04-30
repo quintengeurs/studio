@@ -28,17 +28,18 @@ import {
   MapPin, 
   ShieldCheck, 
   Construction, 
-  Edit3,
   Save,
   X,
-  Clock
+  Clock,
+  Lock
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import { collection, doc, setDoc, arrayUnion, arrayRemove, query, where, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
-import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate } from "@/lib/types";
+import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate, ParkPermissionsConfig, PARK_SECTIONS, ParkSectionKey } from "@/lib/types";
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -71,6 +72,9 @@ export default function ParksPage() {
   
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(500)) : null, [db]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
+
+  const parkPermsRef = useMemo(() => db ? doc(db, "settings", "park_permissions") : null, [db]);
+  const { data: parkPermsConfig } = useDoc<ParkPermissionsConfig>(parkPermsRef as any);
 
   const [selectedParkName, setSelectedParkName] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -134,17 +138,47 @@ export default function ParksPage() {
 
   const [editForm, setEditForm] = useState<Partial<ParkDetail>>({});
 
-  const canEditProjects = permissions.editParksFull || permissions.editParkDevelopment;
-  const canEditEvents = permissions.editParksFull || permissions.editParkDevelopment;
-  const canEditVolunteering = permissions.editParksFull || permissions.editParkDevelopment;
-  const canEditSports = permissions.editParksFull || permissions.editParkDevelopment;
-  const canEditUserGroups = permissions.editParksFull || permissions.editParkDevelopment;
-  const canEditDevelopment = permissions.editParksFull || permissions.editParkDevelopment;
+  // Unified Permission Check for Park Sections
+  const getSectionPerms = useMemo(() => (sectionKey: ParkSectionKey) => {
+    if (isAdmin) return { view: true, edit: true };
+    if (!parkPermsConfig?.roles) return { view: true, edit: false }; // Default if no config
+
+    const roles = currentUserRoles as Role[];
+    let view = false;
+    let edit = false;
+
+    roles.forEach(role => {
+      const rolePerms = parkPermsConfig.roles[role]?.[sectionKey];
+      if (rolePerms) {
+        if (rolePerms.view) view = true;
+        if (rolePerms.edit) edit = true;
+      }
+    });
+
+    return { view, edit };
+  }, [isAdmin, parkPermsConfig, currentUserRoles]);
+
+  const sectionPerms = useMemo(() => {
+    const map: Record<string, { view: boolean, edit: boolean }> = {};
+    PARK_SECTIONS.forEach(s => {
+      map[s.key] = getSectionPerms(s.key);
+    });
+    return map;
+  }, [getSectionPerms]);
+
+  const canEditProjects = sectionPerms.projects.edit;
+  const canEditEvents = sectionPerms.events.edit;
+  const canEditVolunteering = sectionPerms.volunteering.edit;
+  const canEditSports = sectionPerms.sportsLeisure.edit;
+  const canEditUserGroups = sectionPerms.userGroup.edit;
+  const canEditDevelopment = sectionPerms.development.edit;
   
-  const canEditTreeWorks = permissions.editParksFull;
-  const canEditBiodiversity = permissions.editParksFull;
-  const canEditContractorWorks = permissions.editParksFull;
-  const canEditMaintenance = permissions.editParksFull;
+  const canEditTreeWorks = sectionPerms.treeWorks.edit;
+  const canEditBiodiversity = sectionPerms.biodiversity.edit;
+  const canEditContractorWorks = sectionPerms.contractorWorks.edit;
+  const canEditMaintenance = sectionPerms.maintenanceWork.edit;
+  const canEditKeyInfo = sectionPerms.keyInfo.edit;
+  const canEditOperational = sectionPerms.operationalGuidance.edit;
 
   const handleOpenUpdateModal = (type: string, existingUpdate?: ParkUpdate) => {
     setCurrentUpdateType(type);
@@ -524,7 +558,7 @@ export default function ParksPage() {
               </div>
 
               <div className="shrink-0 flex items-center gap-2">
-                {(isAdmin || isManagement) && !isEditing && !isMobile && (
+                {(isAdmin || isManagement || Object.values(sectionPerms).some(p => p.edit)) && !isEditing && !isMobile && (
                   <Button 
                     variant="secondary" 
                     size="sm" 
@@ -553,236 +587,287 @@ export default function ParksPage() {
               {isEditing ? (
                 <div className="grid gap-8">
                   {/* 1. Key Information */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">1. Key Information</h3>
-                    <div className="grid gap-6">
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Head Gardener</Label>
-                          <Select value={editForm.headGardener || "unassigned"} onValueChange={v => setEditForm({...editForm, headGardener: v === "unassigned" ? "" : v})}>
-                            <SelectTrigger className="font-medium"><SelectValue placeholder="Select Head Gardener" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">Not Assigned</SelectItem>
-                              {headGardeners.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                              {(!headGardeners.some(u => u.name === editForm.headGardener) && editForm.headGardener) && (
-                                  <SelectItem value={editForm.headGardener}>{editForm.headGardener}</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Area Manager</Label>
-                          <Select value={editForm.areaManager || "unassigned"} onValueChange={v => setEditForm({...editForm, areaManager: v === "unassigned" ? "" : v})}>
-                            <SelectTrigger className="font-medium"><SelectValue placeholder="Select Area Manager" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">Not Assigned</SelectItem>
-                              {areaManagers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                              {(!areaManagers.some(u => u.name === editForm.areaManager) && editForm.areaManager) && (
-                                  <SelectItem value={editForm.areaManager}>{editForm.areaManager}</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Attached Depot</Label>
-                          <Select value={editForm.depot || "unassigned"} onValueChange={handleDepotChange}>
-                            <SelectTrigger><SelectValue placeholder="Select Depot" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">Not Assigned</SelectItem>
-                              {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                              {(!teams.includes(editForm.depot || "") && editForm.depot) && (
-                                  <SelectItem value={editForm.depot}>{editForm.depot}</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Park Officer</Label>
-                          <Select value={editForm.parkOfficer || "unassigned"} onValueChange={v => setEditForm({...editForm, parkOfficer: v === "unassigned" ? "" : v})}>
-                            <SelectTrigger><SelectValue placeholder="Select Park Officer" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">Not Assigned</SelectItem>
-                              {parkOfficers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-                              {(!parkOfficers.some(u => u.name === editForm.parkOfficer) && editForm.parkOfficer) && (
-                                  <SelectItem value={editForm.parkOfficer}>{editForm.parkOfficer}</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-xl border border-primary/10">
-                        <div className="space-y-2">
-                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Green Flag Award Status</Label>
-                           <Select 
-                              value={editForm.greenFlagStatus || (editForm.greenflag ? 'Awarded' : 'None')} 
-                              onValueChange={v => setEditForm({
-                                ...editForm, 
-                                greenFlagStatus: v as any,
-                                greenflag: v === 'Awarded'
-                              })}
-                            >
-                              <SelectTrigger className="bg-background font-bold">
-                                <SelectValue placeholder="Select Status" />
-                              </SelectTrigger>
+                  {sectionPerms.keyInfo.view && (
+                    <div className={cn(
+                      "p-4 rounded-xl border transition-all",
+                      sectionPerms.keyInfo.edit ? "bg-card shadow-sm" : "bg-muted/10 opacity-70"
+                    )}>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center justify-between">
+                        <span>1. Key Information</span>
+                        {!sectionPerms.keyInfo.edit && <Lock className="h-3.5 w-3.5 opacity-50" />}
+                      </h3>
+                      <div className={cn("grid gap-6", !sectionPerms.keyInfo.edit && "pointer-events-none")}>
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Head Gardener</Label>
+                            <Select value={editForm.headGardener || "unassigned"} onValueChange={v => setEditForm({...editForm, headGardener: v === "unassigned" ? "" : v})} disabled={!sectionPerms.keyInfo.edit}>
+                              <SelectTrigger className="font-medium"><SelectValue placeholder="Select Head Gardener" /></SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Awarded" className="font-bold text-green-700">Awarded</SelectItem>
-                                <SelectItem value="Pending" className="font-bold text-amber-700">First Time / Pending</SelectItem>
-                                <SelectItem value="None">None / Not Awarded</SelectItem>
+                                <SelectItem value="unassigned">Not Assigned</SelectItem>
+                                {headGardeners.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                                {(!headGardeners.some(u => u.name === editForm.headGardener) && editForm.headGardener) && (
+                                    <SelectItem value={editForm.headGardener}>{editForm.headGardener}</SelectItem>
+                                )}
                               </SelectContent>
-                           </Select>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Area Manager</Label>
+                            <Select value={editForm.areaManager || "unassigned"} onValueChange={v => setEditForm({...editForm, areaManager: v === "unassigned" ? "" : v})} disabled={!sectionPerms.keyInfo.edit}>
+                              <SelectTrigger className="font-medium"><SelectValue placeholder="Select Area Manager" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Not Assigned</SelectItem>
+                                {areaManagers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                                {(!areaManagers.some(u => u.name === editForm.areaManager) && editForm.areaManager) && (
+                                    <SelectItem value={editForm.areaManager}>{editForm.areaManager}</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 ml-6">
-                           <div className="space-y-2">
-                              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection Year</Label>
-                              <Input placeholder="e.g. 2026" value={editForm.gfInspectionYear || ""} onChange={e => setEditForm({...editForm, gfInspectionYear: e.target.value})} />
-                           </div>
-                           <div className="space-y-2">
-                              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Mystery Shop Year</Label>
-                              <Input placeholder="e.g. 2027" value={editForm.gfMysteryShopYear || ""} onChange={e => setEditForm({...editForm, gfMysteryShopYear: e.target.value})} />
-                           </div>
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Attached Depot</Label>
+                            <Select value={editForm.depot || "unassigned"} onValueChange={handleDepotChange} disabled={!sectionPerms.keyInfo.edit}>
+                              <SelectTrigger><SelectValue placeholder="Select Depot" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Not Assigned</SelectItem>
+                                {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                {(!teams.includes(editForm.depot || "") && editForm.depot) && (
+                                    <SelectItem value={editForm.depot}>{editForm.depot}</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Park Officer</Label>
+                            <Select value={editForm.parkOfficer || "unassigned"} onValueChange={v => setEditForm({...editForm, parkOfficer: v === "unassigned" ? "" : v})} disabled={!sectionPerms.keyInfo.edit}>
+                              <SelectTrigger><SelectValue placeholder="Select Park Officer" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Not Assigned</SelectItem>
+                                {parkOfficers.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                                {(!parkOfficers.some(u => u.name === editForm.parkOfficer) && editForm.parkOfficer) && (
+                                    <SelectItem value={editForm.parkOfficer}>{editForm.parkOfficer}</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        <div className="space-y-2 ml-6">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection / Mystery Shop Details</Label>
-                          <Input 
-                            placeholder="e.g. To be inspected this year / Mystery shop 2026"
-                            value={editForm.greenFlagInfo || ""}
-                            onChange={e => setEditForm({...editForm, greenFlagInfo: e.target.value})}
-                            className="bg-background"
-                          />
+  
+                        <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-xl border border-primary/10">
+                          <div className="space-y-2">
+                             <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Green Flag Award Status</Label>
+                             <Select 
+                                value={editForm.greenFlagStatus || (editForm.greenflag ? 'Awarded' : 'None')} 
+                                onValueChange={v => setEditForm({
+                                  ...editForm, 
+                                  greenFlagStatus: v as any,
+                                  greenflag: v === 'Awarded'
+                                })}
+                                disabled={!sectionPerms.keyInfo.edit}
+                              >
+                                <SelectTrigger className="bg-background font-bold">
+                                  <SelectValue placeholder="Select Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Awarded" className="font-bold text-green-700">Awarded</SelectItem>
+                                  <SelectItem value="Pending" className="font-bold text-amber-700">First Time / Pending</SelectItem>
+                                  <SelectItem value="None">None / Not Awarded</SelectItem>
+                                </SelectContent>
+                             </Select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 ml-6">
+                             <div className="space-y-2">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection Year</Label>
+                                <Input placeholder="e.g. 2026" value={editForm.gfInspectionYear || ""} onChange={e => setEditForm({...editForm, gfInspectionYear: e.target.value})} disabled={!sectionPerms.keyInfo.edit} />
+                             </div>
+                             <div className="space-y-2">
+                                <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Mystery Shop Year</Label>
+                                <Input placeholder="e.g. 2027" value={editForm.gfMysteryShopYear || ""} onChange={e => setEditForm({...editForm, gfMysteryShopYear: e.target.value})} disabled={!sectionPerms.keyInfo.edit} />
+                             </div>
+                          </div>
+                          <div className="space-y-2 ml-6">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection / Mystery Shop Details</Label>
+                            <Input 
+                              placeholder="e.g. To be inspected this year / Mystery shop 2026"
+                              value={editForm.greenFlagInfo || ""}
+                              onChange={e => setEditForm({...editForm, greenFlagInfo: e.target.value})}
+                              className="bg-background"
+                              disabled={!sectionPerms.keyInfo.edit}
+                            />
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Key Features & Amenities</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            placeholder="e.g. Playground" 
-                            value={newFeature} 
-                            onChange={e => setNewFeature(e.target.value)} 
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' && newFeature) {
-                                e.preventDefault();
-                                setEditForm({...editForm, features: [...(editForm.features || []), newFeature]});
-                                setNewFeature("");
-                              }
-                            }}
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => {
-                              if (newFeature) {
-                                setEditForm({...editForm, features: [...(editForm.features || []), newFeature]});
-                                setNewFeature("");
-                              }
-                            }}
-                            disabled={!newFeature}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          {editForm.features && editForm.features.length > 0 ? (
-                            editForm.features.map((feature, i) => (
-                              <Badge key={i} variant="secondary" className="pl-3 pr-1 py-1 font-bold text-[10px] group border-primary/20">
-                                {feature}
-                                <button 
-                                  className="ml-2 h-5 w-5 rounded-full hover:bg-primary/20 flex items-center justify-center transition-colors"
-                                  onClick={() => setEditForm({...editForm, features: editForm.features?.filter((_, index) => index !== i)})}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            ))
-                          ) : (
-                            <p className="text-[10px] text-muted-foreground italic">No features added yet</p>
+  
+                        <div className="space-y-4">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Key Features & Amenities</Label>
+                          {sectionPerms.keyInfo.edit && (
+                            <div className="flex gap-2">
+                              <Input 
+                                placeholder="e.g. Playground" 
+                                value={newFeature} 
+                                onChange={e => setNewFeature(e.target.value)} 
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && newFeature) {
+                                    e.preventDefault();
+                                    setEditForm({...editForm, features: [...(editForm.features || []), newFeature]});
+                                    setNewFeature("");
+                                  }
+                                }}
+                              />
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                onClick={() => {
+                                  if (newFeature) {
+                                    setEditForm({...editForm, features: [...(editForm.features || []), newFeature]});
+                                    setNewFeature("");
+                                  }
+                                }}
+                                disabled={!newFeature}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {editForm.features && editForm.features.length > 0 ? (
+                              editForm.features.map((feature, i) => (
+                                <Badge key={i} variant="secondary" className="pl-3 pr-1 py-1 font-bold text-[10px] group border-primary/20">
+                                  {feature}
+                                  {sectionPerms.keyInfo.edit && (
+                                    <button 
+                                      className="ml-2 h-5 w-5 rounded-full hover:bg-primary/20 flex items-center justify-center transition-colors"
+                                      onClick={() => setEditForm({...editForm, features: editForm.features?.filter((_, index) => index !== i)})}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </Badge>
+                              ))
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground italic">No features added yet</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
 
                   {/* 2. Projects */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">2. Projects</h3>
-                    <Textarea 
-                      placeholder="Active projects and updates..." 
-                      value={editForm.projects || ""} 
-                      onChange={e => setEditForm({...editForm, projects: e.target.value})} 
-                      className="min-h-[100px]"
-                    />
-                  </div>
+                  {sectionPerms.projects.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center justify-between">
+                        <span>2. Projects</span>
+                        {!sectionPerms.projects.edit && <Lock className="h-3.5 w-3.5 opacity-50" />}
+                      </h3>
+                      <Textarea 
+                        placeholder="Active projects and updates..." 
+                        value={editForm.projects || ""} 
+                        onChange={e => setEditForm({...editForm, projects: e.target.value})} 
+                        className="min-h-[100px]"
+                        disabled={!sectionPerms.projects.edit}
+                      />
+                    </div>
+                  )}
 
                   {/* 3. Events */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">3. Events</h3>
-                    <Textarea 
-                      placeholder="Current and future events..." 
-                      value={editForm.events || ""} 
-                      onChange={e => setEditForm({...editForm, events: e.target.value})} 
-                      className="min-h-[100px]"
-                    />
-                  </div>
+                  {sectionPerms.events.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center justify-between">
+                        <span>3. Events</span>
+                        {!sectionPerms.events.edit && <Lock className="h-3.5 w-3.5 opacity-50" />}
+                      </h3>
+                      <Textarea 
+                        placeholder="Current and future events..." 
+                        value={editForm.events || ""} 
+                        onChange={e => setEditForm({...editForm, events: e.target.value})} 
+                        className="min-h-[100px]"
+                        disabled={!sectionPerms.events.edit}
+                      />
+                    </div>
+                  )}
 
                   {/* 4. Operational Guidance */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">4. Operational Guidance</h3>
-                    <Textarea 
-                      placeholder="Restrictions or particulars (e.g., no leaf blowing before 09.00)..." 
-                      value={editForm.operationalGuidance || ""} 
-                      onChange={e => setEditForm({...editForm, operationalGuidance: e.target.value})} 
-                      className="min-h-[100px]"
-                    />
-                  </div>
+                  {sectionPerms.operationalGuidance.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center justify-between">
+                        <span>4. Operational Guidance</span>
+                        {!sectionPerms.operationalGuidance.edit && <Lock className="h-3.5 w-3.5 opacity-50" />}
+                      </h3>
+                      <Textarea 
+                        placeholder="Restrictions or particulars (e.g., no leaf blowing before 09.00)..." 
+                        value={editForm.operationalGuidance || ""} 
+                        onChange={e => setEditForm({...editForm, operationalGuidance: e.target.value})} 
+                        className="min-h-[100px]"
+                        disabled={!sectionPerms.operationalGuidance.edit}
+                      />
+                    </div>
+                  )}
 
                   {/* 5. Sports and Leisure */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">5. Sports and Leisure</h3>
-                    <Textarea 
-                      placeholder="Current or future sports or leisure activities..." 
-                      value={editForm.sportsAndLeisure || ""} 
-                      onChange={e => setEditForm({...editForm, sportsAndLeisure: e.target.value})} 
-                      className="min-h-[100px]"
-                    />
-                  </div>
+                  {sectionPerms.sportsLeisure.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center justify-between">
+                        <span>5. Sports and Leisure</span>
+                        {!sectionPerms.sportsLeisure.edit && <Lock className="h-3.5 w-3.5 opacity-50" />}
+                      </h3>
+                      <Textarea 
+                        placeholder="Current or future sports or leisure activities..." 
+                        value={editForm.sportsAndLeisure || ""} 
+                        onChange={e => setEditForm({...editForm, sportsAndLeisure: e.target.value})} 
+                        className="min-h-[100px]"
+                        disabled={!sectionPerms.sportsLeisure.edit}
+                      />
+                    </div>
+                  )}
 
                   {/* 6. Volunteering */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">6. Volunteering</h3>
-                    <Textarea 
-                      placeholder="Current or future volunteering activities..." 
-                      value={editForm.volunteering || ""} 
-                      onChange={e => setEditForm({...editForm, volunteering: e.target.value})} 
-                      className="min-h-[100px]"
-                    />
-                  </div>
+                  {sectionPerms.volunteering.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center justify-between">
+                        <span>6. Volunteering</span>
+                        {!sectionPerms.volunteering.edit && <Lock className="h-3.5 w-3.5 opacity-50" />}
+                      </h3>
+                      <Textarea 
+                        placeholder="Current or future volunteering activities..." 
+                        value={editForm.volunteering || ""} 
+                        onChange={e => setEditForm({...editForm, volunteering: e.target.value})} 
+                        className="min-h-[100px]"
+                        disabled={!sectionPerms.volunteering.edit}
+                      />
+                    </div>
+                  )}
 
                   {/* 7. User Group */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">7. User Group</h3>
-                    <div className="grid gap-4">
-                      <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Chair of User Group</Label>
-                          <Input 
-                            placeholder="Name of Chair" 
-                            value={editForm.userGroupChair || ""} 
-                            onChange={e => setEditForm({...editForm, userGroupChair: e.target.value})} 
-                          />
-                      </div>
-                      <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Contact Details & Info</Label>
-                          <Textarea 
-                            placeholder="Attached user groups contact details..." 
-                            value={editForm.userGroup || ""} 
-                            onChange={e => setEditForm({...editForm, userGroup: e.target.value})} 
-                            className="min-h-[100px]"
-                          />
+                  {sectionPerms.userGroup.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center justify-between">
+                        <span>7. User Group</span>
+                        {!sectionPerms.userGroup.edit && <Lock className="h-3.5 w-3.5 opacity-50" />}
+                      </h3>
+                      <div className="grid gap-4">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Chair of User Group</Label>
+                            <Input 
+                              placeholder="Name of Chair" 
+                              value={editForm.userGroupChair || ""} 
+                              onChange={e => setEditForm({...editForm, userGroupChair: e.target.value})} 
+                              disabled={!sectionPerms.userGroup.edit}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Contact Details & Info</Label>
+                            <Textarea 
+                              placeholder="Attached user groups contact details..." 
+                              value={editForm.userGroup || ""} 
+                              onChange={e => setEditForm({...editForm, userGroup: e.target.value})} 
+                              className="min-h-[100px]"
+                              disabled={!sectionPerms.userGroup.edit}
+                            />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="pt-4 pb-12">
                     <Button className="w-full font-bold h-12 text-lg" onClick={handleSaveParkDetail} disabled={isSubmitting}>
@@ -793,174 +878,204 @@ export default function ParksPage() {
               ) : (
                 <div className="space-y-8 pb-12">
                   {/* 1. Key Information */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2">1. Key Information</h3>
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                          <UserIcon className="h-3 w-3 text-primary" /> Head Gardener
-                        </span>
-                        <span className="font-bold text-sm">{selectedParkDetail.headGardener || "Not Assigned"}</span>
+                  {sectionPerms.keyInfo.view && (
+                    <div className="bg-primary/[0.03] p-6 rounded-3xl border border-primary/10 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <Construction className="h-24 w-24 -mr-8 -mt-8" />
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                          <ShieldCheck className="h-3 w-3 text-primary" /> Area Manager
-                        </span>
-                        <span className="font-bold text-sm">{selectedParkDetail.areaManager || "Not Assigned"}</span>
+                      <h3 className="text-lg font-bold mb-6 font-headline border-b border-primary/10 pb-3 flex items-center gap-2 text-primary">
+                        <span className="h-6 w-6 rounded-lg bg-primary text-white flex items-center justify-center text-xs">1</span>
+                        Key Information
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 relative z-10">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <UserIcon className="h-3 w-3 text-primary" /> Head Gardener
+                          </span>
+                          <span className="font-bold text-sm">{selectedParkDetail.headGardener || "Not Assigned"}</span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <ShieldCheck className="h-3 w-3 text-primary" /> Area Manager
+                          </span>
+                          <span className="font-bold text-sm">{selectedParkDetail.areaManager || "Not Assigned"}</span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <MapPin className="h-3 w-3 text-primary" /> Depot
+                          </span>
+                          <span className="font-bold text-sm">{selectedParkDetail.depot || "Not Listed"}</span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <UserIcon className="h-3 w-3 text-primary" /> Park Officer
+                          </span>
+                          <span className="font-bold text-sm">{selectedParkDetail.parkOfficer || "Not Assigned"}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                          <MapPin className="h-3 w-3 text-primary" /> Depot
+                      {(selectedParkDetail.greenFlagStatus === 'Awarded' || selectedParkDetail.greenflag) && (
+                        <div className="mt-6 p-5 bg-green-600/5 rounded-2xl border border-green-600/10 flex flex-col gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center shadow-lg shadow-green-600/20">
+                              <Leaf className="h-5 w-5 text-white fill-white shrink-0" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-green-700">Green Flag Award Holder</span>
+                              <span className="text-sm font-bold text-green-900">{selectedParkDetail.greenFlagInfo || "Validated Site"}</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-green-600/10">
+                             <div className="flex flex-col gap-0.5">
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-green-600/60">Next Full Inspection</span>
+                                <span className="text-xs font-bold text-green-800">{selectedParkDetail.gfInspectionYear || "Not Scheduled"}</span>
+                             </div>
+                             <div className="flex flex-col gap-0.5">
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-green-600/60">Next Mystery Shop</span>
+                                <span className="text-xs font-bold text-green-800">{selectedParkDetail.gfMysteryShopYear || "Not Scheduled"}</span>
+                             </div>
+                          </div>
+                        </div>
+                      )}
+  
+                      {selectedParkDetail.greenFlagStatus === 'Pending' && (
+                        <div className="mt-6 p-5 bg-amber-600/5 rounded-2xl border border-amber-600/10 flex flex-col gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                              <Clock className="h-5 w-5 text-white shrink-0" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">First Time Entry / Pending Outcome</span>
+                              <span className="text-sm font-bold text-amber-900">{selectedParkDetail.greenFlagInfo || "Judging In Progress"}</span>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-amber-800/70 font-medium leading-relaxed bg-amber-100/50 p-2 rounded-lg border border-amber-600/5">
+                            Status is currently pending following the judging visit. This site is currently being highlighted as a new entry.
+                          </p>
+                        </div>
+                      )}
+  
+                      <div className="pt-6">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
+                          <Construction className="h-3 w-3 text-primary" /> Key Features & Amenities
                         </span>
-                        <span className="font-bold text-sm">{selectedParkDetail.depot || "Not Listed"}</span>
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                          <UserIcon className="h-3 w-3 text-primary" /> Park Officer
-                        </span>
-                        <span className="font-bold text-sm">{selectedParkDetail.parkOfficer || "Not Assigned"}</span>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedParkDetail.features && selectedParkDetail.features.length > 0 ? (
+                            selectedParkDetail.features.map((feature, i) => (
+                              <Badge key={i} variant="secondary" className="px-3 py-1 bg-primary/5 text-primary border-primary/10 font-bold text-[11px]">
+                                {feature}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">No features recorded for this park.</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {(selectedParkDetail.greenFlagStatus === 'Awarded' || selectedParkDetail.greenflag) && (
-                      <div className="mt-6 p-5 bg-green-600/5 rounded-2xl border border-green-600/10 flex flex-col gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center shadow-lg shadow-green-600/20">
-                            <Leaf className="h-5 w-5 text-white fill-white shrink-0" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-green-700">Green Flag Award Holder</span>
-                            <span className="text-sm font-bold text-green-900">{selectedParkDetail.greenFlagInfo || "Validated Site"}</span>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-green-600/10">
-                           <div className="flex flex-col gap-0.5">
-                              <span className="text-[8px] font-bold uppercase tracking-widest text-green-600/60">Next Full Inspection</span>
-                              <span className="text-xs font-bold text-green-800">{selectedParkDetail.gfInspectionYear || "Not Scheduled"}</span>
-                           </div>
-                           <div className="flex flex-col gap-0.5">
-                              <span className="text-[8px] font-bold uppercase tracking-widest text-green-600/60">Next Mystery Shop</span>
-                              <span className="text-xs font-bold text-green-800">{selectedParkDetail.gfMysteryShopYear || "Not Scheduled"}</span>
-                           </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedParkDetail.greenFlagStatus === 'Pending' && (
-                      <div className="mt-6 p-5 bg-amber-600/5 rounded-2xl border border-amber-600/10 flex flex-col gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                            <Clock className="h-5 w-5 text-white shrink-0" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">First Time Entry / Pending Outcome</span>
-                            <span className="text-sm font-bold text-amber-900">{selectedParkDetail.greenFlagInfo || "Judging In Progress"}</span>
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-amber-800/70 font-medium leading-relaxed bg-amber-100/50 p-2 rounded-lg border border-amber-600/5">
-                          Status is currently pending following the judging visit. This site is currently being highlighted as a new entry.
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="pt-6">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-4">
-                        <Construction className="h-3 w-3 text-primary" /> Key Features & Amenities
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedParkDetail.features && selectedParkDetail.features.length > 0 ? (
-                          selectedParkDetail.features.map((feature, i) => (
-                            <Badge key={i} variant="secondary" className="px-3 py-1 bg-primary/5 text-primary border-primary/10 font-bold text-[11px]">
-                              {feature}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">No features recorded for this park.</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
                   {/* 2. Projects */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">2. Projects</h3>
-                    {selectedParkDetail.projects && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.projects}</div>}
-                    {renderUpdates('Project', canEditProjects)}
-                  </div>
+                  {sectionPerms.projects.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">2. Projects</h3>
+                      {selectedParkDetail.projects && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.projects}</div>}
+                      {renderUpdates('Project', canEditProjects)}
+                    </div>
+                  )}
 
                   {/* 3. Events */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">3. Events</h3>
-                    {selectedParkDetail.events && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.events}</div>}
-                    {renderUpdates('Event', canEditEvents)}
-                  </div>
+                  {sectionPerms.events.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">3. Events</h3>
+                      {selectedParkDetail.events && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.events}</div>}
+                      {renderUpdates('Event', canEditEvents)}
+                    </div>
+                  )}
 
                   {/* 4. Operational Guidance */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">4. Operational Guidance</h3>
-                    <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/30 p-4 rounded-lg border">
-                      {selectedParkDetail.operationalGuidance || "No operational guidance listed."}
+                  {sectionPerms.operationalGuidance.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">4. Operational Guidance</h3>
+                      <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/30 p-4 rounded-lg border">
+                        {selectedParkDetail.operationalGuidance || "No operational guidance listed."}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* 5. Sports and Leisure */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">5. Sports and Leisure</h3>
-                    {selectedParkDetail.sportsAndLeisure && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.sportsAndLeisure}</div>}
-                    {renderUpdates('Sports', canEditSports)}
-                  </div>
+                  {sectionPerms.sportsLeisure.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">5. Sports and Leisure</h3>
+                      {selectedParkDetail.sportsAndLeisure && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.sportsAndLeisure}</div>}
+                      {renderUpdates('Sports', canEditSports)}
+                    </div>
+                  )}
 
                   {/* 6. Volunteering */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">6. Volunteering</h3>
-                    {selectedParkDetail.volunteering && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.volunteering}</div>}
-                    {renderUpdates('Volunteering', canEditVolunteering)}
-                  </div>
+                  {sectionPerms.volunteering.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">6. Volunteering</h3>
+                      {selectedParkDetail.volunteering && <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/10 p-4 rounded-lg border mb-4">{selectedParkDetail.volunteering}</div>}
+                      {renderUpdates('Volunteering', canEditVolunteering)}
+                    </div>
+                  )}
 
                   {/* 7. User Group */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">7. User Group</h3>
-                    <div className="grid gap-4 mb-4">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-1">Chair</span>
-                        <span className="font-bold text-sm bg-muted/30 p-3 rounded-lg border block">{selectedParkDetail.userGroupChair || "Not Assigned"}</span>
+                  {sectionPerms.userGroup.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">7. User Group</h3>
+                      <div className="grid gap-4 mb-4">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-1">Chair</span>
+                          <span className="font-bold text-sm bg-muted/30 p-3 rounded-lg border block">{selectedParkDetail.userGroupChair || "Not Assigned"}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-1">Contact Details & Info</span>
+                          <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/30 p-4 rounded-lg border">{selectedParkDetail.userGroup || "No contact info listed."}</div>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-1">Contact Details & Info</span>
-                        <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/30 p-4 rounded-lg border">{selectedParkDetail.userGroup || "No contact info listed."}</div>
-                      </div>
+                      {renderUpdates('UserGroup', canEditUserGroups)}
                     </div>
-                    {renderUpdates('UserGroup', canEditUserGroups)}
-                  </div>
+                  )}
 
                   {/* 9. Development Updates */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">9. Development Updates</h3>
-                    {renderUpdates('Development', canEditDevelopment)}
-                  </div>
+                  {sectionPerms.development.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">9. Development Updates</h3>
+                      {renderUpdates('Development', canEditDevelopment)}
+                    </div>
+                  )}
 
                   {/* 10. Tree Works */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">10. Tree Works</h3>
-                    {renderUpdates('TreeWorks', canEditTreeWorks)}
-                  </div>
+                  {sectionPerms.treeWorks.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">10. Tree Works</h3>
+                      {renderUpdates('TreeWorks', canEditTreeWorks)}
+                    </div>
+                  )}
 
                   {/* 11. Biodiversity */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">11. Biodiversity</h3>
-                    {renderUpdates('Biodiversity', canEditBiodiversity)}
-                  </div>
+                  {sectionPerms.biodiversity.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">11. Biodiversity</h3>
+                      {renderUpdates('Biodiversity', canEditBiodiversity)}
+                    </div>
+                  )}
 
                   {/* 12. Contractor Works */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">12. Contractor Works</h3>
-                    {renderUpdates('ContractorWorks', canEditContractorWorks)}
-                  </div>
+                  {sectionPerms.contractorWorks.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">12. Contractor Works</h3>
+                      {renderUpdates('ContractorWorks', canEditContractorWorks)}
+                    </div>
+                  )}
 
                   {/* 13. Recent Maintenance Work */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">13. Recent Maintenance Work</h3>
-                    {renderUpdates('Maintenance', canEditMaintenance)}
-                  </div>
+                  {sectionPerms.maintenanceWork.view && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">13. Recent Maintenance Work</h3>
+                      {renderUpdates('Maintenance', canEditMaintenance)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -101,6 +101,7 @@ import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
 import { getDefaultPermissionsForUser, getDefaultMobilePermissionsForUser } from "@/lib/permissions";
 import { AccessPermissions } from "@/lib/types";
+import { ParkPermissionsMatrix } from "@/components/users/park-permissions-matrix";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -531,6 +532,7 @@ export default function UserManagement() {
       <Tabs defaultValue="registry" className="w-full">
         <TabsList className="mb-6 bg-muted/50 border">
           <TabsTrigger value="registry" className="font-bold">User Registry</TabsTrigger>
+          <TabsTrigger value="park_info" className="font-bold">Park Info</TabsTrigger>
           <TabsTrigger value="archived" className="font-bold">Archived Staff</TabsTrigger>
         </TabsList>
         <TabsContent value="registry" className="mt-0 space-y-0">
@@ -699,6 +701,10 @@ export default function UserManagement() {
           </Table>
         </div>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="park_info" className="mt-0 pt-2">
+          <ParkPermissionsMatrix />
         </TabsContent>
 
         <TabsContent value="archived" className="mt-0 pt-2">

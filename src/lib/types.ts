@@ -1,4 +1,4 @@
-export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Assistant Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Manager' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Park Manager' | 'Admin';
+export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Assistant Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Manager' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Park Manager' | 'Volunteer' | 'Admin';
 
 export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor'];
 export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Manager', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Park Manager', 'Admin'];
@@ -307,4 +307,48 @@ export interface SmartRule {
   }[];
   createdAt?: string;
 }
+
+export interface ParkSectionPermission {
+  view: boolean;
+  edit: boolean;
+}
+
+export type ParkSectionKey = 
+  | 'keyInfo'
+  | 'projects'
+  | 'events'
+  | 'operationalGuidance'
+  | 'sportsLeisure'
+  | 'volunteering'
+  | 'userGroup'
+  | 'development'
+  | 'treeWorks'
+  | 'biodiversity'
+  | 'contractorWorks'
+  | 'maintenanceWork';
+
+export interface RoleParkPermissions {
+  [sectionKey: string]: ParkSectionPermission;
+}
+
+export interface ParkPermissionsConfig {
+  roles: {
+    [role: string]: RoleParkPermissions;
+  };
+}
+
+export const PARK_SECTIONS: { key: ParkSectionKey; label: string; number: number }[] = [
+  { key: 'keyInfo', label: 'Key Information', number: 1 },
+  { key: 'projects', label: 'Projects', number: 2 },
+  { key: 'events', label: 'Events', number: 3 },
+  { key: 'operationalGuidance', label: 'Operational Guidance', number: 4 },
+  { key: 'sportsLeisure', label: 'Sports and Leisure', number: 5 },
+  { key: 'volunteering', label: 'Volunteering', number: 6 },
+  { key: 'userGroup', label: 'User Group', number: 7 },
+  { key: 'development', label: 'Development Updates', number: 9 },
+  { key: 'treeWorks', label: 'Tree Works', number: 10 },
+  { key: 'biodiversity', label: 'Biodiversity', number: 11 },
+  { key: 'contractorWorks', label: 'Contractor Works', number: 12 },
+  { key: 'maintenanceWork', label: 'Recent Maintenance Work', number: 13 },
+];
 
