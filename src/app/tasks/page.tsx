@@ -94,7 +94,7 @@ export default function TasksPage() {
   const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
 
   const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers: users, allParks: allDetails, registryConfig: contextRegistry } = useDataContext();
+  const { allUsers: users, allParks: allDetails, allIssues, registryConfig: contextRegistry } = useDataContext();
   
   const registry = localRegistry || contextRegistry;
   
@@ -171,6 +171,11 @@ export default function TasksPage() {
   const selectedDetailTask = useMemo(() => 
     tasks.find(t => t.id === selectedDetailTaskId) || archivedTasks.find(t => t.id === selectedDetailTaskId), 
   [tasks, archivedTasks, selectedDetailTaskId]);
+  
+  const linkedIssue = useMemo(() => {
+    if (!selectedDetailTask?.linkedIssueId) return null;
+    return allIssues.find(i => i.id === selectedDetailTask.linkedIssueId) || null;
+  }, [selectedDetailTask?.linkedIssueId, allIssues]);
   const [showAllStaff, setShowAllStaff] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
   
@@ -918,6 +923,7 @@ export default function TasksPage() {
         open={isDetailDialogOpen} 
         onOpenChange={setIsDetailDialogOpen} 
         task={selectedDetailTask || null} 
+        linkedIssue={linkedIssue}
         allUsers={users}
       />
     </DashboardShell>
