@@ -125,10 +125,48 @@ function IssuesContent() {
     });
   }, [issues, profile, user, allDetails, isAdmin, currentUserRoles]);
 
-  const unassignedIssues = useMemo(() => filteredIssues.filter(i => !i.assignedTo), [filteredIssues]);
-  const assignedIssues = useMemo(() => filteredIssues.filter(i => i.assignedTo), [filteredIssues]);
-  const resolvedIssues = useMemo(() => resolvedIssuesRaw.filter(i => i.isArchived !== true), [resolvedIssuesRaw]);
-  const archivedIssues = archivedIssuesRaw;
+  const unassignedIssuesRaw = useMemo(() => filteredIssues.filter(i => !i.assignedTo), [filteredIssues]);
+  const assignedIssuesRaw = useMemo(() => filteredIssues.filter(i => i.assignedTo), [filteredIssues]);
+  const resolvedIssuesRawData = useMemo(() => resolvedIssuesRaw.filter(i => i.isArchived !== true), [resolvedIssuesRaw]);
+  const archivedIssuesRawData = archivedIssuesRaw;
+
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterPark, setFilterPark] = useState<string>("All");
+  const [filterReporter, setFilterReporter] = useState<string>("All");
+  const [filterAssignee, setFilterAssignee] = useState<string>("All");
+
+  const reporters = useMemo(() => {
+    const set = new Set<string>();
+    allIssues.forEach(i => i.reportedBy && set.add(i.reportedBy));
+    return Array.from(set).sort();
+  }, [allIssues]);
+
+  const assignees = useMemo(() => {
+    const set = new Set<string>();
+    allIssues.forEach(i => i.assignedTo && set.add(i.assignedTo));
+    return Array.from(set).sort();
+  }, [allIssues]);
+
+  const applyFilters = (list: Issue[]) => {
+    let result = list;
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      result = result.filter(i => 
+        i.title.toLowerCase().includes(s) || 
+        i.description.toLowerCase().includes(s)
+      );
+    }
+    if (filterPark !== "All") result = result.filter(i => i.park === filterPark);
+    if (filterReporter !== "All") result = result.filter(i => i.reportedBy === filterReporter);
+    if (filterAssignee !== "All") result = result.filter(i => i.assignedTo === filterAssignee);
+    return result;
+  };
+
+  const unassignedIssues = useMemo(() => applyFilters(unassignedIssuesRaw), [unassignedIssuesRaw, searchTerm, filterPark, filterReporter, filterAssignee]);
+  const assignedIssues = useMemo(() => applyFilters(assignedIssuesRaw), [assignedIssuesRaw, searchTerm, filterPark, filterReporter, filterAssignee]);
+  const resolvedIssues = useMemo(() => applyFilters(resolvedIssuesRawData), [resolvedIssuesRawData, searchTerm, filterPark, filterReporter, filterAssignee]);
+  const archivedIssues = useMemo(() => applyFilters(archivedIssuesRawData), [archivedIssuesRawData, searchTerm, filterPark, filterReporter, filterAssignee]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -579,6 +617,62 @@ function IssuesContent() {
             </TabsTrigger>
           )}
         </TabsList>
+
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search issues by title or details..." 
+              className="pl-9 bg-background shadow-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6" 
+                onClick={() => setSearchTerm("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 lg:flex gap-4">
+            <Select value={filterPark} onValueChange={setFilterPark}>
+              <SelectTrigger className="w-full lg:w-[160px] bg-background shadow-sm">
+                <SelectValue placeholder="All Sites" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Sites</SelectItem>
+                {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterReporter} onValueChange={setFilterReporter}>
+              <SelectTrigger className="w-full lg:w-[160px] bg-background shadow-sm">
+                <SelectValue placeholder="Raised By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Reporters</SelectItem>
+                {reporters.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+              <SelectTrigger className="w-full lg:w-[160px] bg-background shadow-sm">
+                <SelectValue placeholder="Assigned To" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Assignees</SelectItem>
+                {assignees.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {(filterPark !== "All" || filterReporter !== "All" || filterAssignee !== "All") && (
+              <Button variant="ghost" size="sm" className="px-2 font-bold text-muted-foreground hover:text-primary" onClick={() => { setFilterPark("All"); setFilterReporter("All"); setFilterAssignee("All"); }}>
+                Reset
+              </Button>
+            )}
+          </div>
+        </div>
 
         <TabsContent value="unassigned">
           {renderIssueList(unassignedIssues, issuesLoading)}
