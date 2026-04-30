@@ -39,7 +39,8 @@ import {
   Smartphone,
   Monitor,
   Eye,
-  Lock
+  Lock,
+  Circle
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -639,12 +640,32 @@ export default function UserManagement() {
                   <TableRow key={user.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => openUserProfile(user)}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border-2 border-primary/10">
-                          <AvatarImage src={user.avatar || undefined} />
-                          <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
-                        </Avatar>
+                        <div className="relative">
+                          <Avatar className="h-10 w-10 border-2 border-primary/10">
+                            <AvatarImage src={user.avatar || undefined} />
+                            <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                          </Avatar>
+                          {(() => {
+                            const lastActiveDate = user.lastActive ? new Date(user.lastActive) : null;
+                            const isOnline = lastActiveDate && (new Date().getTime() - lastActiveDate.getTime() < 300000); // 5 mins
+                            return (
+                              <div className={cn(
+                                "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background flex items-center justify-center shadow-sm",
+                                isOnline ? "bg-green-500" : "bg-red-500"
+                              )}>
+                                {isOnline ? (
+                                  <Check className="h-2 w-2 text-white" />
+                                ) : (
+                                  <div className="h-1 w-1 bg-white rounded-full opacity-50" />
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
                         <div className="flex flex-col min-w-0">
-                          <div className="font-bold text-sm truncate">{user.name}</div>
+                          <div className="font-bold text-sm truncate flex items-center gap-2">
+                            {user.name}
+                          </div>
                           <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <Mail className="h-3 w-3" /> {user.email}
                           </div>

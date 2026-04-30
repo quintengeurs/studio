@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useMemo, ReactNode } from 'react';
-import { doc, collection, query, where } from 'firebase/firestore';
+import { doc, collection, query, where, updateDoc } from 'firebase/firestore';
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { User, AccessPermissions } from '@/lib/types';
 import { getDefaultPermissionsForUser } from '@/lib/permissions';
@@ -65,6 +65,42 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const isManagement = useMemo(() => 
     currentUserRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin,
   [currentUserRoles, isAdmin]);
+
+  // Heartbeat / Presence System
+  React.useEffect(() => {
+    if (!db || !user || !profile?.id) return;
+
+    const updateStatus = async (online: boolean) => {
+      try {
+        const userRef = doc(db, "users", profile.id);
+        await updateDoc(userRef, {
+          isOnline: online,
+          lastActive: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Failed to update presence:", err);
+      }
+    };
+
+    // Initial sign-in update
+    updateStatus(true);
+
+    // Periodic heartbeat (every 2 minutes)
+    const interval = setInterval(() => updateStatus(true), 120000);
+
+    // Optional: Try to set to offline on close (unreliable but helpful)
+    const handleUnload = () => {
+      // Use navigator.sendBeacon or similar if needed, but updateDoc is async
+      // For now, we'll rely on lastActive timestamp for accurate status
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [db, user, profile?.id]);
 
   const value = {
     profile,
