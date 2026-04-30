@@ -158,6 +158,8 @@ export default function UserManagement() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'operative' | 'management' | 'archived'>('all');
   const [isUserSubmitting, setIsUserSubmitting] = useState(false);
   const [isConfigSubmitting, setIsConfigSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
   
   // Global safety hook to prevent UI lockups from Radix Dialogs
   useEffect(() => {
@@ -208,18 +210,37 @@ export default function UserManagement() {
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
+      // 1. Handle Archived state first
       if (roleFilter === 'archived') {
           return user.isArchived === true;
       }
       if (user.isArchived) return false;
 
       const userRoles = user.roles || (user.role ? [user.role] : []);
-      if (roleFilter === 'all') return true;
-      if (roleFilter === 'operative') return userRoles.some(r => OPERATIVE_ROLES.includes(r));
-      if (roleFilter === 'management') return userRoles.some(r => MANAGEMENT_ROLES.includes(r));
+      const lowerSearch = searchTerm.toLowerCase();
+      
+      // 2. Search Term Filter
+      const matchesSearch = !searchTerm || 
+        user.name.toLowerCase().includes(lowerSearch) || 
+        user.email.toLowerCase().includes(lowerSearch) ||
+        userRoles.some(r => r.toLowerCase().includes(lowerSearch));
+
+      if (!matchesSearch) return false;
+
+      // 3. Category Filter
+      if (activeCategory === 'all') return true;
+      if (activeCategory === 'management') return userRoles.some(r => MANAGEMENT_ROLES.includes(r as any));
+      if (activeCategory === 'gardeners') return userRoles.includes('Gardener');
+      if (activeCategory === 'keepers') return userRoles.includes('Keeper');
+      if (activeCategory === 'contractors') return userRoles.includes('Contractor');
+      if (activeCategory === 'volunteers') return userRoles.includes('Volunteer');
+      if (activeCategory === 'other_ops') {
+        return userRoles.some(r => OPERATIVE_ROLES.includes(r as any) && r !== 'Gardener' && r !== 'Keeper' && r !== 'Contractor');
+      }
+
       return true;
     });
-  }, [users, roleFilter]);
+  }, [users, roleFilter, searchTerm, activeCategory]);
 
   const syncTrainingState = (trainingString: string | undefined | null) => {
     const str = trainingString || "";
@@ -590,23 +611,47 @@ export default function UserManagement() {
           </div>
         </Card>
 
-        <Card 
-          className={cn(
-            "transition-all cursor-pointer border-2 hover:shadow-md",
-            roleFilter === 'archived' ? "bg-muted border-destructive/50" : "bg-card border-border"
-          )}
-          onClick={() => setRoleFilter('archived')}
-        >
+        <Card className="bg-card border-2 shadow-sm">
           <div className="p-6">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold uppercase text-muted-foreground">Archived</span>
-              <Trash2 className={cn("h-4 w-4 text-destructive")} />
+              <span className="text-xs font-bold uppercase text-muted-foreground">Currently Online</span>
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
             </div>
             <div className="text-3xl font-bold font-headline">
-              {users.filter(u => u.isArchived).length}
+              {users.filter(u => {
+                if (u.isArchived) return false;
+                const lastActiveDate = u.lastActive ? new Date(u.lastActive) : null;
+                return lastActiveDate && (new Date().getTime() - lastActiveDate.getTime() < 300000);
+              }).length}
             </div>
           </div>
         </Card>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search users by name, email, or role..." 
+            className="pl-9 bg-background shadow-sm border-2 rounded-xl"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <Select value={activeCategory} onValueChange={setActiveCategory}>
+          <SelectTrigger className="w-full sm:w-[220px] bg-background shadow-sm border-2 rounded-xl">
+            <SelectValue placeholder="Filter by Role Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Active Staff</SelectItem>
+            <SelectItem value="management">Management Staff</SelectItem>
+            <SelectItem value="gardeners">Gardeners</SelectItem>
+            <SelectItem value="keepers">Keepers</SelectItem>
+            <SelectItem value="contractors">Contractors</SelectItem>
+            <SelectItem value="volunteers">Volunteers</SelectItem>
+            <SelectItem value="other_ops">Other Operatives</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Card className="overflow-hidden border-2">
