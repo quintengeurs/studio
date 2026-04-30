@@ -31,7 +31,8 @@ import {
   Save,
   X,
   Clock,
-  Lock
+  Lock,
+  Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
