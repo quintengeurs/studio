@@ -637,6 +637,7 @@ export default function UserManagement() {
             className="pl-9 bg-background shadow-sm border-2 rounded-xl"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            autoComplete="off"
           />
         </div>
         <Select value={activeCategory} onValueChange={setActiveCategory}>
@@ -910,15 +911,15 @@ export default function UserManagement() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-6">
               <div className="grid gap-2">
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Full Name</Label>
-                <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" className="font-medium" />
+                <Input value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. David Jones" className="font-medium" autoComplete="off" />
               </div>
               <div className="grid gap-2">
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Email Address</Label>
-                <Input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="david.jones@hackney.gov.uk" className="font-medium" />
+                <Input type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="david.jones@hackney.gov.uk" className="font-medium" autoComplete="off" />
               </div>
               <div className="grid gap-2">
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Initial Password</Label>
-                <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Min 6 characters" className="font-medium" />
+                <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Min 6 characters" className="font-medium" autoComplete="new-password" />
                 <p className="text-[9px] text-muted-foreground italic leading-tight">
                   <strong>Security Note:</strong> If this email was used before, the old password will remain active. The user must use &quot;Forgot Password&quot; on the login screen to reset it.
                 </p>
