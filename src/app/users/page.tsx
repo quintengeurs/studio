@@ -35,7 +35,11 @@ import {
   Users as UsersIcon,
   Settings2,
   RotateCcw,
-  MapPin
+  MapPin,
+  Smartphone,
+  Monitor,
+  Eye,
+  Lock
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -95,7 +99,8 @@ import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
-import { PermissionsMatrix } from "@/components/users/permissions-matrix";
+import { getDefaultPermissionsForUser, getDefaultMobilePermissionsForUser } from "@/lib/permissions";
+import { AccessPermissions } from "@/lib/types";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -162,6 +167,14 @@ export default function UserManagement() {
   }, [isAddDialogOpen, isUpdateModalOpen, isTaskDeleteConfirmOpen, isProfileDialogOpen, isConfigDialogOpen, isArchiveConfirmOpen]);
   
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
+
+  // Per-user permissions state for profile dialog
+  const [editDesktopPerms, setEditDesktopPerms] = useState<AccessPermissions | null>(null);
+  const [editMobilePerms, setEditMobilePerms] = useState<AccessPermissions | null>(null);
+
+  // Per-user permissions state for add-user dialog
+  const [newUserDesktopPerms, setNewUserDesktopPerms] = useState<AccessPermissions | null>(null);
+  const [newUserMobilePerms, setNewUserMobilePerms] = useState<AccessPermissions | null>(null);
   
   const [configTeams, setConfigTeams] = useState<string[]>([]);
   const [configTrainingOptions, setConfigTrainingOptions] = useState<string[]>([]);
@@ -291,6 +304,9 @@ export default function UserManagement() {
         roles: newUser.assignedRoles?.map(ar => ar.role) || newUser.roles || [],
         assignedRoles: newUser.assignedRoles || [],
         createdAt: new Date().toISOString(),
+        permissions: newUserDesktopPerms || undefined,
+        mobilePermissions: newUserMobilePerms || undefined,
+        allowDesktopView: newUserDesktopPerms ? Object.values(newUserDesktopPerms).some(v => v === true) : true,
     };
 
     setIsUserSubmitting(true);
@@ -312,6 +328,8 @@ export default function UserManagement() {
           assignedRoles: [{ role: 'Gardener', depotIds: [] }]
         });
         setSelectedTrainings([]);
+        setNewUserDesktopPerms(null);
+        setNewUserMobilePerms(null);
     } catch (e: any) {
         toast({ title: "Error", description: `Could not save user record. (Code: ${e.code})`, variant: "destructive" });
     } finally {
@@ -330,7 +348,10 @@ export default function UserManagement() {
       training: trainingString,
       roles: selectedUser.assignedRoles?.map(ar => ar.role) || selectedUser.roles || [],
       depots: Array.from(new Set(selectedUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
-      depot: selectedUser.assignedRoles?.[0]?.depotIds?.[0] || ""
+      depot: selectedUser.assignedRoles?.[0]?.depotIds?.[0] || "",
+      permissions: editDesktopPerms || undefined,
+      mobilePermissions: editMobilePerms || undefined,
+      allowDesktopView: editDesktopPerms ? Object.values(editDesktopPerms).some(v => v === true) : true,
     };
 
     try {
@@ -463,6 +484,20 @@ export default function UserManagement() {
     setSelectedUser(user);
     setIsEditing(false);
     setIsProfileDialogOpen(true);
+
+    // Initialize permission state from saved data or role-based defaults
+    const desktopDefaults = getDefaultPermissionsForUser(user);
+    const mobileDefaults = getDefaultMobilePermissionsForUser(user);
+    setEditDesktopPerms(
+      (user.permissions && Object.keys(user.permissions).length > 0)
+        ? { ...desktopDefaults, ...user.permissions }
+        : desktopDefaults
+    );
+    setEditMobilePerms(
+      (user.mobilePermissions && Object.keys(user.mobilePermissions).length > 0)
+        ? { ...mobileDefaults, ...user.mobilePermissions }
+        : mobileDefaults
+    );
     
     if (db) {
         setIsStatsLoading(true);
@@ -496,7 +531,6 @@ export default function UserManagement() {
       <Tabs defaultValue="registry" className="w-full">
         <TabsList className="mb-6 bg-muted/50 border">
           <TabsTrigger value="registry" className="font-bold">User Registry</TabsTrigger>
-          <TabsTrigger value="permissions" className="font-bold">Access Permissions</TabsTrigger>
           <TabsTrigger value="archived" className="font-bold">Archived Staff</TabsTrigger>
         </TabsList>
         <TabsContent value="registry" className="mt-0 space-y-0">
@@ -666,9 +700,7 @@ export default function UserManagement() {
         </div>
       </Card>
         </TabsContent>
-        <TabsContent value="permissions" className="mt-0 pt-2">
-          <PermissionsMatrix users={users.filter(u => !u.isArchived)} />
-        </TabsContent>
+
         <TabsContent value="archived" className="mt-0 pt-2">
           <Card className="overflow-hidden border-2 mb-6 shadow-sm">
             <div className="overflow-x-auto">
@@ -980,6 +1012,120 @@ export default function UserManagement() {
                 ))}
               </div>
             </div>
+
+            {/* Access & Permissions Section */}
+            <div className="grid gap-3">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-bold">Access & Permissions</Label>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-1">Set which pages and features this user can access. Defaults are based on the selected role.</p>
+
+              {/* Initialize defaults button */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit text-[10px] font-bold uppercase h-7"
+                onClick={() => {
+                  const tempUser = {
+                    ...newUser,
+                    id: 'temp',
+                    name: newUser.name || '',
+                    email: newUser.email || '',
+                    roles: newUser.assignedRoles?.map(ar => ar.role) || newUser.roles || [],
+                    depot: newUser.assignedRoles?.[0]?.depotIds?.[0] || '',
+                  } as any;
+                  setNewUserDesktopPerms(getDefaultPermissionsForUser(tempUser));
+                  setNewUserMobilePerms(getDefaultMobilePermissionsForUser(tempUser));
+                }}
+              >
+                Reset to Role Defaults
+              </Button>
+
+              {newUserDesktopPerms && newUserMobilePerms ? (
+                <div className="space-y-4">
+                  {/* Page Visibility */}
+                  <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                    <div className="grid grid-cols-[1fr_80px_80px] bg-muted/50 border-b">
+                      <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Page</div>
+                      <div className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-0.5">
+                        <Smartphone className="h-3 w-3" /> Mobile
+                      </div>
+                      <div className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-0.5">
+                        <Monitor className="h-3 w-3" /> Desktop
+                      </div>
+                    </div>
+                    {([
+                      { key: 'viewDashboard', label: 'Dashboard' },
+                      { key: 'viewMyTasks', label: 'My Tasks' },
+                      { key: 'viewAllTasks', label: 'All Tasks' },
+                      { key: 'viewIssues', label: 'Issues' },
+                      { key: 'viewInspections', label: 'Inspections' },
+                      { key: 'viewParks', label: 'Parks' },
+                      { key: 'viewDepots', label: 'Depots' },
+                      { key: 'viewAssets', label: 'Assets' },
+                      { key: 'viewUsers', label: 'Users' },
+                      { key: 'viewStaffRequests', label: 'Staff Requests' },
+                      { key: 'viewMap', label: 'Map' },
+                      { key: 'viewInfoCorner', label: 'Info Corner' },
+                      { key: 'viewSmartTasking', label: 'Smart Tasking' },
+                    ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
+                      <div key={item.key} className="grid grid-cols-[1fr_80px_80px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                        <div className="px-3 py-2 text-xs font-medium">{item.label}</div>
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={newUserMobilePerms?.[item.key] || false}
+                            onCheckedChange={(c) => {
+                              setNewUserMobilePerms(prev => prev ? { ...prev, [item.key]: !!c } : prev);
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={newUserDesktopPerms?.[item.key] || false}
+                            onCheckedChange={(c) => {
+                              setNewUserDesktopPerms(prev => prev ? { ...prev, [item.key]: !!c } : prev);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Feature Access */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { key: 'createTask', label: 'Create Tasks' },
+                      { key: 'assignTask', label: 'Assign Tasks' },
+                      { key: 'createIssue', label: 'Create Issues' },
+                      { key: 'scheduleInspection', label: 'Schedule Inspections' },
+                      { key: 'manageAssets', label: 'Manage Assets' },
+                      { key: 'approveResolution', label: 'Approve Resolutions' },
+                      { key: 'editParksFull', label: 'Edit Parks (Full)' },
+                      { key: 'editDepotsFull', label: 'Edit Depots (Full)' },
+                    ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
+                      <div
+                        key={item.key}
+                        className="flex items-center gap-2 p-2 rounded-lg border cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => {
+                          const newVal = !newUserDesktopPerms?.[item.key];
+                          setNewUserDesktopPerms(prev => prev ? { ...prev, [item.key]: newVal } : prev);
+                          setNewUserMobilePerms(prev => prev ? { ...prev, [item.key]: newVal } : prev);
+                        }}
+                      >
+                        <Checkbox checked={newUserDesktopPerms?.[item.key] || false} onCheckedChange={() => {}} />
+                        <span className="text-xs font-medium">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="py-4 text-center text-[10px] font-bold uppercase opacity-30 border border-dashed rounded-xl">
+                  Click &quot;Reset to Role Defaults&quot; to configure access, or permissions will auto-populate from role defaults on creation.
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button className="w-full font-bold" onClick={handleAddUser} disabled={!newUser.name || !newUser.email || isUserSubmitting}>
@@ -1053,6 +1199,7 @@ export default function UserManagement() {
               <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Overview</TabsTrigger>
               <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Tasks ({selectedUserTasks.length})</TabsTrigger>
               <TabsTrigger value="issues" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Issues ({selectedUserIssues.length})</TabsTrigger>
+              <TabsTrigger value="access" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Access & Views</TabsTrigger>
             </TabsList>
 
             <ScrollArea className="flex-1 w-full h-full">
@@ -1342,6 +1489,140 @@ export default function UserManagement() {
                     <p className="text-sm font-medium">No tasks currently assigned.</p>
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="access" className="mt-0 h-full outline-none">
+                <div className="space-y-6">
+                  {/* Section A: Page Visibility — Mobile / Desktop split */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-primary" />
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Page Visibility</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Control which pages this user can see on each platform.</p>
+
+                    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                      <div className="grid grid-cols-[1fr_100px_100px] bg-muted/50 border-b">
+                        <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Page</div>
+                        <div className="px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1">
+                          <Smartphone className="h-3 w-3" /> Mobile
+                        </div>
+                        <div className="px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1">
+                          <Monitor className="h-3 w-3" /> Desktop
+                        </div>
+                      </div>
+                      {([
+                        { key: 'viewDashboard', label: 'Dashboard' },
+                        { key: 'viewMyTasks', label: 'My Tasks' },
+                        { key: 'viewAllTasks', label: 'All Tasks' },
+                        { key: 'viewArchivedTasks', label: 'Archived Tasks' },
+                        { key: 'viewIssues', label: 'Issues' },
+                        { key: 'viewResolvedIssues', label: 'Resolved Issues' },
+                        { key: 'viewInspections', label: 'Inspections' },
+                        { key: 'viewParks', label: 'Parks' },
+                        { key: 'viewDepots', label: 'Depots' },
+                        { key: 'viewAssets', label: 'Assets' },
+                        { key: 'viewUsers', label: 'Users' },
+                        { key: 'viewArchivedStaff', label: 'Archived Staff' },
+                        { key: 'viewStaffRequests', label: 'Staff Requests' },
+                        { key: 'viewMap', label: 'Map' },
+                        { key: 'viewInfoCorner', label: 'Info Corner' },
+                        { key: 'viewSmartTasking', label: 'Smart Tasking' },
+                      ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
+                        <div key={item.key} className="grid grid-cols-[1fr_100px_100px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                          <div className="px-4 py-2.5 text-sm font-medium">{item.label}</div>
+                          <div className="flex items-center justify-center">
+                            {isEditing ? (
+                              <Checkbox
+                                checked={editMobilePerms?.[item.key] || false}
+                                onCheckedChange={(c) => {
+                                  setEditMobilePerms(prev => prev ? { ...prev, [item.key]: !!c } : prev);
+                                }}
+                              />
+                            ) : (
+                              <div className={`h-5 w-5 rounded-full flex items-center justify-center ${editMobilePerms?.[item.key] ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground/30'}`}>
+                                {editMobilePerms?.[item.key] ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-center">
+                            {isEditing ? (
+                              <Checkbox
+                                checked={editDesktopPerms?.[item.key] || false}
+                                onCheckedChange={(c) => {
+                                  setEditDesktopPerms(prev => prev ? { ...prev, [item.key]: !!c } : prev);
+                                }}
+                              />
+                            ) : (
+                              <div className={`h-5 w-5 rounded-full flex items-center justify-center ${editDesktopPerms?.[item.key] ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground/30'}`}>
+                                {editDesktopPerms?.[item.key] ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section B: Feature & Function Access */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-primary" />
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Feature & Function Access</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Control which actions this user can perform across both platforms.</p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {([
+                        { key: 'createTask', label: 'Create Tasks' },
+                        { key: 'assignTask', label: 'Assign Tasks' },
+                        { key: 'createIssue', label: 'Create Issues' },
+                        { key: 'scheduleInspection', label: 'Schedule Inspections' },
+                        { key: 'manageAssets', label: 'Manage Assets' },
+                        { key: 'approveResolution', label: 'Approve Resolutions' },
+                        { key: 'manageInfoCorner', label: 'Manage Info Corner' },
+                        { key: 'editParksFull', label: 'Edit Parks (Full)' },
+                        { key: 'editParkDevelopment', label: 'Edit Parks (Projects/Groups)' },
+                        { key: 'editDepotsFull', label: 'Edit Depots (Full)' },
+                      ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
+                        <div
+                          key={item.key}
+                          className={cn(
+                            "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+                            isEditing ? "cursor-pointer hover:bg-muted/30" : "",
+                            editDesktopPerms?.[item.key] ? "bg-primary/5 border-primary/20" : "bg-muted/10 border-border"
+                          )}
+                          onClick={() => {
+                            if (!isEditing) return;
+                            const newVal = !editDesktopPerms?.[item.key];
+                            setEditDesktopPerms(prev => prev ? { ...prev, [item.key]: newVal } : prev);
+                            setEditMobilePerms(prev => prev ? { ...prev, [item.key]: newVal } : prev);
+                          }}
+                        >
+                          {isEditing ? (
+                            <Checkbox
+                              checked={editDesktopPerms?.[item.key] || false}
+                              onCheckedChange={() => {}}
+                            />
+                          ) : (
+                            <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${editDesktopPerms?.[item.key] ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground/30'}`}>
+                              {editDesktopPerms?.[item.key] ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                            </div>
+                          )}
+                          <span className="text-sm font-medium">{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isEditing && (
+                    <div className="pt-4 pb-12">
+                      <Button onClick={handleUpdateUser} className="w-full font-bold h-12 text-lg shadow-lg" disabled={isUserSubmitting}>
+                        {isUserSubmitting ? "Saving..." : "Save Access Changes"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
               </div>
             </ScrollArea>

@@ -45,7 +45,13 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
   const isLoading = (userLoading || loadingUid || loadingEmailId || loadingQuery) && !bootTimeout;
   
   // By default, if the field is missing, we allow desktop view for backward compatibility
-  const allowDesktop = currentUserProfile?.allowDesktopView ?? true;
+  // If user has a permissions object, derive from whether any desktop permission is enabled
+  const allowDesktop = (() => {
+    if (currentUserProfile?.permissions && Object.keys(currentUserProfile.permissions).length > 0) {
+      return Object.values(currentUserProfile.permissions).some(v => v === true);
+    }
+    return currentUserProfile?.allowDesktopView ?? true;
+  })();
   const isRestricted = !isMobile && !allowDesktop;
 
   if (isLoading) return null;

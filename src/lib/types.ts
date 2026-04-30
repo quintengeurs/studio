@@ -70,6 +70,7 @@ export interface User {
   isArchived?: boolean;
   createdAt?: string;
   permissions?: AccessPermissions;
+  mobilePermissions?: AccessPermissions;
 }
 
 export interface Asset {
