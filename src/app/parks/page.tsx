@@ -751,7 +751,7 @@ export default function ParksPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )}
 
                   {/* 2. Projects */}
                   {sectionPerms.projects.view && (
