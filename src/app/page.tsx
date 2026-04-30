@@ -72,7 +72,7 @@ export default function Dashboard() {
     }
   };
 
-  const { profile, isAdmin, isManagement, currentUserRoles } = useUserContext();
+  const { profile, isAdmin, isManagement, currentUserRoles, permissions } = useUserContext();
   
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 
@@ -225,18 +225,7 @@ export default function Dashboard() {
                   <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
                 </Button>
                 
-                {!isContractor && (
-                  <Button 
-                    variant="outline" 
-                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                    onClick={() => setRequestModalOpen(true)}
-                  >
-                    <Package className="h-6 w-6 text-primary" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Request Something</span>
-                  </Button>
-                )}
-
-                {isContractor && (
+                {permissions.viewMyTasks && (
                   <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
                     <Link href="/my-tasks">
                       <ListTodo className="h-6 w-6 text-primary" />
@@ -247,12 +236,12 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Operations Section - Visible to Ops, Senior Ops, Mgmt, and Contractors */}
-            {(!isUserGroup && (isOpsStaff || isSeniorOps || isSeniorMgmt || isContractor)) && (
+            {/* Operations Section */}
+            {(permissions.viewInspections || permissions.createIssue) && (
               <div className="space-y-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Operational Checks</span>
                 <div className="grid grid-cols-2 gap-3">
-                  {!isContractor && (
+                  {permissions.viewInspections && (
                     <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
                       <Link href="/inspections">
                         <ClipboardCheck className="h-6 w-6 text-green-600" />
@@ -272,8 +261,8 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Advanced Actions - Visible to Senior Ops and Mgmt */}
-            {(!isUserGroup && !isContractor && (isSeniorOps || isSeniorMgmt)) && (
+            {/* Advanced Actions */}
+            {(permissions.manageAssets || isAdmin) && (
               <div className="space-y-3">
                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Administrative Tools</span>
                  <div className="grid grid-cols-2 gap-3">
@@ -297,28 +286,32 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Management Section - Visible to Mgmt only */}
-            {(!isUserGroup && !isContractor && isSeniorMgmt) && (
+            {/* Management Section */}
+            {(permissions.viewAllTasks || permissions.viewIssues || isAdmin) && (
               <div className="space-y-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Strategic Management</span>
                 <div className="grid grid-cols-2 gap-3">
-                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                    <Link href="/tasks">
-                      <ListTodo className="h-6 w-6 text-primary" />
-                      <span className="text-xs font-bold uppercase tracking-wider">All Tasks</span>
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative overflow-visible">
-                    <Link href="/issues?tab=unassigned">
-                      <AlertTriangle className="h-6 w-6 text-destructive" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Unassigned Issues</span>
-                      {unassignedCount > 0 && (
-                        <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-lg animate-bounce">
-                          {unassignedCount}
-                        </span>
-                      )}
-                    </Link>
-                  </Button>
+                  {permissions.viewAllTasks && (
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                      <Link href="/tasks">
+                        <ListTodo className="h-6 w-6 text-primary" />
+                        <span className="text-xs font-bold uppercase tracking-wider">All Tasks</span>
+                      </Link>
+                    </Button>
+                  )}
+                  {permissions.viewIssues && (
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative overflow-visible">
+                      <Link href="/issues?tab=unassigned">
+                        <AlertTriangle className="h-6 w-6 text-destructive" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Unassigned Issues</span>
+                        {unassignedCount > 0 && (
+                          <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-lg animate-bounce">
+                            {unassignedCount}
+                          </span>
+                        )}
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -460,48 +453,54 @@ export default function Dashboard() {
           </Button>
 
         {/* Management Quick Access */}
-        {(isManagement || isAdmin) && (
+        {(isAdmin || permissions.viewAllTasks || permissions.viewAssets || permissions.viewIssues) && (
           <>
-            <Link href="/tasks" className="block">
-              <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
-                <div className="h-10 w-10 rounded-lg bg-accent/20 flex items-center justify-center">
-                  <ClipboardList className="h-5 w-5 text-accent-foreground" />
+            {permissions.viewAllTasks && (
+              <Link href="/tasks" className="block">
+                <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                  <div className="h-10 w-10 rounded-lg bg-accent/20 flex items-center justify-center">
+                    <ClipboardList className="h-5 w-5 text-accent-foreground" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">All Tasks Hub</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Management Overview</div>
+                  </div>
+                </Button>
+              </Link>
+            )}
+            {permissions.viewAssets && (
+              <Button 
+                variant="outline" 
+                className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+                onClick={() => setAssetModalOpen(true)}
+              >
+                <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-blue-600" />
                 </div>
                 <div className="text-left">
-                  <div className="text-sm font-bold">All Tasks Hub</div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-bold">Management Overview</div>
+                  <div className="text-sm font-bold">Asset Register</div>
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
                 </div>
               </Button>
-            </Link>
-            <Button 
-              variant="outline" 
-              className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
-              onClick={() => setAssetModalOpen(true)}
-            >
-              <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <MapPin className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold">Asset Register</div>
-                <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
-              </div>
-            </Button>
-            <Link href="/issues?tab=unassigned" className="block">
-              <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative group">
-                <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                </div>
-                <div className="text-left flex-1">
-                  <div className="text-sm font-bold flex items-center justify-between">
-                    Unassigned Issues
-                    {unassignedCount > 0 && (
-                      <Badge variant="destructive" className="ml-2 animate-pulse">{unassignedCount} NEW</Badge>
-                    )}
+            )}
+            {permissions.viewIssues && (
+              <Link href="/issues?tab=unassigned" className="block">
+                <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative group">
+                  <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-bold text-destructive/80">Awaiting Allocation</div>
-                </div>
-              </Button>
-            </Link>
+                  <div className="text-left flex-1">
+                    <div className="text-sm font-bold flex items-center justify-between">
+                      Unassigned Issues
+                      {unassignedCount > 0 && (
+                        <Badge variant="destructive" className="ml-2 animate-pulse">{unassignedCount} NEW</Badge>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold text-destructive/80">Awaiting Allocation</div>
+                  </div>
+                </Button>
+              </Link>
+            )}
           </>
         )}
       </div>
