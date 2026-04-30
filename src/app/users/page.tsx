@@ -919,6 +919,9 @@ export default function UserManagement() {
               <div className="grid gap-2">
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Initial Password</Label>
                 <Input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Min 6 characters" className="font-medium" />
+                <p className="text-[9px] text-muted-foreground italic leading-tight">
+                  <strong>Security Note:</strong> If this email was used before, the old password will remain active. The user must use &quot;Forgot Password&quot; on the login screen to reset it.
+                </p>
               </div>
             </div>
 
@@ -1310,14 +1313,23 @@ export default function UserManagement() {
                           <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">System Security (Admin Only)</Label>
                         </div>
                         <div className="grid gap-2">
-                          <Label className="text-xs font-bold">User Password</Label>
+                          <Label className="text-xs font-bold">User Password (Firestore Reference)</Label>
                           <Input 
                             value={selectedUser?.password || ""} 
                             onChange={e => selectedUser && setSelectedUser({...selectedUser, password: e.target.value})} 
                             className="font-medium bg-background" 
-                            placeholder="Update password..."
+                            placeholder="Update password label..."
                           />
-                          <p className="text-[10px] text-muted-foreground italic">Updating this field will change the staff member's login password immediately.</p>
+                          <div className="p-2 rounded bg-amber-50 border border-amber-200 space-y-1">
+                            <p className="text-[9px] text-amber-700 font-bold uppercase flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" /> Security Warning
+                            </p>
+                            <p className="text-[9px] text-amber-600 leading-tight italic">
+                              Firebase security prevents Admins from forcing password changes in Authentication. 
+                              Updating this field only updates the text record. 
+                              <strong> Staff must use &quot;Forgot Password&quot; on the login screen to truly change their password.</strong>
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
