@@ -917,7 +917,6 @@ export default function ParksPage() {
                   </div>
                 </div>
               ) : (
-              ) : (
                 <div className="space-y-8 pb-12">
                   {/* Debug/No Sections Check */}
                   {Object.values(sectionPerms).every(p => !p.view) && (
