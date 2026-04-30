@@ -91,7 +91,7 @@ export default function ParksPage() {
   [currentUserData]);
 
   const isAdmin = currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
-  const isManagement = currentUserRoles.some((r: Role) => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener'].includes(r));
+  const isManagement = currentUserRoles.some((r: Role) => MANAGEMENT_ROLES.includes(r));
 
   const filteredParks = useMemo(() => {
     const isGlobalRole = currentUserRoles.some((r: Role) => [
@@ -141,22 +141,34 @@ export default function ParksPage() {
   // Unified Permission Check for Park Sections
   const getSectionPerms = useMemo(() => (sectionKey: ParkSectionKey) => {
     if (isAdmin) return { view: true, edit: true };
-    if (!parkPermsConfig?.roles) return { view: true, edit: false }; // Default if no config
+    
+    // Default if no config document exists at all
+    if (!parkPermsConfig?.roles) {
+      return { view: isManagement, edit: false };
+    }
 
     const roles = currentUserRoles as Role[];
     let view = false;
     let edit = false;
+    let roleFoundInConfig = false;
 
     roles.forEach(role => {
       const rolePerms = parkPermsConfig.roles[role]?.[sectionKey];
       if (rolePerms) {
+        roleFoundInConfig = true;
         if (rolePerms.view) view = true;
         if (rolePerms.edit) edit = true;
       }
     });
 
+    // Fallback: If the user is management but their role hasn't been configured in the matrix yet,
+    // allow them to view by default so they don't see an empty page.
+    if (!roleFoundInConfig && isManagement) {
+      return { view: true, edit: false };
+    }
+
     return { view, edit };
-  }, [isAdmin, parkPermsConfig, currentUserRoles]);
+  }, [isAdmin, parkPermsConfig, currentUserRoles, isManagement]);
 
   const sectionPerms = useMemo(() => {
     const map: Record<string, { view: boolean, edit: boolean }> = {};
