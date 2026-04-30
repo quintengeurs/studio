@@ -142,16 +142,19 @@ export default function ParksPage() {
   const getSectionPerms = useMemo(() => (sectionKey: ParkSectionKey) => {
     if (isAdmin) return { view: true, edit: true };
     
+    // Normalize user roles for comparison
+    const roles = (currentUserRoles as string[]).map(r => r.trim());
+    
     // Default if no config document exists at all
     if (!parkPermsConfig?.roles) {
       return { view: isManagement, edit: false };
     }
 
-    const roles = currentUserRoles as Role[];
     let view = false;
     let edit = false;
     let roleFoundInConfig = false;
 
+    // Direct match first
     roles.forEach(role => {
       const rolePerms = parkPermsConfig.roles[role]?.[sectionKey];
       if (rolePerms) {
@@ -160,6 +163,22 @@ export default function ParksPage() {
         if (rolePerms.edit) edit = true;
       }
     });
+
+    // Case-insensitive fallback if not found directly
+    if (!roleFoundInConfig) {
+      const configRoleKeys = Object.keys(parkPermsConfig.roles);
+      roles.forEach(userRole => {
+        const matchingKey = configRoleKeys.find(k => k.toLowerCase() === userRole.toLowerCase());
+        if (matchingKey) {
+          const rolePerms = parkPermsConfig.roles[matchingKey]?.[sectionKey];
+          if (rolePerms) {
+            roleFoundInConfig = true;
+            if (rolePerms.view) view = true;
+            if (rolePerms.edit) edit = true;
+          }
+        }
+      });
+    }
 
     // Fallback: If the user is management but their role hasn't been configured in the matrix yet,
     // allow them to view by default so they don't see an empty page.
@@ -598,6 +617,16 @@ export default function ParksPage() {
             <div className="p-8 space-y-8 bg-background">
               {isEditing ? (
                 <div className="grid gap-8">
+                  {/* Debug/No Sections Check */}
+                  {Object.values(sectionPerms).every(p => !p.view) && (
+                    <div className="p-12 text-center border-2 border-dashed rounded-3xl space-y-4">
+                      <Lock className="h-12 w-12 mx-auto text-muted-foreground/30" />
+                      <div>
+                        <p className="text-lg font-bold text-muted-foreground">No Sections Configured</p>
+                        <p className="text-sm text-muted-foreground">Your account type ({currentUserRoles.join(', ')}) does not have permission to view any park details. Please contact an Administrator.</p>
+                      </div>
+                    </div>
+                  )}
                   {/* 1. Key Information */}
                   {sectionPerms.keyInfo.view && (
                     <div className={cn(
@@ -888,7 +917,18 @@ export default function ParksPage() {
                   </div>
                 </div>
               ) : (
+              ) : (
                 <div className="space-y-8 pb-12">
+                  {/* Debug/No Sections Check */}
+                  {Object.values(sectionPerms).every(p => !p.view) && (
+                    <div className="py-20 text-center border-2 border-dashed rounded-3xl space-y-4">
+                      <Shield className="h-12 w-12 mx-auto text-muted-foreground/20" />
+                      <div>
+                        <p className="text-xl font-bold text-muted-foreground">Restricted Access</p>
+                        <p className="text-sm text-muted-foreground max-w-xs mx-auto">Your current roles ({currentUserRoles.join(', ') || 'Unassigned'}) do not have permission to view these sections.</p>
+                      </div>
+                    </div>
+                  )}
                   {/* 1. Key Information */}
                   {sectionPerms.keyInfo.view && (
                     <div className="bg-primary/[0.03] p-6 rounded-3xl border border-primary/10 relative overflow-hidden group">
