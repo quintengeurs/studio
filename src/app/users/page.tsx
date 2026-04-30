@@ -230,6 +230,7 @@ export default function UserManagement() {
       // 3. Category Filter
       if (activeCategory === 'all') return true;
       if (activeCategory === 'management') return userRoles.some(r => MANAGEMENT_ROLES.includes(r as any));
+      if (activeCategory === 'head_gardeners') return userRoles.includes('Head Gardener');
       if (activeCategory === 'gardeners') return userRoles.includes('Gardener');
       if (activeCategory === 'keepers') return userRoles.includes('Keeper');
       if (activeCategory === 'contractors') return userRoles.includes('Contractor');
@@ -628,7 +629,7 @@ export default function UserManagement() {
         </Card>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-4 mb-8">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
@@ -645,6 +646,7 @@ export default function UserManagement() {
           <SelectContent>
             <SelectItem value="all">All Active Staff</SelectItem>
             <SelectItem value="management">Management Staff</SelectItem>
+            <SelectItem value="head_gardeners">Head Gardeners</SelectItem>
             <SelectItem value="gardeners">Gardeners</SelectItem>
             <SelectItem value="keepers">Keepers</SelectItem>
             <SelectItem value="contractors">Contractors</SelectItem>
