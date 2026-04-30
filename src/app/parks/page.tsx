@@ -62,7 +62,7 @@ export default function ParksPage() {
   const [configParks, setConfigParks] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { profile: currentUserData, isAdmin: contextIsAdmin, currentUserRoles: contextRoles, permissions: contextPermissions } = useUserContext();
+  const { profile: currentUserData, isAdmin: contextIsAdmin, currentUserRoles: contextRoles, loading: contextLoading } = useUserContext();
   
   const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
@@ -913,7 +913,12 @@ export default function ParksPage() {
               ) : (
                 <div className="space-y-8 pb-12">
                   {/* Debug/No Sections Check */}
-                  {Object.values(sectionPerms).every(p => !p.view) && (
+                  {contextLoading ? (
+                    <div className="py-20 text-center space-y-4">
+                      <Clock className="h-12 w-12 mx-auto text-primary animate-spin" />
+                      <p className="text-sm text-muted-foreground font-bold">Verifying Permissions...</p>
+                    </div>
+                  ) : Object.values(sectionPerms).every(p => !p.view) ? (
                     <div className="py-20 text-center border-2 border-dashed rounded-3xl space-y-4">
                       <Shield className="h-12 w-12 mx-auto text-muted-foreground/20" />
                       <div>
@@ -921,7 +926,7 @@ export default function ParksPage() {
                         <p className="text-sm text-muted-foreground max-w-xs mx-auto">Your current roles ({currentUserRoles.join(', ') || 'Unassigned'}) do not have permission to view these sections.</p>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                   {/* 1. Key Information */}
                   {sectionPerms.keyInfo.view && (
                     <div className="bg-primary/[0.03] p-6 rounded-3xl border border-primary/10 relative overflow-hidden group">

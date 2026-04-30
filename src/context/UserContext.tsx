@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 import { doc, collection, query, where, updateDoc } from 'firebase/firestore';
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { User, AccessPermissions } from '@/lib/types';
+import { User, AccessPermissions, MANAGEMENT_ROLES } from '@/lib/types';
 import { getDefaultPermissionsForUser } from '@/lib/permissions';
 
 interface UserContextType {
@@ -37,13 +37,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [db, emailId]);
   const { data: profileByEmail, loading: loadingEmailId } = useDoc<User>(profileByEmailRef as any);
 
-  // 3. Check by Email Field (search pattern)
-  const userProfileQuery = useMemoFirebase(() => 
-    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email)) : null,
-  [db, user?.email]);
+  // 3. Check by Email Field (search pattern - case-insensitive fallback)
+  const userProfileQuery = useMemoFirebase(() => {
+    if (!db || !user?.email) return null;
+    return query(collection(db, "users"), where("email", "==", user.email));
+  }, [db, user?.email]);
+  
   const { data: profileResults = [], loading: loadingQuery } = useCollection<User>(userProfileQuery as any);
 
-  const profile = profileByEmail || profileByUid || profileResults[0] || null;
+  // 4. Secondary Email Check (if direct match fails, try lowercase search if it was stored differently)
+  const userProfileQueryLower = useMemoFirebase(() => {
+    if (!db || !user?.email) return null;
+    return query(collection(db, "users"), where("email", "==", user.email.toLowerCase()));
+  }, [db, user?.email]);
+  const { data: profileResultsLower = [] } = useCollection<User>(userProfileQueryLower as any);
+
+  const profile = profileByEmail || profileByUid || profileResults[0] || profileResultsLower[0] || null;
   const loading = authLoading || (loadingUid && loadingEmailId && loadingQuery);
 
   const permissions = useMemo(() => 
@@ -63,7 +72,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [currentUserRoles, user?.email]);
 
   const isManagement = useMemo(() => 
-    currentUserRoles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin,
+    currentUserRoles.some(r => MANAGEMENT_ROLES.includes(r as any)) || isAdmin,
   [currentUserRoles, isAdmin]);
 
   // Heartbeat / Presence System
