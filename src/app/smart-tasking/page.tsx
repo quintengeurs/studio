@@ -127,6 +127,9 @@ export default function SmartTaskingPage() {
   const rulesQuery = useMemoFirebase(() => db ? query(collection(db, "smart_rules")) : null, [db]);
   const { data: rules = [] } = useCollection<SmartRule>(rulesQuery as any);
 
+  const machineryQuery = useMemoFirebase(() => db ? query(collection(db, "machinery")) : null, [db]);
+  const { data: allMachinery = [] } = useCollection<Machinery>(machineryQuery as any);
+
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -196,7 +199,7 @@ export default function SmartTaskingPage() {
           createdAt: new Date().toISOString(),
         };
 
-        const tasks = simulateConditions(condition, rules);
+        const tasks = simulateConditions(condition, rules, allMachinery);
         allProposed = [...allProposed, ...tasks];
       }
       
@@ -223,7 +226,7 @@ export default function SmartTaskingPage() {
           loggedBy: user?.email || "Unknown",
           createdAt: new Date().toISOString(),
         };
-        await evaluateAndApplyConditions(condition, user as any, rules);
+        await evaluateAndApplyConditions(condition, user as any, rules, allMachinery);
       }
       
       setSuccessMsg(`Successfully applied to ${selectedParks.length} sites. ${proposedTasks.length} tasks generated.`);
@@ -323,7 +326,7 @@ export default function SmartTaskingPage() {
   const addTask = () => {
     setNewRule(prev => ({
       ...prev,
-      tasksToGenerate: [...prev.tasksToGenerate, { title: '', objective: '', assignedTo: 'Gardener' }]
+      tasksToGenerate: [...prev.tasksToGenerate, { title: '', objective: '', assignedTo: 'Gardener', isVolunteerEligible: false }]
     }));
   };
 
@@ -363,7 +366,7 @@ export default function SmartTaskingPage() {
       createdAt: new Date().toISOString()
     };
 
-    const results = simulateConditions(dummyCondition, [rule]);
+    const results = simulateConditions(dummyCondition, [rule], allMachinery);
     setRuleBeingSimulated(rule);
     setSimulationResult(results);
     setIsSimulatingRule(true);
@@ -765,16 +768,30 @@ export default function SmartTaskingPage() {
                     {newRule.conditions.map((c, i) => (
                       <div key={i} className="flex flex-col gap-3 p-3 bg-muted/20 rounded-xl border">
                         <div className="flex items-center gap-2">
-                          <Select value={c.field} onValueChange={(v: any) => updateCondition(i, 'field', v)}>
-                            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="tags">Condition (Palette)</SelectItem>
-                              <SelectItem value="temperature">Temperature</SelectItem>
-                              <SelectItem value="windSpeed">Wind Speed</SelectItem>
-                              <SelectItem value="humidity">Humidity</SelectItem>
-                              <SelectItem value="expectedFootfall">Footfall (Legacy)</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-col gap-2">
+                            <Select value={c.field} onValueChange={(v: any) => updateCondition(i, 'field', v)}>
+                              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="tags">Condition (Palette)</SelectItem>
+                                <SelectItem value="temperature">Temperature</SelectItem>
+                                <SelectItem value="windSpeed">Wind Speed</SelectItem>
+                                <SelectItem value="humidity">Humidity</SelectItem>
+                                <SelectItem value="expectedFootfall">Footfall (Legacy)</SelectItem>
+                                <SelectItem value="machineryHours">Machinery Hours</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            
+                            {c.field === 'machineryHours' && (
+                              <Select value={c.machineryId} onValueChange={(v: any) => updateCondition(i, 'machineryId', v)}>
+                                <SelectTrigger className="w-[180px] h-8 text-[10px]"><SelectValue placeholder="Select Machine" /></SelectTrigger>
+                                <SelectContent>
+                                  {allMachinery.map(m => (
+                                    <SelectItem key={m.id} value={m.id}>{m.name} ({m.depotId})</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
 
                           <Select value={c.operator} onValueChange={(v: any) => updateCondition(i, 'operator', v)}>
                             <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
@@ -844,13 +861,13 @@ export default function SmartTaskingPage() {
                     {newRule.tasksToGenerate.map((t, i) => (
                       <div key={i} className="p-3 bg-accent/5 rounded-md border border-accent/20 space-y-3 relative">
                         <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-destructive" onClick={() => removeTask(i)}><Trash2 className="h-3 w-3" /></Button>
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-3 sm:grid-cols-4">
                           <div className="space-y-1">
                             <Label className="text-xs">Task Title</Label>
                             <Input placeholder="e.g. Extra Bin Emptying" value={t.title} onChange={e => updateTask(i, 'title', e.target.value)} />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Assigned Team / Role</Label>
+                            <Label className="text-xs">Assigned Role</Label>
                             <Select value={t.assignedTo} onValueChange={(v) => updateTask(i, 'assignedTo', v)}>
                               <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select Role" />
@@ -863,8 +880,12 @@ export default function SmartTaskingPage() {
                             </Select>
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Display Time (Optional)</Label>
+                            <Label className="text-xs">Display Time</Label>
                             <Input type="time" value={t.displayTime || ""} onChange={e => updateTask(i, 'displayTime', e.target.value)} />
+                          </div>
+                          <div className="flex flex-col justify-center items-center gap-1">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Volunteer?</Label>
+                            <Switch checked={t.isVolunteerEligible || false} onCheckedChange={(v) => updateTask(i, 'isVolunteerEligible', v)} />
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -917,6 +938,11 @@ export default function SmartTaskingPage() {
                     <p className="text-xs text-muted-foreground">{task.objective}</p>
                     <div className="flex items-center gap-2 mt-2">
                        <Badge className="bg-primary/10 text-primary border-0 text-[9px] uppercase font-bold px-1.5">{task.assignedTo}</Badge>
+                       {task.isVolunteerEligible && (
+                         <Badge variant="outline" className="text-[9px] uppercase font-bold text-orange-500 border-orange-500/30 bg-orange-500/5">
+                           Volunteer Opportunity
+                         </Badge>
+                       )}
                     </div>
                   </div>
                 ))}

@@ -57,6 +57,7 @@ const navItems = [
   { title: "Staff Requests", icon: Truck, href: "/requests" },
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
+  { title: "Volunteering", icon: Users, href: "/volunteering" },
   { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
 ];
 
@@ -87,6 +88,7 @@ export function AppSidebar() {
         case "Parks Map": return permissions.viewMap;
         case "Info Corner": return permissions.viewInfoCorner;
         case "Smart Tasking": return permissions.viewSmartTasking;
+        case "Volunteering": return permissions.viewVolunteering;
         default: return false;
       }
     });

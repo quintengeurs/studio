@@ -9,8 +9,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,6 +65,9 @@ export default function DepotsPage() {
   const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "depots_details"), limit(100)) : null, [db]);
   const { data: allDetails = [] } = useCollection<DepotDetail>(detailsQuery as any);
 
+  const machineryQuery = useMemoFirebase(() => db ? query(collection(db, "machinery"), limit(500)) : null, [db]);
+  const { data: allMachinery = [] } = useCollection<Machinery>(machineryQuery as any);
+
   const [selectedDepotName, setSelectedDepotName] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -77,6 +83,12 @@ export default function DepotsPage() {
   const [currentUpdateType, setCurrentUpdateType] = useState<string>("");
   const [updateForm, setUpdateForm] = useState<Partial<DepotUpdate>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Machinery State
+  const [isMachineryModalOpen, setIsMachineryModalOpen] = useState(false);
+  const [editingMachine, setEditingMachine] = useState<Partial<Machinery> | null>(null);
+  const [isUsageModalOpen, setIsUsageModalOpen] = useState(false);
+  const [usageLogForm, setUsageLogForm] = useState<{ id: string, name: string, hours: number }>({ id: '', name: '', hours: 0 });
 
   const isAdmin = permissions.editDepotsFull; // Use granular role for component gates
   const canEditMaintenance = permissions.editDepotsFull;
@@ -111,6 +123,11 @@ export default function DepotsPage() {
     if (!selectedDepotName) return [];
     return allParks.filter(p => p.depot === selectedDepotName);
   }, [allParks, selectedDepotName]);
+
+  const depotMachinery = useMemo(() => {
+    if (!selectedDepotName) return [];
+    return allMachinery.filter(m => m.depotId === selectedDepotName);
+  }, [allMachinery, selectedDepotName]);
 
   const handleOpenDetail = (depotName: string) => {
     setSelectedDepotName(depotName);
@@ -185,6 +202,53 @@ export default function DepotsPage() {
       toast({ title: "Update Saved" });
     } catch (e) {
       toast({ title: "Error saving task", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveMachinery = async () => {
+    if (!db || !selectedDepotName || !editingMachine?.name) return;
+    setIsSubmitting(true);
+    try {
+      const id = editingMachine.id || `mach_${Date.now()}`;
+      await setDoc(doc(db, "machinery", id), {
+        ...editingMachine,
+        id,
+        depotId: selectedDepotName,
+        currentHours: Number(editingMachine.currentHours || 0),
+        lastServicedHours: Number(editingMachine.lastServicedHours || 0),
+        serviceInterval: Number(editingMachine.serviceInterval || 50),
+        status: editingMachine.status || 'Operational',
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+      setIsMachineryModalOpen(false);
+      setEditingMachine(null);
+      toast({ title: "Machinery Saved" });
+    } catch (e) {
+      toast({ title: "Error saving machinery", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLogUsage = async () => {
+    if (!db || !usageLogForm.id || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const machine = allMachinery.find(m => m.id === usageLogForm.id);
+      if (!machine) return;
+      
+      const newHours = Number(machine.currentHours) + Number(usageLogForm.hours);
+      await setDoc(doc(db, "machinery", usageLogForm.id), {
+        currentHours: newHours,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+      
+      setIsUsageModalOpen(false);
+      toast({ title: "Usage Logged", description: `${usageLogForm.name} updated to ${newHours} hours.` });
+    } catch (e) {
+      toast({ title: "Error logging usage", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -407,13 +471,77 @@ export default function DepotsPage() {
                 <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">
                   <Truck className="h-5 w-5 text-primary" /> 3. Equipment and Machinery
                 </h3>
-                {selectedDepotDetail.machinery && selectedDepotDetail.machinery.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {selectedDepotDetail.machinery.map(m => (
-                      <Badge key={m} variant="secondary" className="bg-primary/5 text-primary border-primary/10 font-bold text-[10px]">{m}</Badge>
-                    ))}
-                  </div>
-                )}
+                
+                <div className="grid gap-3 mb-6">
+                  {depotMachinery.map(m => {
+                    const hoursSinceService = m.currentHours - m.lastServicedHours;
+                    const serviceProgress = Math.min((hoursSinceService / m.serviceInterval) * 100, 100);
+                    const needsService = hoursSinceService >= m.serviceInterval;
+
+                    return (
+                      <div key={m.id} className="p-4 bg-background border rounded-xl shadow-sm flex flex-col gap-3 group relative hover:border-primary/30 transition-all">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", needsService ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+                              <Wrench className="h-5 w-5" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm leading-tight">{m.name}</span>
+                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{m.type}</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold" onClick={() => {
+                              setUsageLogForm({ id: m.id, name: m.name, hours: 0 });
+                              setIsUsageModalOpen(true);
+                            }}>Log Hours</Button>
+                            {isAdmin && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => {
+                                setEditingMachine(m);
+                                setIsMachineryModalOpen(true);
+                              }}>
+                                <Edit3 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                            <span className="text-muted-foreground">Usage Status</span>
+                            <span className={needsService ? "text-destructive" : "text-primary"}>
+                              {m.currentHours} Total Hours
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                             <div 
+                               className={cn("h-full transition-all", needsService ? "bg-destructive" : "bg-primary")} 
+                               style={{ width: `${serviceProgress}%` }}
+                             />
+                          </div>
+                          <div className="flex justify-between text-[9px] text-muted-foreground italic">
+                            <span>Last Service: {m.lastServicedHours}h</span>
+                            <span>Next: {m.lastServicedHours + m.serviceInterval}h</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {depotMachinery.length === 0 && (
+                    <div className="py-8 text-center text-muted-foreground italic bg-muted/20 rounded-xl border-2 border-dashed">
+                      No tracked machinery at this depot.
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <Button variant="outline" size="sm" className="w-full border-dashed border-2 text-primary" onClick={() => {
+                      setEditingMachine({ depotId: selectedDepotName! });
+                      setIsMachineryModalOpen(true);
+                    }}>
+                      <Plus className="mr-2 h-4 w-4" /> Register Machinery
+                    </Button>
+                  )}
+                </div>
+
                 {renderUpdates('Machinery')}
               </div>
 
@@ -631,6 +759,75 @@ export default function DepotsPage() {
             <Button variant="outline" onClick={() => setIsUpdateModalOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveUpdate} disabled={isSubmitting}>Save Entry</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isMachineryModalOpen} onOpenChange={setIsMachineryModalOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>{editingMachine?.id ? 'Edit Machinery' : 'Register Machinery'}</DialogTitle>
+            <DialogDescription>Track usage and service intervals for depot equipment.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+               <div className="grid gap-2">
+                  <Label>Machine Name</Label>
+                  <Input value={editingMachine?.name || ""} onChange={e => setEditingMachine({...editingMachine, name: e.target.value})} placeholder="e.g. Mower-01" />
+               </div>
+               <div className="grid gap-2">
+                  <Label>Type</Label>
+                  <Input value={editingMachine?.type || ""} onChange={e => setEditingMachine({...editingMachine, type: e.target.value})} placeholder="e.g. Ride-on Mower" />
+               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+               <div className="grid gap-2">
+                  <Label>Current Hours</Label>
+                  <Input type="number" value={editingMachine?.currentHours || 0} onChange={e => setEditingMachine({...editingMachine, currentHours: Number(e.target.value)})} />
+               </div>
+               <div className="grid gap-2">
+                  <Label>Last Serviced At (h)</Label>
+                  <Input type="number" value={editingMachine?.lastServicedHours || 0} onChange={e => setEditingMachine({...editingMachine, lastServicedHours: Number(e.target.value)})} />
+               </div>
+            </div>
+            <div className="grid gap-2">
+               <Label>Service Interval (Hours)</Label>
+               <Input type="number" value={editingMachine?.serviceInterval || 50} onChange={e => setEditingMachine({...editingMachine, serviceInterval: Number(e.target.value)})} />
+            </div>
+            <div className="grid gap-2">
+               <Label>Status</Label>
+               <Select value={editingMachine?.status || 'Operational'} onValueChange={(v: any) => setEditingMachine({...editingMachine, status: v})}>
+                 <SelectTrigger><SelectValue /></SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="Operational">Operational</SelectItem>
+                   <SelectItem value="In Repair">In Repair</SelectItem>
+                   <SelectItem value="Retired">Retired</SelectItem>
+                 </SelectContent>
+               </Select>
+            </div>
+          </div>
+          <DialogFooter className="p-0">
+            <Button variant="outline" onClick={() => setIsMachineryModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveMachinery}>Save Machinery</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isUsageModalOpen} onOpenChange={setIsUsageModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Log Machinery Usage</DialogTitle>
+            <DialogDescription>Add usage hours for {usageLogForm.name}.</DialogDescription>
+          </DialogHeader>
+          <div className="py-6">
+             <div className="grid gap-2">
+                <Label>Hours Added Today</Label>
+                <Input type="number" step="0.1" value={usageLogForm.hours} onChange={e => setUsageLogForm({...usageLogForm, hours: Number(e.target.value)})} />
+             </div>
+          </div>
+          <DialogFooter className="p-0">
+            <Button variant="outline" onClick={() => setIsUsageModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleLogUsage}>Update Meter</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardShell>

@@ -33,9 +33,10 @@ export interface AccessPermissions {
   viewArchivedTasks: boolean;
   viewUsers: boolean;
   viewArchivedStaff: boolean;
-  viewSmartTasking: boolean;
   viewInfoCorner: boolean;
   manageInfoCorner: boolean;
+  viewSmartTasking: boolean;
+  viewVolunteering: boolean;
 
   // Core Functions
   createTask: boolean;
@@ -134,6 +135,7 @@ export interface Task {
   completedAt?: string;
   source?: 'smart-engine' | 'manual';
   displayTime?: string; // e.g. "09:00"
+  isVolunteerEligible?: boolean;
 }
 
 export interface RecurringSchedule {
@@ -244,6 +246,18 @@ export interface DepotUpdate {
   isArchived: boolean;
 }
 
+export interface Machinery {
+  id: string;
+  name: string;
+  type: string;
+  depotId: string;
+  currentHours: number;
+  lastServicedHours: number;
+  serviceInterval: number;
+  status: 'Operational' | 'In Repair' | 'Retired';
+  lastUpdated?: string;
+}
+
 export interface DepotDetail {
   id: string; // Depot Name used as ID
   name: string;
@@ -291,9 +305,10 @@ export interface DailyCondition {
 export type Operator = '>' | '<' | '==' | '>=' | '<=' | 'contains';
 
 export interface RuleCondition {
-  field: 'temperature' | 'windSpeed' | 'humidity' | 'expectedFootfall' | 'tags';
+  field: 'temperature' | 'windSpeed' | 'humidity' | 'expectedFootfall' | 'tags' | 'machineryHours';
   operator: Operator;
   value: string | number;
+  machineryId?: string; // Specific machine if field is machineryHours
 }
 
 export interface SmartRule {
@@ -308,6 +323,7 @@ export interface SmartRule {
     objective: string;
     assignedTo: string;
     displayTime?: string;
+    isVolunteerEligible?: boolean;
   }[];
   createdAt?: string;
 }

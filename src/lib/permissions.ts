@@ -29,6 +29,7 @@ const ALL_FALSE: AccessPermissions = {
   viewInfoCorner: false,
   manageInfoCorner: false,
   viewSmartTasking: false,
+  viewVolunteering: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
@@ -44,6 +45,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
         viewParks: true,
         viewDepots: true,
         viewInfoCorner: true,
+        viewVolunteering: true,
         createIssue: true,
       };
     }
@@ -93,6 +95,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewInfoCorner: true,
       manageInfoCorner: true,
       viewSmartTasking: true,
+      viewVolunteering: true,
     };
   }
 
@@ -103,7 +106,8 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewParks: true,
       viewDepots: true,
       createIssue: true,
-      viewMyTasks: true, // Assuming contractors pull from tasks explicitly assigned
+      viewMyTasks: true,
+      viewVolunteering: true,
     };
   }
 
@@ -133,6 +137,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       editDepotsFull: roles.some(r => ['Area Manager', 'Head Gardener', 'Park Manager'].includes(r)),
       viewMap: roles.some(r => ['Area Manager', 'Operations Manager', 'Assistant Area Manager', 'Head Gardener'].includes(r)),
       viewInfoCorner: true,
+      viewVolunteering: true,
       manageInfoCorner: roles.some(r => ['Area Manager', 'Operations Manager'].includes(r)),
     };
   }
@@ -145,6 +150,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
     viewParks: true,
     viewDepots: true,
     viewInfoCorner: true,
+    viewVolunteering: true,
     createIssue: true,
   };
 }
@@ -184,6 +190,7 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
       viewInfoCorner: true,
       manageInfoCorner: true,
       viewMap: true,
+      viewVolunteering: true,
     };
   }
 
@@ -194,6 +201,7 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
       viewMyTasks: true,
       viewParks: true,
       createIssue: true,
+      viewVolunteering: true,
     };
   }
 
@@ -212,6 +220,7 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
       scheduleInspection: true,
       approveResolution: true,
       viewInfoCorner: true,
+      viewVolunteering: true,
       viewMap: roles.some(r => ['Area Manager', 'Operations Manager', 'Assistant Area Manager', 'Head Gardener'].includes(r)),
     };
   }
@@ -224,6 +233,7 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
     viewParks: true,
     viewDepots: true,
     viewInfoCorner: true,
+    viewVolunteering: true,
     createIssue: true,
   };
 }

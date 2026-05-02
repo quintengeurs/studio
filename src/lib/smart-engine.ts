@@ -1,38 +1,47 @@
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { DailyCondition, User, SmartRule, RuleCondition } from './types';
+import { DailyCondition, User, SmartRule, RuleCondition, Machinery } from './types';
 
 function evaluateCondition(conditionValue: any, ruleCondition: RuleCondition): boolean {
-  const value = ruleCondition.value;
+  const value = Number(ruleCondition.value);
+  const rawValue = ruleCondition.value;
   
   if (ruleCondition.operator === 'contains') {
     if (Array.isArray(conditionValue)) {
-      return conditionValue.includes(value);
+      return conditionValue.includes(rawValue);
     }
     if (typeof conditionValue === 'string') {
-      return conditionValue.includes(String(value));
+      return conditionValue.includes(String(rawValue));
     }
     return false;
   }
 
+  const numValue = Number(conditionValue);
+
   switch (ruleCondition.operator) {
-    case '==': return conditionValue == value;
-    case '>': return conditionValue > value;
-    case '<': return conditionValue < value;
-    case '>=': return conditionValue >= value;
-    case '<=': return conditionValue <= value;
+    case '==': return numValue == value;
+    case '>': return numValue > value;
+    case '<': return numValue < value;
+    case '>=': return numValue >= value;
+    case '<=': return numValue <= value;
     default: return false;
   }
 }
 
-export function simulateConditions(condition: DailyCondition, rules: SmartRule[]) {
+export function simulateConditions(condition: DailyCondition, rules: SmartRule[], allMachinery?: Machinery[]) {
   const generatedTasks: any[] = [];
   const park = condition.parkId;
 
   for (const rule of rules) {
     if (!rule.isActive) continue;
 
-    const evaluations = rule.conditions.map(c => evaluateCondition(condition[c.field], c));
+    const evaluations = rule.conditions.map(c => {
+      if (c.field === 'machineryHours') {
+        const machine = allMachinery?.find(m => m.id === c.machineryId);
+        return machine ? evaluateCondition(machine.currentHours, c) : false;
+      }
+      return evaluateCondition(condition[c.field as keyof DailyCondition], c);
+    });
     
     let isMatch = false;
     if (rule.conditionLogic === 'AND') {
@@ -61,7 +70,7 @@ export function simulateConditions(condition: DailyCondition, rules: SmartRule[]
   return generatedTasks;
 }
 
-export async function evaluateAndApplyConditions(condition: DailyCondition, user: User, rules: SmartRule[]) {
+export async function evaluateAndApplyConditions(condition: DailyCondition, user: User, rules: SmartRule[], allMachinery?: Machinery[]) {
   // 1. Save the daily condition
   await addDoc(collection(db, 'daily_conditions'), {
     ...condition,
@@ -70,7 +79,7 @@ export async function evaluateAndApplyConditions(condition: DailyCondition, user
   });
 
   // 2. Generate Tasks
-  const generatedTasks = simulateConditions(condition, rules);
+  const generatedTasks = simulateConditions(condition, rules, allMachinery);
 
   // 3. Create Tasks
   for (const task of generatedTasks) {
