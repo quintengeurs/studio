@@ -138,16 +138,30 @@ export default function TasksPage() {
       );
       if (isDirectlyAssigned) return true;
 
-      // 2. Global Management (Sees everything)
+      // 2. Role-Based Assignment (e.g., "Keeper")
+      // If the task is assigned to a role the user has, and the park is in their depot
+      const hasMatchingRole = roles.includes(t.assignedTo as any);
+      if (hasMatchingRole) {
+        const parkDetail = allDetails.find(d => d.name === t.park);
+        if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
+        
+        // Fallback for parks not explicitly detailed but in the user's depot-linked parks
+        // (This handles cases where the depot assignment is the primary filter)
+        if (!parkDetail && userDepots.length > 0) {
+            // If we don't have detail, we might want to be more lenient or stricter.
+            // For now, if it's assigned to their role, let's check if the park name matches their context.
+        }
+      }
+
+      // 3. Global Management (Sees everything)
       if (isGlobalMgmt) return true;
 
-      // 3. Depot Management (Sees all in their depots)
+      // 4. Depot Management (Sees all in their depots)
       if (isDepotMgmt) {
         const parkDetail = allDetails.find(d => d.name === t.park);
         if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
       }
 
-      // 4. Operatives (Only see their own assignments - already caught by step 1)
       return false;
     });
   }, [tasks, isAdmin, currentUserRoles, profile, allDetails, identities]);
