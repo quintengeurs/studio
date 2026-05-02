@@ -147,6 +147,7 @@ export default function SmartTaskingPage() {
 
   // Rule Builder State
   const [isBuildingRule, setIsBuildingRule] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [newRule, setNewRule] = useState<SmartRule>({
     name: "",
     category: "Operational",
@@ -247,15 +248,9 @@ export default function SmartTaskingPage() {
     await deleteDoc(doc(db, "smart_rules", id));
   };
 
-  const handleSaveRule = async () => {
-    if (!db || !newRule.name || newRule.conditions.length === 0 || newRule.tasksToGenerate.length === 0) return;
-    
-    await addDoc(collection(db, "smart_rules"), {
-      ...newRule,
-      createdAt: new Date().toISOString()
-    });
-
+  const handleCancelRule = () => {
     setIsBuildingRule(false);
+    setEditingRuleId(null);
     setNewRule({
       name: "",
       category: "Operational",
@@ -264,6 +259,36 @@ export default function SmartTaskingPage() {
       conditions: [],
       tasksToGenerate: []
     });
+  };
+
+  const handleSaveRule = async () => {
+    if (!db || !newRule.name || newRule.conditions.length === 0 || newRule.tasksToGenerate.length === 0) return;
+    
+    try {
+      if (editingRuleId) {
+        const ruleRef = doc(db, "smart_rules", editingRuleId);
+        await updateDoc(ruleRef, {
+          ...newRule,
+          updatedAt: new Date().toISOString()
+        } as any);
+        setSuccessMsg("Rule updated successfully!");
+      } else {
+        await addDoc(collection(db, "smart_rules"), {
+          ...newRule,
+          createdAt: new Date().toISOString()
+        });
+        setSuccessMsg("New logic rule created!");
+      }
+      handleCancelRule();
+    } catch (error) {
+      console.error("Failed to save rule:", error);
+    }
+  };
+
+  const startEditingRule = (rule: SmartRule) => {
+    setNewRule({ ...rule });
+    setEditingRuleId(rule.id || null);
+    setIsBuildingRule(true);
   };
 
   const applyTemplate = (template: Partial<SmartRule>) => {
@@ -636,6 +661,9 @@ export default function SmartTaskingPage() {
                                 </TooltipTrigger>
                                 <TooltipContent>Simulate Rule</TooltipContent>
                               </Tooltip>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => startEditingRule(rule)}>
+                                <Settings2 className="h-4 w-4" />
+                              </Button>
                               <Switch checked={rule.isActive} onCheckedChange={() => toggleRuleActive(rule)} />
                               <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={() => deleteRule(rule.id!)}>
                                 <Trash2 className="h-4 w-4" />
@@ -674,7 +702,7 @@ export default function SmartTaskingPage() {
             ) : (
               <Card className="max-w-3xl">
                 <CardHeader>
-                  <CardTitle>Create Smart Rule</CardTitle>
+                  <CardTitle>{editingRuleId ? 'Edit Smart Rule' : 'Create Smart Rule'}</CardTitle>
                   <CardDescription>Define environmental conditions and the tasks they should trigger.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -849,9 +877,9 @@ export default function SmartTaskingPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="justify-between border-t p-4">
-                  <Button variant="ghost" onClick={() => setIsBuildingRule(false)}>Cancel</Button>
+                  <Button variant="ghost" onClick={handleCancelRule}>Cancel</Button>
                   <Button onClick={handleSaveRule} disabled={!newRule.name || newRule.conditions.length === 0 || newRule.tasksToGenerate.length === 0}>
-                    Save Logic Rule
+                    {editingRuleId ? 'Update Logic Rule' : 'Save Logic Rule'}
                   </Button>
                 </CardFooter>
               </Card>
