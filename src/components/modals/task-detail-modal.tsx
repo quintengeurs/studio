@@ -42,7 +42,7 @@ interface TaskDetailModalProps {
   allParks?: any[];
 }
 
-export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers }: TaskDetailModalProps) {
+export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks }: TaskDetailModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
