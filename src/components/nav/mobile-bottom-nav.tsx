@@ -17,7 +17,8 @@ import {
   Map,
   LayoutGrid,
   Megaphone,
-  BrainCircuit
+  BrainCircuit,
+  Heart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
@@ -38,6 +39,7 @@ const items = [
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
   { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
+  { title: "Volunteering", icon: Heart, href: "/volunteering" },
 ];
 
 export function MobileBottomNav() {
@@ -62,6 +64,7 @@ export function MobileBottomNav() {
           case "Users": return permissions.viewUsers;
           case "Info Corner": return permissions.viewInfoCorner;
           case "Smart Tasking": return permissions.viewSmartTasking;
+          case "Volunteering": return permissions.viewVolunteering;
           default: return false;
       }
     });
