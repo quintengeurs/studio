@@ -261,6 +261,7 @@ export default function InfoCornerPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 max-h-[480px] overflow-y-auto py-4 pr-2">
+            {/* Staff Section */}
             {allUsers
               .filter(u => selectedItemForList?.interestedUserIds?.includes(u.id))
               .map((u) => (
@@ -273,7 +274,7 @@ export default function InfoCornerPage() {
                         </Avatar>
                         <div className="flex flex-col">
                         <span className="text-sm font-bold text-foreground leading-tight">{u.name}</span>
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tight">{u.role || u.roles?.[0]}</span>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tight">{u.role || u.roles?.[0]} Staff</span>
                         </div>
                     </div>
                     <Badge variant="outline" className="text-[9px] font-bold bg-green-500/5 text-green-700 border-green-200 uppercase tracking-tighter">Interest Logged</Badge>
@@ -291,6 +292,35 @@ export default function InfoCornerPage() {
                   </div>
                 </div>
               ))}
+
+            {/* Volunteers Section */}
+            {selectedItemForList?.interestedUserIds?.filter(id => !allUsers.some(u => u.id === id)).map((email) => (
+              <div key={email} className="flex flex-col gap-3 p-4 border-2 rounded-2xl bg-orange-500/5 border-orange-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-600 border border-orange-200">
+                        <Heart className="h-5 w-5 fill-current" />
+                      </div>
+                      <div className="flex flex-col">
+                      <span className="text-sm font-bold text-foreground leading-tight">{email.split('@')[0]}</span>
+                      <span className="text-[10px] uppercase font-bold text-orange-600 tracking-tight italic">Public Volunteer</span>
+                      </div>
+                  </div>
+                  <Badge variant="outline" className="text-[9px] font-bold bg-orange-500/10 text-orange-700 border-orange-300 uppercase tracking-tighter">Interest Logged</Badge>
+                </div>
+                
+                <div className="flex items-center gap-2 text-muted-foreground pt-2 border-t border-dashed">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    <span className="text-[10px] font-medium truncate">{email}</span>
+                </div>
+              </div>
+            ))}
+
+            {(!selectedItemForList?.interestedUserIds || selectedItemForList.interestedUserIds.length === 0) && (
+              <div className="text-center py-10 text-muted-foreground italic text-sm">
+                No interest logged yet.
+              </div>
+            )}
           </div>
           <Button variant="secondary" className="w-full font-bold uppercase tracking-widest mt-2" onClick={() => setSelectedItemForList(null)}>Close List</Button>
         </DialogContent>

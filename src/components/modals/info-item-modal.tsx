@@ -46,7 +46,8 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
     content: "",
     url: "",
     ctaLabel: "I'm interested",
-    allowResponse: true
+    allowResponse: true,
+    isVolunteerVisible: false
   });
 
   useEffect(() => {
@@ -57,7 +58,8 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         content: editItem.content,
         url: editItem.url || "",
         ctaLabel: editItem.ctaLabel || "I'm interested",
-        allowResponse: editItem.allowResponse !== false
+        allowResponse: editItem.allowResponse !== false,
+        isVolunteerVisible: editItem.isVolunteerVisible || false
       });
     } else {
       setFormData({
@@ -66,7 +68,8 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         content: "",
         url: "",
         ctaLabel: "I'm interested",
-        allowResponse: true
+        allowResponse: true,
+        isVolunteerVisible: false
       });
     }
   }, [editItem, open]);
@@ -83,6 +86,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         url: formData.type === 'Document' ? formData.url : null,
         ctaLabel: (formData.type === 'CTA' || formData.allowResponse) ? formData.ctaLabel : null,
         allowResponse: formData.allowResponse,
+        isVolunteerVisible: formData.isVolunteerVisible,
         createdBy: editItem ? editItem.createdBy : profile.name,
         createdAt: editItem ? editItem.createdAt : new Date().toISOString(),
         isArchived: false,
@@ -213,6 +217,18 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
               />
             </div>
           )}
+
+          <div className="flex items-center justify-between p-4 border rounded-xl bg-orange-50/50 border-orange-100">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-bold text-orange-900">Show to Volunteers</Label>
+              <p className="text-[10px] text-orange-700/70">Display this item in the Volunteering Portal.</p>
+            </div>
+            <Switch 
+              checked={formData.isVolunteerVisible} 
+              onCheckedChange={v => setFormData({...formData, isVolunteerVisible: v})} 
+              className="data-[state=checked]:bg-orange-500"
+            />
+          </div>
         </div>
 
         <DialogFooter>

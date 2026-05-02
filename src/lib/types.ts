@@ -285,6 +285,7 @@ export interface InfoItem {
   ctaLabel?: string;
   interestedUserIds?: string[];
   allowResponse?: boolean;
+  isVolunteerVisible?: boolean;
   createdBy: string;
   createdAt: string;
   isArchived: boolean;

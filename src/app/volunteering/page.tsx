@@ -13,12 +13,18 @@ import {
   ArrowRight,
   Sparkles,
   Heart,
-  CheckCircle2
+  CheckCircle2,
+  Megaphone,
+  Info,
+  ExternalLink,
+  HandMetal,
+  UserCheck
 } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, where, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { Task } from "@/lib/types";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
 import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { useDataContext } from "@/context/DataContext";
@@ -48,6 +54,35 @@ export default function VolunteeringPage() {
   [db]);
 
   const { data: rawTasks = [], loading } = useCollection<Task>(volunteerTasksQuery as any);
+
+  const infoQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "info_items"), where("isVolunteerVisible", "==", true), where("isArchived", "==", false));
+  }, [db]);
+  const { data: infoItems = [] } = useCollection<any>(infoQuery as any);
+
+  const { toast } = useToast();
+  const handleToggleInfoInterest = async (item: any) => {
+    if (!db || !volunteerEmail) {
+        setIsRegModalOpen(true);
+        return;
+    }
+    
+    const isInterested = item.interestedUserIds?.includes(volunteerEmail);
+    const itemRef = doc(db, "info_items", item.id);
+
+    try {
+      await updateDoc(itemRef, {
+        interestedUserIds: isInterested ? arrayRemove(volunteerEmail) : arrayUnion(volunteerEmail)
+      });
+      toast({ 
+        title: isInterested ? "Interest Removed" : "Interest Recorded", 
+        description: isInterested ? "You are no longer marked as interested." : "Your interest has been logged. We will contact you soon!" 
+      });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update interest.", variant: "destructive" });
+    }
+  };
 
   // Filter out tasks this specific volunteer has already completed
   const tasks = useMemo(() => {
@@ -105,6 +140,61 @@ export default function VolunteeringPage() {
           <div className="absolute right-0 top-0 h-full w-1/3 bg-[url('https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay" />
           <Heart className="absolute -bottom-10 -right-10 h-64 w-64 text-white opacity-10 rotate-12" />
         </div>
+
+        {/* Volunteer Hub News & Upcoming */}
+        {infoItems.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Megaphone className="h-6 w-6 text-orange-500" />
+              <h3 className="text-2xl font-bold">Volunteer Hub News</h3>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {infoItems.map((item: any) => {
+                const isInterested = item.interestedUserIds?.includes(volunteerEmail || "");
+                return (
+                  <Card key={item.id} className="border-2 border-orange-100 bg-orange-50/20 hover:bg-orange-50/40 transition-colors">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-200 uppercase text-[9px] font-bold tracking-widest px-2">
+                          {item.type === 'CTA' ? 'Special Event' : item.type}
+                        </Badge>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{format(new Date(item.createdAt), 'MMM d, yyyy')}</span>
+                      </div>
+                      <CardTitle className="text-xl font-headline mt-2">{item.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                      <p className="text-sm text-foreground/80 leading-relaxed italic line-clamp-3">
+                        "{item.content}"
+                      </p>
+                    </CardContent>
+                    <CardFooter className="pt-2 border-t border-orange-100/50">
+                      {item.type === 'Document' && item.url ? (
+                        <Button asChild className="w-full gap-2 font-bold uppercase tracking-widest text-xs h-10 bg-orange-500 hover:bg-orange-600 shadow-md shadow-orange-500/20" variant="default">
+                          <a href={item.url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-3.5 w-3.5" /> View Info Document
+                          </a>
+                        </Button>
+                      ) : (item.type === 'CTA' || item.allowResponse) ? (
+                        <Button 
+                          onClick={() => handleToggleInfoInterest(item)}
+                          variant={isInterested ? "secondary" : "default"}
+                          className={`w-full gap-2 font-bold uppercase tracking-widest text-xs h-10 shadow-md ${isInterested ? 'bg-green-600/10 text-green-700 hover:bg-green-600/20' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/20'}`}
+                        >
+                          {isInterested ? <UserCheck className="h-3.5 w-3.5" /> : <HandMetal className="h-3.5 w-3.5 text-white" />}
+                          {isInterested ? "Interest Logged" : item.ctaLabel || "Register Interest"}
+                        </Button>
+                      ) : (
+                        <div className="h-10 w-full flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic">
+                          <Info className="h-3.5 w-3.5 mr-2" /> General Hub Information
+                        </div>
+                      )}
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Opportunities Grid */}
         <div className="space-y-6">
