@@ -53,6 +53,54 @@ const PALETTE_CONDITIONS = [
   { id: 'event', label: 'Event', icon: Calendar, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
 ];
 
+const RULE_TEMPLATES: Partial<SmartRule>[] = [
+  {
+    name: "High Heat Protocol",
+    category: "Operational",
+    conditionLogic: 'AND',
+    conditions: [{ field: 'tags', operator: 'contains', value: 'sunny' }],
+    tasksToGenerate: [
+      { title: "Watering - Zone A", objective: "Prioritize watering for newly planted trees.", assignedTo: "Gardener", displayTime: "08:30" },
+      { title: "Refill Water Stations", objective: "Ensure all staff hydration points are full.", assignedTo: "Keeper", displayTime: "11:00" }
+    ]
+  },
+  {
+    name: "Post-Event Cleanup",
+    category: "Operational",
+    conditionLogic: 'AND',
+    conditions: [{ field: 'tags', operator: 'contains', value: 'event' }],
+    tasksToGenerate: [
+      { title: "Litter Patrol - Event Site", objective: "Detailed sweep of the event footprint.", assignedTo: "Litter Picker", displayTime: "07:00" },
+      { title: "Bin Reset", objective: "Empty and wash all event bins.", assignedTo: "Bin Run", displayTime: "09:00" }
+    ]
+  },
+  {
+    name: "Biodiversity Survey",
+    category: "Biodiversity",
+    conditionLogic: 'AND',
+    conditions: [{ field: 'tags', operator: 'contains', value: 'sunny' }],
+    tasksToGenerate: [
+      { title: "Meadow Monitoring", objective: "Log species diversity in Meadow Zone 1.", assignedTo: "Biodiversity Manager", displayTime: "10:00" }
+    ]
+  },
+  {
+    name: "Public Volunteering Opportunity",
+    category: "Volunteer",
+    conditionLogic: 'AND',
+    conditions: [{ field: 'tags', operator: 'contains', value: 'busy' }],
+    tasksToGenerate: [
+      { title: "Volunteer Litter Pick", objective: "Supervise volunteer group at main hub.", assignedTo: "Volunteering Coordinator", displayTime: "13:00" }
+    ]
+  }
+];
+
+const CATEGORY_CONFIG = {
+  Operational: { icon: Settings2, color: "text-blue-500", bg: "bg-blue-500/10" },
+  Biodiversity: { icon: Sparkles, color: "text-green-500", bg: "bg-green-500/10" },
+  ESG: { icon: Activity, color: "text-purple-500", bg: "bg-purple-500/10" },
+  Volunteer: { icon: Users, color: "text-orange-500", bg: "bg-orange-500/10" },
+};
+
 export default function SmartTaskingPage() {
   const { permissions } = useUserContext();
   const { allParks, registryConfig } = useDataContext();
@@ -85,6 +133,7 @@ export default function SmartTaskingPage() {
   const [isBuildingRule, setIsBuildingRule] = useState(false);
   const [newRule, setNewRule] = useState<SmartRule>({
     name: "",
+    category: "Operational",
     isActive: true,
     conditionLogic: 'AND',
     conditions: [],
@@ -163,10 +212,21 @@ export default function SmartTaskingPage() {
     setIsBuildingRule(false);
     setNewRule({
       name: "",
+      category: "Operational",
       isActive: true,
       conditionLogic: 'AND',
       conditions: [],
       tasksToGenerate: []
+    });
+  };
+
+  const applyTemplate = (template: Partial<SmartRule>) => {
+    setNewRule({
+      ...newRule,
+      ...template,
+      isActive: true,
+      conditions: [...(template.conditions || [])],
+      tasksToGenerate: [...(template.tasksToGenerate || [])]
     });
   };
 
@@ -446,7 +506,16 @@ export default function SmartTaskingPage() {
                       <Card key={rule.id} className={!rule.isActive ? 'opacity-60' : ''}>
                         <CardHeader className="pb-2">
                           <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg">{rule.name}</CardTitle>
+                            <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              {rule.category && (
+                                <Badge variant="secondary" className={cn("text-[9px] uppercase font-bold", CATEGORY_CONFIG[rule.category].bg, CATEGORY_CONFIG[rule.category].color)}>
+                                  {rule.category}
+                                </Badge>
+                              )}
+                              <CardTitle className="text-lg">{rule.name}</CardTitle>
+                            </div>
+                          </div>
                             <div className="flex items-center gap-2">
                               <Switch checked={rule.isActive} onCheckedChange={() => toggleRuleActive(rule)} />
                               <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={() => deleteRule(rule.id!)}>
@@ -490,9 +559,48 @@ export default function SmartTaskingPage() {
                   <CardDescription>Define environmental conditions and the tasks they should trigger.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label>Rule Name</Label>
-                    <Input placeholder="e.g. Hot & Busy Protocol" value={newRule.name} onChange={e => setNewRule({...newRule, name: e.target.value})} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Rule Name</Label>
+                      <Input placeholder="e.g. Hot & Busy Protocol" value={newRule.name} onChange={e => setNewRule({...newRule, name: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Strategy Category</Label>
+                      <Select value={newRule.category} onValueChange={(v: any) => setNewRule({...newRule, category: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Operational">Operational</SelectItem>
+                          <SelectItem value="Biodiversity">Biodiversity</SelectItem>
+                          <SelectItem value="ESG">ESG / Carbon</SelectItem>
+                          <SelectItem value="Volunteer">Volunteer / Community</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Start with a Template</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {RULE_TEMPLATES.map((t, idx) => (
+                        <Button 
+                          key={idx} 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-[10px] h-auto py-2 flex flex-col items-center gap-1 hover:border-primary hover:bg-primary/5"
+                          onClick={() => applyTemplate(t)}
+                        >
+                          {t.category && CATEGORY_CONFIG[t.category as keyof typeof CATEGORY_CONFIG] && (
+                            <div className={cn("p-1 rounded-full", CATEGORY_CONFIG[t.category as keyof typeof CATEGORY_CONFIG].bg)}>
+                              {(() => {
+                                const Icon = CATEGORY_CONFIG[t.category as keyof typeof CATEGORY_CONFIG].icon;
+                                return <Icon className={cn("h-3 w-3", CATEGORY_CONFIG[t.category as keyof typeof CATEGORY_CONFIG].color)} />;
+                              })()}
+                            </div>
+                          )}
+                          <span className="text-center font-bold leading-tight">{t.name}</span>
+                        </Button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="space-y-4 border-t pt-4">

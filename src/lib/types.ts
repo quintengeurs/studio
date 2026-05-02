@@ -299,6 +299,7 @@ export interface RuleCondition {
 export interface SmartRule {
   id?: string;
   name: string;
+  category?: 'Operational' | 'Biodiversity' | 'ESG' | 'Volunteer';
   isActive: boolean;
   conditions: RuleCondition[];
   conditionLogic: 'AND' | 'OR';
