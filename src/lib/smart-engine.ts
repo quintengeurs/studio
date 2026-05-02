@@ -4,6 +4,17 @@ import { DailyCondition, User, SmartRule, RuleCondition } from './types';
 
 function evaluateCondition(conditionValue: any, ruleCondition: RuleCondition): boolean {
   const value = ruleCondition.value;
+  
+  if (ruleCondition.operator === 'contains') {
+    if (Array.isArray(conditionValue)) {
+      return conditionValue.includes(value);
+    }
+    if (typeof conditionValue === 'string') {
+      return conditionValue.includes(String(value));
+    }
+    return false;
+  }
+
   switch (ruleCondition.operator) {
     case '==': return conditionValue == value;
     case '>': return conditionValue > value;

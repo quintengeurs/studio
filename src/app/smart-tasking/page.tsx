@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -10,17 +10,51 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { evaluateAndApplyConditions } from "@/lib/smart-engine";
 import { DailyCondition, SmartRule, RuleCondition, Operator } from "@/lib/types";
-import { BrainCircuit, Plus, Trash2, Settings2, Activity } from "lucide-react";
+import { 
+  BrainCircuit, 
+  Plus, 
+  Trash2, 
+  Settings2, 
+  Activity, 
+  Sun, 
+  Cloud, 
+  CloudRain, 
+  Wind, 
+  AlertTriangle, 
+  Snowflake, 
+  Users, 
+  UserMinus, 
+  Calendar, 
+  Building2, 
+  MapPin, 
+  Check,
+  ChevronRight,
+  Sparkles
+} from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+
+const PALETTE_CONDITIONS = [
+  { id: 'sunny', label: 'Sunny', icon: Sun, color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+  { id: 'cloudy', label: 'Cloudy', icon: Cloud, color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },
+  { id: 'rain', label: 'Rain', icon: CloudRain, color: 'text-blue-600', bg: 'bg-blue-600/10', border: 'border-blue-600/20' },
+  { id: 'windy', label: 'Windy', icon: Wind, color: 'text-teal-500', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
+  { id: 'very_windy', label: 'Very Windy', icon: Wind, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+  { id: 'yellow_warning', label: 'Yellow Warning', icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
+  { id: 'frosty', label: 'Frosty', icon: Snowflake, color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/20' },
+  { id: 'busy', label: 'Busy', icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+  { id: 'quiet', label: 'Quiet', icon: UserMinus, color: 'text-slate-400', bg: 'bg-slate-400/10', border: 'border-slate-400/20' },
+  { id: 'event', label: 'Event', icon: Calendar, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+];
 
 export default function SmartTaskingPage() {
   const { permissions } = useUserContext();
-  const { allParks } = useDataContext();
+  const { allParks, registryConfig } = useDataContext();
   const { user } = useUser();
   const db = useFirestore();
 
@@ -31,12 +65,20 @@ export default function SmartTaskingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Sensor Form State
-  const [parkId, setParkId] = useState("");
-  const [temperature, setTemperature] = useState<number>(20);
-  const [windSpeed, setWindSpeed] = useState<number>(10);
-  const [humidity, setHumidity] = useState<number>(50);
-  const [footfall, setFootfall] = useState<'Low' | 'Medium' | 'High' | 'Emergency'>('Medium');
+  // Sensor Form State (Redesigned)
+  const [selectedDepot, setSelectedDepot] = useState<string | null>(null);
+  const [selectedParks, setSelectedParks] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  // Optional numeric fields (kept for engine compatibility)
+  const [temperature, setTemperature] = useState<number | "">(20);
+  const [windSpeed, setWindSpeed] = useState<number | "">(10);
+
+  const depots = useMemo(() => registryConfig?.teams || [], [registryConfig?.teams]);
+  const filteredParks = useMemo(() => {
+    if (!selectedDepot) return [];
+    return allParks.filter(p => p.depot === selectedDepot);
+  }, [allParks, selectedDepot]);
 
   // Rule Builder State
   const [isBuildingRule, setIsBuildingRule] = useState(false);
@@ -60,28 +102,37 @@ export default function SmartTaskingPage() {
 
   const handleLogConditions = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedParks.length === 0) return;
+    
     setIsLoading(true);
     setSuccessMsg("");
 
     try {
-      const condition: DailyCondition = {
-        parkId,
-        date: new Date().toISOString(),
-        temperature,
-        windSpeed,
-        humidity,
-        expectedFootfall: footfall,
-        loggedBy: user?.email || "Unknown",
-        createdAt: new Date().toISOString(),
-      };
+      let totalTasks = 0;
+      for (const parkName of selectedParks) {
+        const condition: DailyCondition = {
+          parkId: parkName,
+          date: new Date().toISOString(),
+          temperature: temperature === "" ? undefined : temperature,
+          windSpeed: windSpeed === "" ? undefined : windSpeed,
+          tags: selectedTags,
+          loggedBy: user?.email || "Unknown",
+          createdAt: new Date().toISOString(),
+        };
 
-      const result = await evaluateAndApplyConditions(condition, user as any, rules);
-      setSuccessMsg(result);
+        const result = await evaluateAndApplyConditions(condition, user as any, rules);
+        // Result is like "Logged successfully. Generated X smart tasks."
+        const match = result.match(/\d+/);
+        if (match) totalTasks += parseInt(match[0]);
+      }
       
+      setSuccessMsg(`Logged for ${selectedParks.length} sites. Total smart tasks generated: ${totalTasks}`);
+      
+      // Reset
+      setSelectedParks([]);
+      setSelectedTags([]);
       setTemperature(20);
       setWindSpeed(10);
-      setHumidity(50);
-      setFootfall('Medium');
     } catch (error) {
       console.error("Failed to log conditions:", error);
       setSuccessMsg("Error logging conditions. Check console.");
@@ -121,7 +172,7 @@ export default function SmartTaskingPage() {
   const addCondition = () => {
     setNewRule(prev => ({
       ...prev,
-      conditions: [...prev.conditions, { field: 'temperature', operator: '>', value: '' }]
+      conditions: [...prev.conditions, { field: 'tags', operator: 'contains', value: 'rain' }]
     }));
   };
 
@@ -156,6 +207,18 @@ export default function SmartTaskingPage() {
     setNewRule(prev => ({ ...prev, tasksToGenerate: updated }));
   };
 
+  const toggleTag = (tagId: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]
+    );
+  };
+
+  const togglePark = (parkName: string) => {
+    setSelectedParks(prev => 
+      prev.includes(parkName) ? prev.filter(p => p !== parkName) : [...prev, parkName]
+    );
+  };
+
   return (
     <DashboardShell 
       title="Smart Tasking Engine" 
@@ -172,93 +235,191 @@ export default function SmartTaskingPage() {
         </TabsList>
 
         <TabsContent value="sensor">
-          <div className="max-w-2xl">
-            <Card>
-              <CardHeader>
-                <CardTitle>Log Daily Conditions</CardTitle>
-                <CardDescription>
-                  Enter today's weather and expected footfall. The Smart Engine will evaluate these metrics against your Logic Rules and automatically generate necessary operational tasks.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogConditions} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="parkId">Target Park / Depot</Label>
-                    <Select value={parkId} onValueChange={setParkId} required>
-                      <SelectTrigger id="parkId">
-                        <SelectValue placeholder="Select a location..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allParks?.map((park: any) => (
-                          <SelectItem key={park.id} value={park.name}>{park.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+          <div className="grid gap-8">
+            <div className="flex flex-col gap-2">
+              <h2 className="text-2xl font-bold font-headline tracking-tight">Condition Palette</h2>
+              <p className="text-muted-foreground text-sm max-w-2xl">
+                Select your hub, target sites, and current conditions. The Smart Engine will instantly evaluate your Logic Rules and generate tasks where needed.
+              </p>
+            </div>
+
+            <div className="space-y-10">
+              {/* Step 1: Depot Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
+                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px]">1</span>
+                  Select Depot Hub
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {depots.map(depot => (
+                    <button
+                      key={depot}
+                      onClick={() => {
+                        setSelectedDepot(depot);
+                        setSelectedParks([]);
+                      }}
+                      className={cn(
+                        "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group",
+                        selectedDepot === depot 
+                          ? "border-primary bg-primary/5 shadow-md shadow-primary/10" 
+                          : "border-muted hover:border-primary/20 bg-background"
+                      )}
+                    >
+                      <div className={cn(
+                        "h-10 w-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
+                        selectedDepot === depot ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      )}>
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-bold text-center leading-tight">{depot}</span>
+                      {selectedDepot === depot && <Check className="h-3 w-3 text-primary absolute top-2 right-2" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 2: Park Selection */}
+              {selectedDepot && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
+                      <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px]">2</span>
+                      Select Parks ({selectedParks.length} selected)
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-[10px] uppercase font-bold tracking-widest h-6 px-2"
+                      onClick={() => setSelectedParks(selectedParks.length === filteredParks.length ? [] : filteredParks.map(p => p.name))}
+                    >
+                      {selectedParks.length === filteredParks.length ? "Deselect All" : "Select All"}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {filteredParks.map(park => (
+                      <button
+                        key={park.id}
+                        onClick={() => togglePark(park.name)}
+                        className={cn(
+                          "p-3 rounded-xl border transition-all flex items-center gap-3 relative overflow-hidden",
+                          selectedParks.includes(park.name)
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "border-muted hover:bg-muted/30"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
+                          selectedParks.includes(park.name) ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                        )}>
+                          <MapPin className="h-4 w-4" />
+                        </div>
+                        <span className="text-[11px] font-bold text-left leading-tight truncate">{park.name}</span>
+                        {selectedParks.includes(park.name) && (
+                          <div className="absolute top-0 right-0 h-4 w-4 bg-primary flex items-center justify-center rounded-bl-lg">
+                            <Check className="h-2 w-2 text-primary-foreground" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Condition Palette */}
+              {selectedParks.length > 0 && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
+                    <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px]">3</span>
+                    Select Current Conditions
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    {PALETTE_CONDITIONS.map(cond => (
+                      <button
+                        key={cond.id}
+                        onClick={() => toggleTag(cond.id)}
+                        className={cn(
+                          "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all relative group",
+                          selectedTags.includes(cond.id)
+                            ? "border-primary bg-background shadow-lg shadow-primary/5 -translate-y-1"
+                            : "border-muted bg-muted/5 hover:bg-background hover:border-primary/20"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-12 w-12 rounded-2xl flex items-center justify-center transition-all",
+                          selectedTags.includes(cond.id) ? cond.bg : "bg-muted/50 group-hover:bg-muted"
+                        )}>
+                          <cond.icon className={cn("h-6 w-6", selectedTags.includes(cond.id) ? cond.color : "text-muted-foreground")} />
+                        </div>
+                        <span className={cn(
+                          "text-xs font-bold transition-colors",
+                          selectedTags.includes(cond.id) ? "text-primary" : "text-muted-foreground"
+                        )}>{cond.label}</span>
+                        
+                        {selectedTags.includes(cond.id) && (
+                          <div className="absolute top-2 right-2">
+                             <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
+                                <Check className="h-2 w-2 text-primary-foreground" />
+                             </div>
+                          </div>
+                        )}
+                      </button>
+                    ))}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="temp">Temperature (°C)</Label>
-                      <Input 
-                        id="temp" 
-                        type="number" 
-                        value={temperature} 
-                        onChange={(e) => setTemperature(Number(e.target.value))} 
-                        required 
-                      />
+                  {/* Optional Numeric Detail */}
+                  <div className="pt-6 border-t">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Optional Metrics</Label>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="wind">Wind Speed (mph)</Label>
-                      <Input 
-                        id="wind" 
-                        type="number" 
-                        value={windSpeed} 
-                        onChange={(e) => setWindSpeed(Number(e.target.value))} 
-                        required 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="humidity">Humidity (%)</Label>
-                      <Input 
-                        id="humidity" 
-                        type="number" 
-                        value={humidity} 
-                        onChange={(e) => setHumidity(Number(e.target.value))} 
-                        required 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="footfall">Expected Footfall</Label>
-                      <Select value={footfall} onValueChange={(v: any) => setFootfall(v)} required>
-                        <SelectTrigger id="footfall">
-                          <SelectValue placeholder="Select level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Low">Low</SelectItem>
-                          <SelectItem value="Medium">Medium</SelectItem>
-                          <SelectItem value="High">High</SelectItem>
-                          <SelectItem value="Emergency">Emergency</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-4 max-w-sm">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Temperature (°C)</Label>
+                        <Input 
+                          type="number" 
+                          value={temperature} 
+                          onChange={(e) => setTemperature(e.target.value === "" ? "" : Number(e.target.value))} 
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Wind Speed (mph)</Label>
+                        <Input 
+                          type="number" 
+                          value={windSpeed} 
+                          onChange={(e) => setWindSpeed(e.target.value === "" ? "" : Number(e.target.value))} 
+                          className="h-9"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading || !parkId}>
-                    <BrainCircuit className="mr-2 h-4 w-4" />
-                    {isLoading ? "Evaluating Rules..." : "Log Conditions & Generate Tasks"}
-                  </Button>
+                  <div className="pt-8">
+                    <Button 
+                      onClick={handleLogConditions} 
+                      className="w-full h-14 text-lg font-bold shadow-xl shadow-primary/20 group relative overflow-hidden" 
+                      disabled={isLoading || selectedParks.length === 0}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer opacity-20 group-hover:opacity-40 transition-opacity" />
+                      <div className="flex items-center justify-center gap-3 relative z-10">
+                        {isLoading ? (
+                           <Sparkles className="h-5 w-5 animate-pulse" />
+                        ) : (
+                           <BrainCircuit className="h-5 w-5" />
+                        )}
+                        {isLoading ? "Running Smart Engine..." : `Log & Apply to ${selectedParks.length} Sites`}
+                      </div>
+                    </Button>
+                  </div>
 
                   {successMsg && (
-                    <div className="p-3 bg-green-500/10 text-green-600 border border-green-500/20 rounded-md text-sm text-center font-medium mt-4">
+                    <div className="p-4 bg-green-500/10 text-green-600 border border-green-500/20 rounded-2xl text-sm text-center font-bold animate-in zoom-in-95 duration-200">
                       {successMsg}
                     </div>
                   )}
-                </form>
-              </CardContent>
-            </Card>
+                </div>
+              )}
+            </div>
           </div>
         </TabsContent>
 
@@ -298,7 +459,9 @@ export default function SmartTaskingPage() {
                           {rule.conditions.map((c, i) => (
                             <span key={i}>
                               {i > 0 && <span className="font-bold text-primary mx-2">{rule.conditionLogic}</span>}
-                              <Badge variant="outline" className="bg-background">{c.field} {c.operator} {c.value}</Badge>
+                              <Badge variant="outline" className="bg-background">
+                                {c.field} {c.operator === 'contains' ? 'HAS' : c.operator} {c.value}
+                              </Badge>
                             </span>
                           ))}
                         </div>
@@ -343,40 +506,62 @@ export default function SmartTaskingPage() {
                   </div>
                   
                   {newRule.conditions.map((c, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2 bg-muted/20 rounded-md border">
-                      <Select value={c.field} onValueChange={(v: any) => updateCondition(i, 'field', v)}>
-                        <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="temperature">Temperature</SelectItem>
-                          <SelectItem value="windSpeed">Wind Speed</SelectItem>
-                          <SelectItem value="humidity">Humidity</SelectItem>
-                          <SelectItem value="expectedFootfall">Footfall</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select value={c.operator} onValueChange={(v: any) => updateCondition(i, 'operator', v)}>
-                        <SelectTrigger className="w-[80px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="==">==</SelectItem>
-                          <SelectItem value=">">&gt;</SelectItem>
-                          <SelectItem value="<">&lt;</SelectItem>
-                          <SelectItem value=">=">&gt;=</SelectItem>
-                          <SelectItem value="<=">&lt;=</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {c.field === 'expectedFootfall' ? (
-                        <Select value={c.value as string} onValueChange={(v) => updateCondition(i, 'value', v)}>
-                          <SelectTrigger className="flex-1"><SelectValue placeholder="Level" /></SelectTrigger>
+                    <div key={i} className="flex flex-col gap-3 p-3 bg-muted/20 rounded-xl border">
+                      <div className="flex items-center gap-2">
+                        <Select value={c.field} onValueChange={(v: any) => updateCondition(i, 'field', v)}>
+                          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Emergency">Emergency</SelectItem>
+                            <SelectItem value="tags">Condition (Palette)</SelectItem>
+                            <SelectItem value="temperature">Temperature</SelectItem>
+                            <SelectItem value="windSpeed">Wind Speed</SelectItem>
+                            <SelectItem value="humidity">Humidity</SelectItem>
+                            <SelectItem value="expectedFootfall">Footfall (Legacy)</SelectItem>
                           </SelectContent>
                         </Select>
-                      ) : (
-                        <Input className="flex-1" type="number" placeholder="Value" value={c.value} onChange={e => updateCondition(i, 'value', Number(e.target.value))} />
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => removeCondition(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+
+                        <Select value={c.operator} onValueChange={(v: any) => updateCondition(i, 'operator', v)}>
+                          <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {c.field === 'tags' ? (
+                              <SelectItem value="contains">Has Tag</SelectItem>
+                            ) : (
+                              <>
+                                <SelectItem value="==">==</SelectItem>
+                                <SelectItem value=">">&gt;</SelectItem>
+                                <SelectItem value="<">&lt;</SelectItem>
+                                <SelectItem value=">=">&gt;=</SelectItem>
+                                <SelectItem value="<=">&lt;=</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+
+                        <div className="flex-1">
+                          {c.field === 'tags' ? (
+                            <Select value={c.value as string} onValueChange={(v) => updateCondition(i, 'value', v)}>
+                              <SelectTrigger><SelectValue placeholder="Select condition..." /></SelectTrigger>
+                              <SelectContent>
+                                {PALETTE_CONDITIONS.map(p => (
+                                  <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : c.field === 'expectedFootfall' ? (
+                            <Select value={c.value as string} onValueChange={(v) => updateCondition(i, 'value', v)}>
+                              <SelectTrigger><SelectValue placeholder="Level" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Low">Low</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Emergency">Emergency</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input type="number" placeholder="Value" value={c.value} onChange={e => updateCondition(i, 'value', Number(e.target.value))} />
+                          )}
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => removeCondition(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </div>
                     </div>
                   ))}
                   <Button variant="outline" size="sm" onClick={addCondition}><Plus className="h-3 w-3 mr-1" /> Add Condition</Button>

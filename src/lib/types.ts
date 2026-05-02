@@ -278,18 +278,19 @@ export interface DailyCondition {
   id?: string;
   parkId: string;
   date: string; // ISO string
-  temperature: number; // Celsius
-  windSpeed: number; // mph or km/h
-  humidity: number; // Percentage
-  expectedFootfall: 'Low' | 'Medium' | 'High' | 'Emergency';
+  temperature?: number; // Celsius (Optional)
+  windSpeed?: number; // mph or km/h (Optional)
+  humidity?: number; // Percentage (Optional)
+  expectedFootfall?: 'Low' | 'Medium' | 'High' | 'Emergency'; // (Optional)
+  tags?: string[]; // New: palette style conditions
   loggedBy: string; // user ID
   createdAt: string; // ISO string
 }
 
-export type Operator = '>' | '<' | '==' | '>=' | '<=';
+export type Operator = '>' | '<' | '==' | '>=' | '<=' | 'contains';
 
 export interface RuleCondition {
-  field: 'temperature' | 'windSpeed' | 'humidity' | 'expectedFootfall';
+  field: 'temperature' | 'windSpeed' | 'humidity' | 'expectedFootfall' | 'tags';
   operator: Operator;
   value: string | number;
 }
