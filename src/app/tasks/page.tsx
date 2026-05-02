@@ -138,18 +138,13 @@ export default function TasksPage() {
       );
       if (isDirectlyAssigned) return true;
 
-      // 2. Role-Based Assignment (e.g., "Keeper")
-      // If the task is assigned to a role the user has, and the park is in their depot
-      const hasMatchingRole = roles.includes(t.assignedTo as any);
-      if (hasMatchingRole) {
-        const parkDetail = allDetails.find(d => d.name === t.park);
-        if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
-        
-        // Fallback for parks not explicitly detailed but in the user's depot-linked parks
-        // (This handles cases where the depot assignment is the primary filter)
-        if (!parkDetail && userDepots.length > 0) {
-            // If we don't have detail, we might want to be more lenient or stricter.
-            // For now, if it's assigned to their role, let's check if the park name matches their context.
+      // 2. Smart Tasks (Role-based broadcast)
+      // Smart tasks assigned to a general role (e.g., "Keeper") are visible to everyone with that role in the depot.
+      if (t.source === 'smart-engine') {
+        const hasMatchingRole = roles.includes(t.assignedTo as any);
+        if (hasMatchingRole) {
+          const parkDetail = allDetails.find(d => d.name === t.park);
+          if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
         }
       }
 
