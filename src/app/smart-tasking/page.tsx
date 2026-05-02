@@ -470,7 +470,7 @@ export default function SmartTaskingPage() {
                           <ul className="list-disc pl-5 space-y-1">
                             {rule.tasksToGenerate.map((t, i) => (
                               <li key={i} className="text-muted-foreground">
-                                <strong>{t.title}</strong> for <Badge className="text-[10px] uppercase bg-primary/10 text-primary hover:bg-primary/20 shadow-none border-0 px-1">{t.assignedTo}</Badge>
+                                <strong>{t.title}</strong> {t.displayTime && <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-600 px-1.5 ml-1">{t.displayTime}</Badge>} for <Badge className="text-[10px] uppercase bg-primary/10 text-primary hover:bg-primary/20 shadow-none border-0 px-1">{t.assignedTo}</Badge>
                               </li>
                             ))}
                           </ul>
@@ -573,14 +573,18 @@ export default function SmartTaskingPage() {
                   {newRule.tasksToGenerate.map((t, i) => (
                     <div key={i} className="p-3 bg-accent/5 rounded-md border border-accent/20 space-y-3 relative">
                       <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-destructive" onClick={() => removeTask(i)}><Trash2 className="h-3 w-3" /></Button>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Task Title</Label>
                           <Input placeholder="e.g. Extra Bin Emptying" value={t.title} onChange={e => updateTask(i, 'title', e.target.value)} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Assigned Team / Role</Label>
-                          <Input placeholder="e.g. Keeper or Bin Run" value={t.assignedTo} onChange={e => updateTask(i, 'assignedTo', e.target.value)} />
+                          <Input placeholder="e.g. Keeper" value={t.assignedTo} onChange={e => updateTask(i, 'assignedTo', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Display Time (Optional)</Label>
+                          <Input type="time" value={t.displayTime || ""} onChange={e => updateTask(i, 'displayTime', e.target.value)} />
                         </div>
                       </div>
                       <div className="space-y-1">

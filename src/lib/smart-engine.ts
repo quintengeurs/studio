@@ -57,6 +57,7 @@ export async function evaluateAndApplyConditions(condition: DailyCondition, user
           status: 'Todo',
           dueDate: new Date().toISOString().split('T')[0],
           assignedTo: t.assignedTo,
+          displayTime: t.displayTime,
           park: park,
           source: 'smart-engine',
           isLog: false,

@@ -282,6 +282,7 @@ export default function TasksPage() {
     park: "",
     assignedTo: "",
     dueDate: format(new Date(), 'yyyy-MM-dd'),
+    displayTime: "",
     frequency: "One-off" as Frequency
   });
 
@@ -303,6 +304,7 @@ export default function TasksPage() {
         park: newTask.park,
         assignedTo: isGroupAssign ? `Group: ${groupRole} @ ${groupPark}` : newTask.assignedTo,
         dueDate: newTask.dueDate,
+        displayTime: newTask.displayTime || null,
         frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
         status: 'Todo' as const,
     };
@@ -311,7 +313,7 @@ export default function TasksPage() {
         await addDoc(collection(db, "tasks"), taskData);
         toast({ title: "Task Created", description: `Task assigned to ${taskData.assignedTo}.` });
         setIsTaskDialogOpen(false);
-        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), frequency: "One-off" });
+        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), displayTime: "", frequency: "One-off" });
         setIsGroupAssign(false);
     } catch (error) {
         toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
@@ -478,8 +480,9 @@ export default function TasksPage() {
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <Input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} />
+                <Input type="time" value={newTask.displayTime || ""} onChange={e => setNewTask({...newTask, displayTime: e.target.value})} />
                 <Select value={newTask.frequency} onValueChange={(v: Frequency) => setNewTask({...newTask, frequency: v})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -562,7 +565,7 @@ export default function TasksPage() {
                     <CardHeader className="pb-3 px-4 sm:px-6">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                           <Badge variant="outline" className="text-[10px] font-bold text-primary border-primary/30 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
-                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" />{task.dueDate}</div>
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" />{task.dueDate}{task.displayTime && ` @ ${task.displayTime}`}</div>
                       </div>
                       <CardTitle className="font-headline text-lg sm:text-xl group-hover:text-primary break-words flex-1 min-w-0">{task.title}</CardTitle>
                     </CardHeader>

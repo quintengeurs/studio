@@ -132,7 +132,8 @@ export interface Task {
   isBespoke?: boolean;
   isArchived?: boolean;
   completedAt?: string;
-  source?: 'manual' | 'smart-engine';
+  source?: 'smart-engine' | 'manual';
+  displayTime?: string; // e.g. "09:00"
 }
 
 export interface RecurringSchedule {
@@ -305,6 +306,7 @@ export interface SmartRule {
     title: string;
     objective: string;
     assignedTo: string;
+    displayTime?: string;
   }[];
   createdAt?: string;
 }
