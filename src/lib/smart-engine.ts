@@ -25,18 +25,10 @@ function evaluateCondition(conditionValue: any, ruleCondition: RuleCondition): b
   }
 }
 
-export async function evaluateAndApplyConditions(condition: DailyCondition, user: User, rules: SmartRule[]) {
-  // 1. Save the daily condition
-  await addDoc(collection(db, 'daily_conditions'), {
-    ...condition,
-    createdAt: new Date().toISOString(),
-    loggedBy: user.id || user.email || 'Unknown',
-  });
-
+export function simulateConditions(condition: DailyCondition, rules: SmartRule[]) {
   const generatedTasks: any[] = [];
   const park = condition.parkId;
 
-  // 2. Evaluate Dynamic Rules
   for (const rule of rules) {
     if (!rule.isActive) continue;
 
@@ -52,7 +44,7 @@ export async function evaluateAndApplyConditions(condition: DailyCondition, user
     if (isMatch) {
       for (const t of rule.tasksToGenerate) {
         generatedTasks.push({
-          title: `${t.title} (Smart Task)`,
+          title: t.title,
           objective: t.objective,
           status: 'Todo',
           dueDate: new Date().toISOString().split('T')[0],
@@ -66,6 +58,19 @@ export async function evaluateAndApplyConditions(condition: DailyCondition, user
       }
     }
   }
+  return generatedTasks;
+}
+
+export async function evaluateAndApplyConditions(condition: DailyCondition, user: User, rules: SmartRule[]) {
+  // 1. Save the daily condition
+  await addDoc(collection(db, 'daily_conditions'), {
+    ...condition,
+    createdAt: new Date().toISOString(),
+    loggedBy: user.id || user.email || 'Unknown',
+  });
+
+  // 2. Generate Tasks
+  const generatedTasks = simulateConditions(condition, rules);
 
   // 3. Create Tasks
   for (const task of generatedTasks) {

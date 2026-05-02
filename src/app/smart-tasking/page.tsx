@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { evaluateAndApplyConditions } from "@/lib/smart-engine";
+import { evaluateAndApplyConditions, simulateConditions } from "@/lib/smart-engine";
 import { DailyCondition, SmartRule, RuleCondition, Operator } from "@/lib/types";
 import { 
   BrainCircuit, 
@@ -35,6 +35,14 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebas
 import { collection, query, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -140,6 +148,15 @@ export default function SmartTaskingPage() {
     tasksToGenerate: []
   });
 
+  // Proposed Tasks State
+  const [proposedTasks, setProposedTasks] = useState<any[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [activeConditions, setActiveConditions] = useState<DailyCondition | null>(null);
+
+  const [isSimulatingRule, setIsSimulatingRule] = useState(false);
+  const [simulationResult, setSimulationResult] = useState<any[]>([]);
+  const [ruleBeingSimulated, setRuleBeingSimulated] = useState<SmartRule | null>(null);
+
   if (!permissions.viewSmartTasking) {
     return (
       <DashboardShell title="Access Denied" description="">
@@ -158,7 +175,7 @@ export default function SmartTaskingPage() {
     setSuccessMsg("");
 
     try {
-      let totalTasks = 0;
+      let allProposed: any[] = [];
       for (const parkName of selectedParks) {
         const condition: DailyCondition = {
           parkId: parkName,
@@ -170,22 +187,43 @@ export default function SmartTaskingPage() {
           createdAt: new Date().toISOString(),
         };
 
-        const result = await evaluateAndApplyConditions(condition, user as any, rules);
-        // Result is like "Logged successfully. Generated X smart tasks."
-        const match = result.match(/\d+/);
-        if (match) totalTasks += parseInt(match[0]);
+        const tasks = simulateConditions(condition, rules);
+        allProposed = [...allProposed, ...tasks];
       }
       
-      setSuccessMsg(`Logged for ${selectedParks.length} sites. Total smart tasks generated: ${totalTasks}`);
+      setProposedTasks(allProposed);
+      setIsPreviewOpen(true);
+    } catch (error) {
+      console.error("Failed to simulate conditions:", error);
+      setSuccessMsg("Error simulating conditions.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmLogConditions = async () => {
+    setIsLoading(true);
+    try {
+      for (const parkName of selectedParks) {
+        const condition: DailyCondition = {
+          parkId: parkName,
+          date: new Date().toISOString(),
+          temperature: temperature === "" ? undefined : temperature,
+          windSpeed: windSpeed === "" ? undefined : windSpeed,
+          tags: selectedTags,
+          loggedBy: user?.email || "Unknown",
+          createdAt: new Date().toISOString(),
+        };
+        await evaluateAndApplyConditions(condition, user as any, rules);
+      }
       
-      // Reset
+      setSuccessMsg(`Successfully applied to ${selectedParks.length} sites. ${proposedTasks.length} tasks generated.`);
+      setIsPreviewOpen(false);
       setSelectedParks([]);
       setSelectedTags([]);
-      setTemperature(20);
-      setWindSpeed(10);
+      setProposedTasks([]);
     } catch (error) {
-      console.error("Failed to log conditions:", error);
-      setSuccessMsg("Error logging conditions. Check console.");
+      console.error("Failed to confirm conditions:", error);
     } finally {
       setIsLoading(false);
     }
@@ -280,12 +318,77 @@ export default function SmartTaskingPage() {
     );
   };
 
+  const simulateSpecificRule = (rule: SmartRule) => {
+    // Generate dummy matching condition for simulation
+    const dummyCondition: DailyCondition = {
+      parkId: "Simulation Park",
+      date: new Date().toISOString(),
+      tags: rule.conditions.filter(c => c.field === 'tags').map(c => c.value as string),
+      temperature: rule.conditions.find(c => c.field === 'temperature')?.value as number || 20,
+      windSpeed: rule.conditions.find(c => c.field === 'windSpeed')?.value as number || 10,
+      loggedBy: "Simulator",
+      createdAt: new Date().toISOString()
+    };
+
+    const results = simulateConditions(dummyCondition, [rule]);
+    setRuleBeingSimulated(rule);
+    setSimulationResult(results);
+    setIsSimulatingRule(true);
+  };
+
   return (
     <TooltipProvider>
       <DashboardShell 
         title="Smart Tasking Engine" 
         description="Automate tasks based on environmental conditions."
       >
+        <div className="grid gap-4 md:grid-cols-4 mb-8">
+          <Card className="bg-primary/5 border-primary/20 shadow-none">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <BrainCircuit className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary opacity-70">Rules Active</p>
+                <p className="text-2xl font-bold">{rules.filter(r => r.isActive).length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-blue-500/5 border-blue-500/20 shadow-none">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
+                <Settings2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 opacity-70">Ops Efficiency</p>
+                <p className="text-2xl font-bold">84%</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-green-500/5 border-green-500/20 shadow-none">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-green-500 opacity-70">Bio-Impact</p>
+                <p className="text-2xl font-bold">High</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-orange-500/5 border-orange-500/20 shadow-none">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 opacity-70">Community</p>
+                <p className="text-2xl font-bold">12 Active</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Tabs defaultValue="sensor" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="sensor" className="flex items-center gap-2">
@@ -517,6 +620,14 @@ export default function SmartTaskingPage() {
                             </div>
                           </div>
                             <div className="flex items-center gap-2">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => simulateSpecificRule(rule)}>
+                                    <Activity className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Simulate Rule</TooltipContent>
+                              </Tooltip>
                               <Switch checked={rule.isActive} onCheckedChange={() => toggleRuleActive(rule)} />
                               <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={() => deleteRule(rule.id!)}>
                                 <Trash2 className="h-4 w-4" />
@@ -731,6 +842,80 @@ export default function SmartTaskingPage() {
           </TabsContent>
         </Tabs>
       </DashboardShell>
+
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5 text-primary" />
+              Proposed Smart Tasks
+            </DialogTitle>
+            <DialogDescription>
+              Based on the conditions logged, the following tasks will be generated. Review them before confirming.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto py-4 space-y-4">
+            {proposedTasks.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed">
+                No rules matched these conditions. No tasks will be generated.
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {proposedTasks.map((task, idx) => (
+                  <div key={idx} className="p-4 rounded-xl border bg-card flex flex-col gap-2 relative group hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-[10px] uppercase font-bold text-primary border-primary/30">{task.park}</Badge>
+                      {task.displayTime && <Badge variant="secondary" className="text-[10px] font-bold">@ {task.displayTime}</Badge>}
+                    </div>
+                    <h4 className="font-bold text-sm">{task.title}</h4>
+                    <p className="text-xs text-muted-foreground">{task.objective}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                       <Badge className="bg-primary/10 text-primary border-0 text-[9px] uppercase font-bold px-1.5">{task.assignedTo}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setIsPreviewOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={confirmLogConditions} 
+              disabled={proposedTasks.length === 0 || isLoading}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {isLoading ? "Generating..." : `Approve & Generate ${proposedTasks.length} Tasks`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isSimulatingRule} onOpenChange={setIsSimulatingRule}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rule Simulation Result</DialogTitle>
+            <DialogDescription>
+              Showing what tasks <strong>{ruleBeingSimulated?.name}</strong> would generate under matching conditions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {simulationResult.map((t, idx) => (
+              <div key={idx} className="p-3 bg-muted/30 rounded-lg border flex flex-col gap-1">
+                <h5 className="font-bold text-sm">{t.title}</h5>
+                <p className="text-xs text-muted-foreground">{t.objective}</p>
+                <div className="flex items-center justify-between mt-1">
+                   <Badge variant="secondary" className="text-[9px] uppercase font-bold">{t.assignedTo}</Badge>
+                   {t.displayTime && <span className="text-[10px] text-muted-foreground font-medium">Scheduled: {t.displayTime}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsSimulatingRule(false)}>Close Simulation</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
