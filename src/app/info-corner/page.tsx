@@ -31,7 +31,9 @@ import { useFirestore, useCollection, useUser, useMemoFirebase } from "@/firebas
 import { collection, query, where, orderBy, updateDoc, doc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { InfoItem, InfoItemType } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
+import { Modules } from "@/lib/rbac";
 import { useDataContext } from "@/context/DataContext";
+import { ModuleGuard } from "@/components/auth/module-guard";
 import { InfoItemModal } from "@/components/modals/info-item-modal";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -53,7 +55,7 @@ export default function InfoCornerPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const { profile, permissions } = useUserContext();
+  const { profile, permissions, hasModule } = useUserContext();
   const { allUsers } = useDataContext();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -113,17 +115,18 @@ export default function InfoCornerPage() {
   };
 
   return (
-    <DashboardShell
-      title="Info Corner"
-      description="Stay updated with the latest department news, documents, and opportunities."
-      actions={
-        permissions.manageInfoCorner && (
-          <Button onClick={() => setIsModalOpen(true)} className="font-bold gap-2">
-            <Plus className="h-4 w-4" /> Add New Item
-          </Button>
-        )
-      }
-    >
+    <ModuleGuard module={Modules.COMMUNITY} title="Info Corner locked" message="Your organisation does not currently have access to the Community module.">
+      <DashboardShell
+        title="Info Corner"
+        description="Stay updated with the latest department news, documents, and opportunities."
+        actions={
+          permissions.manageInfoCorner && (
+            <Button onClick={() => setIsModalOpen(true)} className="font-bold gap-2">
+              <Plus className="h-4 w-4" /> Add New Item
+            </Button>
+          )
+        }
+      >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
@@ -326,5 +329,6 @@ export default function InfoCornerPage() {
         </DialogContent>
       </Dialog>
     </DashboardShell>
+    </ModuleGuard>
   );
 }

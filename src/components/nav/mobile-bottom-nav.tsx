@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { RequestModal } from "@/components/modals/request-modal";
 import { useUserContext } from "@/context/UserContext";
+import { Modules } from "@/lib/rbac";
 
 const items = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -46,7 +47,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  const { permissions } = useUserContext();
+  const { permissions, hasModule } = useUserContext();
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -57,18 +58,18 @@ export function MobileBottomNav() {
           case "Parks": return permissions.viewParks;
           case "Parks Map": return permissions.viewMap;
           case "Depots": return permissions.viewDepots;
-          case "Inspections": return permissions.viewInspections;
+          case "Inspections": return permissions.viewInspections && hasModule(Modules.INSPECTIONS);
           case "Issues": return permissions.viewIssues;
           case "Staff Requests": return permissions.viewStaffRequests;
           case "All Tasks": return permissions.viewAllTasks;
           case "Users": return permissions.viewUsers;
-          case "Info Corner": return permissions.viewInfoCorner;
-          case "Smart Tasking": return permissions.viewSmartTasking;
-          case "Volunteering": return permissions.viewVolunteering;
+          case "Info Corner": return permissions.viewInfoCorner && hasModule(Modules.COMMUNITY);
+          case "Smart Tasking": return permissions.viewSmartTasking && hasModule(Modules.SMART_TASKING);
+          case "Volunteering": return permissions.viewVolunteering && hasModule(Modules.COMMUNITY);
           default: return false;
       }
     });
-  }, [permissions]);
+  }, [permissions, hasModule]);
 
   return (
     <>

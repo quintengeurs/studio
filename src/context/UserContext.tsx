@@ -3,16 +3,36 @@
 import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 import { doc, collection, query, where, updateDoc } from 'firebase/firestore';
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { User, AccessPermissions, MANAGEMENT_ROLES } from '@/lib/types';
-import { getDefaultPermissionsForUser } from '@/lib/permissions';
+import { AccessPermissions, Organisation, User } from '@/lib/types';
+import {
+  Roles,
+  canAccessDepot,
+  canAccessPark,
+  getDefaultPermissionsForUser,
+  getUserRoles,
+  hasAnyRole,
+  hasModule,
+  hasPermission,
+  hasRole,
+  isAdmin as isAdminUser,
+  isVolunteer as isVolunteerUser,
+} from '@/lib/rbac';
 
 interface UserContextType {
   profile: User | null;
+  organisation: Organisation | null;
   permissions: AccessPermissions;
   loading: boolean;
   isAdmin: boolean;
   isManagement: boolean;
+  isVolunteer: boolean;
   currentUserRoles: string[];
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
+  hasPermission: (permission: string) => boolean;
+  hasModule: (module: string) => boolean;
+  canAccessPark: (parkId?: string) => boolean;
+  canAccessDepot: (depotId?: string) => boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -21,86 +41,91 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
 
-  const emailId = useMemo(() => 
-    user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", 
-  [user?.email]);
+  const emailId = useMemo(
+    () => user?.email?.toLowerCase().replace(/[.#$[\]]/g, '_') || '',
+    [user?.email]
+  );
 
-  // 1. Check by UID
-  const profileByUidRef = useMemo(() => 
-    db && user?.uid ? doc(db, "users", user.uid) : null, 
-  [db, user?.uid]);
+  const profileByUidRef = useMemo(
+    () => (db && user?.uid ? doc(db, 'users', user.uid) : null),
+    [db, user?.uid]
+  );
   const { data: profileByUid, loading: loadingUid } = useDoc<User>(profileByUidRef as any);
 
-  // 2. Check by Email ID (legacy/sync pattern)
-  const profileByEmailRef = useMemo(() => 
-    db && emailId ? doc(db, "users", emailId) : null, 
-  [db, emailId]);
+  const profileByEmailRef = useMemo(
+    () => (db && emailId ? doc(db, 'users', emailId) : null),
+    [db, emailId]
+  );
   const { data: profileByEmail, loading: loadingEmailId } = useDoc<User>(profileByEmailRef as any);
 
-  // 3. Check by Email Field (search pattern - case-insensitive fallback)
   const userProfileQuery = useMemoFirebase(() => {
     if (!db || !user?.email) return null;
-    return query(collection(db, "users"), where("email", "==", user.email));
+    return query(collection(db, 'users'), where('email', '==', user.email));
   }, [db, user?.email]);
-  
   const { data: profileResults = [], loading: loadingQuery } = useCollection<User>(userProfileQuery as any);
 
-  // 4. Secondary Email Check (if direct match fails, try lowercase search if it was stored differently)
   const userProfileQueryLower = useMemoFirebase(() => {
     if (!db || !user?.email) return null;
-    return query(collection(db, "users"), where("email", "==", user.email.toLowerCase()));
+    return query(collection(db, 'users'), where('email', '==', user.email.toLowerCase()));
   }, [db, user?.email]);
   const { data: profileResultsLower = [] } = useCollection<User>(userProfileQueryLower as any);
 
-  const profile = profileByEmail || profileByUid || profileResults[0] || profileResultsLower[0] || null;
-  const loading = authLoading || (loadingUid && loadingEmailId && loadingQuery);
+  const profile = useMemo(
+    () => profileByEmail || profileByUid || profileResults[0] || profileResultsLower[0] || null,
+    [profileByEmail, profileByUid, profileResults, profileResultsLower]
+  );
 
-  const permissions = useMemo(() => 
-    getDefaultPermissionsForUser(profile, user?.email), 
-  [profile, user?.email]);
+  const orgRef = useMemo(
+    () => (db && profile?.orgId ? doc(db, 'organisations', profile.orgId) : null),
+    [db, profile?.orgId]
+  );
+  const { data: organisation, loading: loadingOrg } = useDoc<Organisation>(orgRef as any);
 
-  const currentUserRoles = useMemo(() => {
-    const rolesSet = new Set<string>();
-    if (profile?.role) rolesSet.add(profile.role);
-    if (profile?.roles) profile.roles.forEach(r => rolesSet.add(r));
-    if (profile?.assignedRoles) profile.assignedRoles.forEach(ar => rolesSet.add(ar.role));
-    return Array.from(rolesSet);
-  }, [profile]);
+  const loading = authLoading || loadingUid || loadingEmailId || loadingQuery || loadingOrg;
 
-  const isAdmin = useMemo(() => 
-    currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
-  [currentUserRoles, user?.email]);
+  const permissions = useMemo(() => {
+    const defaults = getDefaultPermissionsForUser(profile, user?.email);
+    return profile?.permissions ? { ...defaults, ...profile.permissions } : defaults;
+  }, [profile, user?.email]);
 
-  const isManagement = useMemo(() => 
-    currentUserRoles.some(r => MANAGEMENT_ROLES.includes(r as any)) || isAdmin,
-  [currentUserRoles, isAdmin]);
+  const currentUserRoles = useMemo(() => getUserRoles(profile), [profile]);
 
-  // Heartbeat / Presence System
+  const isAdmin = useMemo(() => isAdminUser(profile), [profile]);
+
+  const isManagement = useMemo(
+    () =>
+      isAdmin ||
+      hasAnyRole(profile, [
+        Roles.OPERATIONS_MANAGER,
+        Roles.AREA_MANAGER,
+        Roles.HEAD_OF_SERVICE,
+        Roles.PARK_MANAGER,
+      ]),
+    [isAdmin, profile]
+  );
+
+  const isVolunteer = useMemo(() => isVolunteerUser(profile), [profile]);
+
   React.useEffect(() => {
     if (!db || !user || !profile?.id) return;
 
     const updateStatus = async (online: boolean) => {
       try {
-        const userRef = doc(db, "users", profile.id);
+        const userRef = doc(db, 'users', profile.id);
         await updateDoc(userRef, {
           isOnline: online,
-          lastActive: new Date().toISOString()
+          lastActive: new Date().toISOString(),
         });
       } catch (err) {
-        console.error("Failed to update presence:", err);
+        console.error('Failed to update presence:', err);
       }
     };
 
-    // Initial sign-in update
     updateStatus(true);
 
-    // Periodic heartbeat (every 2 minutes)
     const interval = setInterval(() => updateStatus(true), 120000);
-
-    // Optional: Try to set to offline on close (unreliable but helpful)
     const handleUnload = () => {
-      // Use navigator.sendBeacon or similar if needed, but updateDoc is async
-      // For now, we'll rely on lastActive timestamp for accurate status
+      // rely on lastActive timestamp instead of async updateDoc on unload
     };
 
     window.addEventListener('beforeunload', handleUnload);
@@ -111,13 +136,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
   }, [db, user, profile?.id]);
 
-  const value = {
+  const value: UserContextType = {
     profile,
+    organisation,
     permissions,
     loading,
     isAdmin,
     isManagement,
-    currentUserRoles
+    isVolunteer,
+    currentUserRoles,
+    hasRole: (role: string) => hasRole(profile, role),
+    hasAnyRole: (roles: string[]) => hasAnyRole(profile, roles),
+    hasPermission: (permission: string) => hasPermission(profile, permission),
+    hasModule: (module: string) => hasModule(profile, organisation, module),
+    canAccessPark: (parkId?: string) => canAccessPark(profile, parkId),
+    canAccessDepot: (depotId?: string) => canAccessDepot(profile, depotId),
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

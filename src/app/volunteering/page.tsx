@@ -23,15 +23,19 @@ import {
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { Task } from "@/lib/types";
+import { Modules } from "@/lib/rbac";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
 import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { useDataContext } from "@/context/DataContext";
+import { useUserContext } from "@/context/UserContext";
+import { ModuleGuard } from "@/components/auth/module-guard";
 
 export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
+  const { permissions, hasModule } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
@@ -105,11 +109,22 @@ export default function VolunteeringPage() {
     setIsTaskModalOpen(true);
   };
 
+  if (!permissions.viewVolunteering) {
+    return (
+      <DashboardShell title="Access Denied" description="">
+        <div className="p-4 md:p-8 flex items-center justify-center h-full">
+          <p className="text-muted-foreground">You do not have permission to view volunteering content.</p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
   return (
-    <DashboardShell 
-      title="Volunteer Opportunities" 
-      description="Help us maintain and improve our local parks and green spaces."
-    >
+    <ModuleGuard module={Modules.COMMUNITY} title="Volunteering locked" message="Your organisation does not currently have access to the Volunteering module.">
+      <DashboardShell 
+        title="Volunteer Opportunities" 
+        description="Help us maintain and improve our local parks and green spaces."
+      >
       <div className="space-y-8">
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 to-pink-500 p-8 text-white shadow-xl">

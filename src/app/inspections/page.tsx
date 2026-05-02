@@ -45,6 +45,8 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Frequency, Inspection, Asset } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
+import { Modules } from "@/lib/rbac";
+import { ModuleGuard } from "@/components/auth/module-guard";
 import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 import { getNextBespokeOccurrence } from "@/lib/scheduling-utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -124,6 +126,33 @@ const InspectionCard = ({ inspection, onStart, onDelete, onEdit, isAdmin }: {
 }
 
 export default function InspectionsPage() {
+  const { toast } = useToast();
+  const db = useFirestore();
+  const { user } = useUser();
+  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
+
+  if (!permissions.scheduleInspection && !permissions.viewInspections) {
+    return (
+      <DashboardShell title="Access Denied" description="">
+        <div className="p-4 md:p-8 flex items-center justify-center h-full">
+          <p className="text-muted-foreground">You do not have permission to access Inspections.</p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  return (
+    <ModuleGuard 
+      module={Modules.INSPECTIONS} 
+      title="Inspections locked" 
+      message="Your organisation does not currently have access to the Inspections module."
+    >
+      <InspectionsContent />
+    </ModuleGuard>
+  );
+}
+
+function InspectionsContent() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();

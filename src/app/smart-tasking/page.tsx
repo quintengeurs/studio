@@ -3,13 +3,16 @@
 import { useState, useMemo } from "react";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
+import { ModuleGuard } from "@/components/auth/module-guard";
+import { Modules } from "@/lib/rbac";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { evaluateAndApplyConditions, simulateConditions } from "@/lib/smart-engine";
-import { DailyCondition, SmartRule, RuleCondition, Operator, Role } from "@/lib/types";
+import { DailyCondition, SmartRule, RuleCondition, Operator, Role, Machinery } from "@/lib/types";
 import { 
   BrainCircuit, 
   Plus, 
@@ -33,7 +36,6 @@ import {
 } from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Dialog, 
@@ -117,7 +119,7 @@ const ALL_ROLES: Role[] = [
   'Sports and Leisure Manager', 'User Group Chair', 'Park Manager', 'Volunteer', 'Admin'
 ];
 
-export default function SmartTaskingPage() {
+function SmartTaskingContent() {
   const { permissions } = useUserContext();
   const { allParks, registryConfig } = useDataContext();
   const { user } = useUser();
@@ -988,5 +990,29 @@ export default function SmartTaskingPage() {
         </DialogContent>
       </Dialog>
     </TooltipProvider>
+  );
+}
+
+export default function SmartTaskingPage() {
+  const { permissions } = useUserContext();
+
+  if (!permissions.viewSmartTasking) {
+    return (
+      <DashboardShell title="Access Denied" description="">
+        <div className="p-4 md:p-8 flex items-center justify-center h-full">
+          <p className="text-muted-foreground">You do not have permission to access Smart Tasking.</p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  return (
+    <ModuleGuard 
+      module={Modules.SMART_TASKING} 
+      title="Smart Tasking locked" 
+      message="Your organisation does not currently have access to the Smart Tasking module."
+    >
+      <SmartTaskingContent />
+    </ModuleGuard>
   );
 }

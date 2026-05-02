@@ -18,6 +18,19 @@ export interface AssignedRole {
   depotIds: string[];
 }
 
+export interface Organisation {
+  id: string;
+  name: string;
+  council?: string;
+  depotIds?: string[];
+  parkIds?: string[];
+  enabledModules?: string[];
+  licenseModules?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  metadata?: Record<string, any>;
+}
+
 export interface AccessPermissions {
   // Page Visibility
   viewDashboard: boolean;
@@ -59,6 +72,10 @@ export interface User {
   email: string;
   roles: Role[];
   role?: Role; // Legacy fallback
+  permissionKeys?: string[];
+  orgId?: string;
+  depotIds?: string[];
+  parkIds?: string[];
   depot: string; // Primary depot
   depots?: string[]; // Multiple assigned depots
   assignedRoles?: AssignedRole[];
@@ -70,12 +87,14 @@ export interface User {
   allowDesktopView?: boolean;
   isArchived?: boolean;
   createdAt?: string;
+  licenseModules?: string[];
   permissions?: AccessPermissions;
   mobilePermissions?: AccessPermissions;
 }
 
 export interface Asset {
   id: string;
+  orgId?: string;
   name: string;
   type: string;
   park: string;
@@ -92,6 +111,7 @@ export interface Asset {
 
 export interface Issue {
   id: string;
+  orgId?: string;
   title: string;
   description: string;
   status: 'Open' | 'In Progress' | 'Pending Approval' | 'Resolved';
@@ -115,6 +135,7 @@ export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthl
 
 export interface Task {
   id: string;
+  orgId?: string;
   title: string;
   objective: string;
   status: 'Todo' | 'Doing' | 'Pending Approval' | 'Completed';
@@ -214,6 +235,7 @@ export interface ParkUpdate {
 
 export interface ParkDetail {
   id: string;
+  orgId?: string;
   name: string;
   headGardener?: string;
   areaManager?: string;
@@ -236,6 +258,7 @@ export interface ParkDetail {
 }
 export interface DepotUpdate {
   id: string;
+  orgId?: string;
   type: 'Training' | 'Machinery' | 'Safety' | 'General' | 'Tools' | 'Sites';
   title: string;
   description: string;
@@ -249,6 +272,7 @@ export interface DepotUpdate {
 
 export interface Machinery {
   id: string;
+  orgId?: string;
   name: string;
   type: string;
   depotId: string;
