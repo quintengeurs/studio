@@ -292,7 +292,8 @@ export default function TasksPage() {
     assignedTo: "",
     dueDate: format(new Date(), 'yyyy-MM-dd'),
     displayTime: "",
-    frequency: "One-off" as Frequency
+    frequency: "One-off" as Frequency,
+    isVolunteerEligible: false
   });
 
   const getStatusColor = (status: string) => {
@@ -316,13 +317,18 @@ export default function TasksPage() {
         displayTime: newTask.displayTime || null,
         frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
         status: 'Todo' as const,
+        isVolunteerEligible: newTask.isVolunteerEligible
     };
+
+    if (newTask.isVolunteerEligible) {
+      taskData.assignedTo = "Any Volunteer";
+    }
 
     try {
         await addDoc(collection(db, "tasks"), taskData);
         toast({ title: "Task Created", description: `Task assigned to ${taskData.assignedTo}.` });
         setIsTaskDialogOpen(false);
-        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), displayTime: "", frequency: "One-off" });
+        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), displayTime: "", frequency: "One-off", isVolunteerEligible: false });
         setIsGroupAssign(false);
     } catch (error) {
         toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
@@ -445,10 +451,37 @@ export default function TasksPage() {
                     <Label>Group Assignment</Label>
                     <p className="text-[10px] text-muted-foreground italic">Allocate to a whole team at a park</p>
                   </div>
-                  <Switch checked={isGroupAssign} onCheckedChange={setIsGroupAssign} />
+                  <Switch checked={isGroupAssign} onCheckedChange={setIsGroupAssign} disabled={newTask.isVolunteerEligible} />
                 </div>
 
-                {isGroupAssign ? (
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-orange-600 font-bold flex items-center gap-2">
+                      <Heart className="h-3.5 w-3.5 fill-current" />
+                      Volunteer Opportunity
+                    </Label>
+                    <p className="text-[10px] text-muted-foreground italic">Publish to the Volunteer Portal</p>
+                  </div>
+                  <Switch 
+                    checked={newTask.isVolunteerEligible} 
+                    onCheckedChange={(v) => {
+                      setNewTask({...newTask, isVolunteerEligible: v});
+                      if (v) setIsGroupAssign(false);
+                    }} 
+                  />
+                </div>
+
+                {newTask.isVolunteerEligible ? (
+                  <div className="p-3 rounded-lg bg-orange-50 border border-orange-100 animate-in zoom-in-95 duration-200">
+                    <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
+                        <SelectTrigger className="bg-white border-orange-200"><SelectValue placeholder="Select Park for Volunteers" /></SelectTrigger>
+                        <SelectContent>
+                            {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-orange-700 mt-2 font-medium">This task will be visible to all registered volunteers in this park.</p>
+                  </div>
+                ) : isGroupAssign ? (
                   <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                     <div className="grid gap-2">
                       <Label className="text-xs">Team / Role</Label>
@@ -506,7 +539,7 @@ export default function TasksPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button className="w-full" onClick={handleCreateTask} disabled={!newTask.title || (!isGroupAssign && (!newTask.park || !newTask.assignedTo)) || (isGroupAssign && (!groupRole || !groupPark)) || isSubmitting}>
+              <Button className="w-full h-11 font-bold" onClick={handleCreateTask} disabled={!newTask.title || (newTask.isVolunteerEligible && !newTask.park) || (!newTask.isVolunteerEligible && !isGroupAssign && (!newTask.park || !newTask.assignedTo)) || (!newTask.isVolunteerEligible && isGroupAssign && (!groupRole || !groupPark)) || isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Task"}
                 </Button>
             </DialogFooter>
