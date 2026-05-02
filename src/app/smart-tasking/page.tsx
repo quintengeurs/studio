@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { evaluateAndApplyConditions, simulateConditions } from "@/lib/smart-engine";
-import { DailyCondition, SmartRule, RuleCondition, Operator } from "@/lib/types";
+import { DailyCondition, SmartRule, RuleCondition, Operator, Role } from "@/lib/types";
 import { 
   BrainCircuit, 
   Plus, 
@@ -108,6 +108,14 @@ const CATEGORY_CONFIG = {
   ESG: { icon: Activity, color: "text-purple-500", bg: "bg-purple-500/10" },
   Volunteer: { icon: Users, color: "text-orange-500", bg: "bg-orange-500/10" },
 };
+
+const ALL_ROLES: Role[] = [
+  'Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Area Manager', 
+  'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 
+  'Parks Development Officer', 'Tree Officer', 'Biodiversity Manager', 
+  'Contractor', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 
+  'Sports and Leisure Manager', 'User Group Chair', 'Park Manager', 'Volunteer', 'Admin'
+];
 
 export default function SmartTaskingPage() {
   const { permissions } = useUserContext();
@@ -815,7 +823,16 @@ export default function SmartTaskingPage() {
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Assigned Team / Role</Label>
-                            <Input placeholder="e.g. Keeper" value={t.assignedTo} onChange={e => updateTask(i, 'assignedTo', e.target.value)} />
+                            <Select value={t.assignedTo} onValueChange={(v) => updateTask(i, 'assignedTo', v)}>
+                              <SelectTrigger className="h-10">
+                                <SelectValue placeholder="Select Role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ALL_ROLES.sort().map(role => (
+                                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Display Time (Optional)</Label>
