@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ import { collection, updateDoc, doc, query, where, limit } from "firebase/firest
 import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
 import { format, isToday, isThisWeek, isThisMonth, parseISO, isBefore, startOfDay } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDataContext } from "@/context/DataContext";
 
 export default function MyTasksPage() {
   const { toast } = useToast();
@@ -55,6 +57,7 @@ export default function MyTasksPage() {
     return query(collection(db, "users"), limit(100));
   }, [db]);
   const { data: allUsers = [] } = useCollection<UserType>(usersQuery as any);
+  const { allParks } = useDataContext();
 
   // Dynamic current user profile
   const currentUserProfile = useMemo(() => 
@@ -443,200 +446,14 @@ export default function MyTasksPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
-          {selectedTask && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-2 text-primary text-[10px] font-bold uppercase tracking-widest mb-1">
-                  <MapPin className="h-3 w-3" /> {selectedTask.park}
-                </div>
-                <div className="flex justify-between items-start">
-                  <DialogTitle className="text-2xl font-headline font-bold text-primary">{selectedTask.title}</DialogTitle>
-                  {getStatusBadge(selectedTask.status)}
-                </div>
-                <DialogDescription className="text-sm font-medium text-foreground pb-2">
-                  Due {selectedTask.dueDate}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="grid gap-6 py-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Objective & Requirements</Label>
-                  <p className="text-sm leading-relaxed bg-muted/30 p-4 rounded-lg border italic">
-                    "{selectedTask.objective}"
-                  </p>
-                </div>
-
-                {linkedIssue && (
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1.5">
-                      <AlertCircle className="h-3 w-3" /> Linked Issue Context
-                    </Label>
-                    <div className="rounded-xl border-2 border-yellow-200 overflow-hidden bg-yellow-50/30 dark:bg-yellow-900/10">
-                      {linkedIssue.imageUrl ? (
-                        <div className="relative aspect-video w-full">
-                          <Image src={linkedIssue.imageUrl} alt="Issue Reference" fill className="object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                          <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
-                            {linkedIssue.priority && (
-                              <Badge className={`text-[9px] font-bold uppercase px-2 ${
-                                linkedIssue.priority === 'Emergency' ? 'bg-red-600 text-white' :
-                                linkedIssue.priority === 'High' ? 'bg-yellow-500 text-white' :
-                                linkedIssue.priority === 'Medium' ? 'bg-blue-500 text-white' :
-                                'bg-green-600 text-white'
-                              }`}>{linkedIssue.priority}</Badge>
-                            )}
-                            {linkedIssue.category && (
-                              <Badge variant="secondary" className="text-[9px] font-bold uppercase px-2 bg-white/80 text-foreground">{linkedIssue.category}</Badge>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="h-24 bg-yellow-100/50 flex items-center justify-center gap-2 text-yellow-700">
-                          <AlertCircle className="h-5 w-5" />
-                          <span className="text-xs font-bold uppercase">No Image Provided</span>
-                        </div>
-                      )}
-                      <div className="p-4 space-y-3">
-                        <div>
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <p className="text-sm font-bold text-foreground leading-tight">{linkedIssue.title}</p>
-                            {!linkedIssue.imageUrl && linkedIssue.priority && (
-                              <Badge className={`text-[9px] font-bold uppercase px-2 shrink-0 ${
-                                linkedIssue.priority === 'Emergency' ? 'bg-red-600 text-white' :
-                                linkedIssue.priority === 'High' ? 'bg-yellow-500 text-white' :
-                                linkedIssue.priority === 'Medium' ? 'bg-blue-500 text-white' :
-                                'bg-green-600 text-white'
-                              }`}>{linkedIssue.priority}</Badge>
-                            )}
-                          </div>
-                          {linkedIssue.description && (
-                            <p className="text-[11px] text-muted-foreground leading-relaxed">{linkedIssue.description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1 pt-2 border-t border-yellow-200/60">
-                          {linkedIssue.reportedBy && (
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                              <Users className="h-3 w-3" /> Reported by <strong>{linkedIssue.reportedBy}</strong>
-                            </span>
-                          )}
-                          {linkedIssue.createdAt && (
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" /> {new Date(linkedIssue.createdAt).toLocaleDateString()}
-                            </span>
-                          )}
-                          {linkedIssue.location && (
-                            <span className="text-[10px] text-primary flex items-center gap-1 font-bold">
-                              <MapPin className="h-3 w-3" /> GPS Tagged
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedTask.status === 'Todo' ? (
-                  <Button className="w-full h-12 font-bold bg-accent hover:bg-accent/90" onClick={() => handleStatusUpdate(selectedTask.id, 'Doing')}>
-                    <PlayCircle className="mr-2 h-5 w-5" /> START THIS TASK NOW
-                  </Button>
-                ) : (selectedTask.status === 'Doing' || selectedTask.status === 'Pending Approval') && (
-                  <div className="space-y-6 pt-2 border-t">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Completion Note & Proof</Label>
-                      <Textarea 
-                        placeholder="Describe the completed work..." 
-                        value={completionData.note}
-                        onChange={e => setCompletionData({...completionData, note: e.target.value})}
-                        disabled={selectedTask.status === 'Pending Approval'}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Photo Evidence</Label>
-                      <div className="flex flex-col gap-2">
-                        {completionData.imageUrl ? (
-                          <div className="relative w-full aspect-video rounded-md overflow-hidden border">
-                            <Image src={completionData.imageUrl} alt="Evidence" fill className="object-cover" />
-                            {selectedTask.status !== 'Pending Approval' && (
-                              <Button 
-                                size="icon" variant="destructive" 
-                                className="absolute top-2 right-2 h-7 w-7 rounded-full"
-                                onClick={() => setCompletionData({...completionData, imageUrl: ""})}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        ) : selectedTask.status !== 'Pending Approval' && (
-                          <Button 
-                            variant="outline" 
-                            className="w-full h-24 border-dashed border-2 flex flex-col gap-2"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <Camera className="h-6 w-6 text-muted-foreground" />
-                            <span className="text-xs font-bold text-muted-foreground uppercase">Upload Proof Image</span>
-                          </Button>
-                        )}
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                      </div>
-                    </div>
-
-                    {selectedTask.status !== 'Pending Approval' && (
-                      <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-primary" />
-                            <Label className="font-bold">Add Collaborating Colleagues</Label>
-                          </div>
-                          <Checkbox 
-                            id="add-colleagues" 
-                            checked={showColleagueSelection} 
-                            onCheckedChange={(v) => setShowColleagueSelection(!!v)}
-                          />
-                        </div>
-                        
-                        {showColleagueSelection && (
-                          <div className="space-y-2 pt-2 border-t">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Colleagues at {currentUserProfile?.depot || 'General Depot'}</p>
-                            <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto pr-2">
-                              {colleagues.map(colleague => (
-                                <div 
-                                  key={colleague.id} 
-                                  className="flex items-center justify-between p-2 rounded hover:bg-white transition-colors cursor-pointer"
-                                  onClick={() => toggleColleague(colleague.name)}
-                                >
-                                  <span className="text-xs font-medium">{colleague.name}</span>
-                                  <Checkbox 
-                                    checked={selectedColleagues.includes(colleague.name)} 
-                                    onCheckedChange={() => toggleColleague(colleague.name)}
-                                  />
-                                </div>
-                              ))}
-                              {colleagues.length === 0 && (
-                                <p className="text-xs text-muted-foreground italic text-center py-2">No colleagues found in your team.</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {selectedTask.status === 'Doing' && (
-                <DialogFooter>
-                  <Button className="w-full h-12 font-bold text-accent-foreground" onClick={handleCompleteTask}>
-                    <Send className="mr-2 h-4 w-4" /> SUBMIT WORK FOR APPROVAL
-                  </Button>
-                </DialogFooter>
-              )}
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <TaskDetailModal
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        task={selectedTask}
+        linkedIssue={linkedIssue}
+        allUsers={allUsers}
+        allParks={allParks}
+      />
       </div>
     </DashboardShell>
   );

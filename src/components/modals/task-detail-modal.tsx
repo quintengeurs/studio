@@ -39,6 +39,7 @@ interface TaskDetailModalProps {
   task: Task | null;
   linkedIssue?: Issue;
   allUsers: User[];
+  allParks?: any[];
 }
 
 export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers }: TaskDetailModalProps) {
@@ -58,14 +59,29 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
 
+  const taskDepot = useMemo(() => {
+    if (!task || !allParks) return null;
+    return allParks.find(p => p.name === task.park)?.depot;
+  }, [task, allParks]);
+
   const colleagues = useMemo(() => {
-    if (!currentUserProfile) return [];
-    return allUsers.filter(u => 
-      u.depot === currentUserProfile.depot && 
-      u.name !== currentUserProfile.name && 
-      !u.isArchived
-    );
-  }, [allUsers, currentUserProfile]);
+    if (!taskDepot) {
+      // Fallback to current user's depot if we can't find task depot
+      if (!currentUserProfile) return [];
+      return allUsers.filter(u => 
+        (u.depot === currentUserProfile.depot || u.depots?.includes(currentUserProfile.depot || "")) && 
+        u.name !== currentUserProfile.name && 
+        !u.isArchived
+      );
+    }
+
+    return allUsers.filter(u => {
+      const userDepots = u.depots || (u.depot ? [u.depot] : []);
+      return userDepots.includes(taskDepot) && 
+             u.name !== currentUserProfile?.name && 
+             !u.isArchived;
+    });
+  }, [allUsers, currentUserProfile, taskDepot]);
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (!db || !task) return;

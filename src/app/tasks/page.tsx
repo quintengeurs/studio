@@ -937,6 +937,7 @@ export default function TasksPage() {
         task={selectedDetailTask || null} 
         linkedIssue={linkedIssue}
         allUsers={users}
+        allParks={allDetails}
       />
     </DashboardShell>
   );
