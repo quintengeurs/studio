@@ -136,6 +136,7 @@ export interface Task {
   source?: 'smart-engine' | 'manual';
   displayTime?: string; // e.g. "09:00"
   isVolunteerEligible?: boolean;
+  completedByVolunteers?: string[];
 }
 
 export interface RecurringSchedule {

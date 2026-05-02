@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,16 +12,32 @@ import {
   Calendar, 
   ArrowRight,
   Sparkles,
-  Heart
+  Heart,
+  CheckCircle2
 } from "lucide-react";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { Task } from "@/lib/types";
 import { format } from "date-fns";
+import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
+import { TaskDetailModal } from "@/components/modals/task-detail-modal";
+import { useDataContext } from "@/context/DataContext";
 
 export default function VolunteeringPage() {
   const db = useFirestore();
+  const { user } = useUser();
+  const { allUsers, allParks } = useDataContext();
+  const [isRegModalOpen, setIsRegModalOpen] = useState(false);
+  const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
   
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("volunteerEmail");
+    if (savedEmail) setVolunteerEmail(savedEmail);
+  }, []);
+
   const volunteerTasksQuery = useMemoFirebase(() => 
     db ? query(
       collection(db, "tasks"), 
@@ -31,7 +47,28 @@ export default function VolunteeringPage() {
     ) : null, 
   [db]);
 
-  const { data: tasks = [], loading } = useCollection<Task>(volunteerTasksQuery as any);
+  const { data: rawTasks = [], loading } = useCollection<Task>(volunteerTasksQuery as any);
+
+  // Filter out tasks this specific volunteer has already completed
+  const tasks = useMemo(() => {
+    if (!volunteerEmail) return rawTasks;
+    return rawTasks.filter(t => !t.completedByVolunteers?.includes(volunteerEmail));
+  }, [rawTasks, volunteerEmail]);
+
+  const selectedTask = useMemo(() => tasks.find(t => t.id === selectedTaskId) || null, [tasks, selectedTaskId]);
+
+  const handleRegisterSuccess = (email: string) => {
+    setVolunteerEmail(email);
+  };
+
+  const handleTaskAction = (taskId: string) => {
+    if (!volunteerEmail) {
+      setIsRegModalOpen(true);
+      return;
+    }
+    setSelectedTaskId(taskId);
+    setIsTaskModalOpen(true);
+  };
 
   return (
     <DashboardShell 
@@ -43,18 +80,26 @@ export default function VolunteeringPage() {
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 to-pink-500 p-8 text-white shadow-xl">
           <div className="relative z-10 max-w-2xl">
             <Badge className="bg-white/20 text-white border-white/30 mb-4 backdrop-blur-sm">Community Hub</Badge>
-            <h2 className="text-4xl font-bold mb-4">Make a Difference in Your Local Park</h2>
+            <h2 className="text-4xl font-bold mb-4">
+              {volunteerEmail ? "Welcome Back, Volunteer!" : "Make a Difference in Your Local Park"}
+            </h2>
             <p className="text-lg opacity-90 mb-6">
-              Join our team of dedicated volunteers. From biodiversity surveys to seasonal maintenance, 
-              your contribution helps keep our parks beautiful for everyone.
+              {volunteerEmail 
+                ? "You are registered and active. See the available tasks below to help out today."
+                : "Join our team of dedicated volunteers. From biodiversity surveys to seasonal maintenance, your contribution helps keep our parks beautiful for everyone."
+              }
             </p>
             <div className="flex gap-4">
-              <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50">
-                Register as Volunteer
-              </Button>
-              <Button size="lg" variant="outline" className="text-white border-white/30 hover:bg-white/10">
-                Impact Reports
-              </Button>
+              {!volunteerEmail ? (
+                <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 font-bold" onClick={() => setIsRegModalOpen(true)}>
+                  Register as Volunteer
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full backdrop-blur-md border border-white/30">
+                  <CheckCircle2 className="h-5 w-5 text-green-300" />
+                  <span className="font-bold text-sm">Registered: {volunteerEmail}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="absolute right-0 top-0 h-full w-1/3 bg-[url('https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay" />
@@ -66,7 +111,7 @@ export default function VolunteeringPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold flex items-center gap-2">
               <Sparkles className="h-6 w-6 text-orange-500" />
-              Active Opportunities
+              {volunteerEmail ? "Tasks For You" : "Active Opportunities"}
             </h3>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Users className="h-4 w-4" />
@@ -89,7 +134,7 @@ export default function VolunteeringPage() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {tasks.map(task => (
-                <Card key={task.id} className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-orange-500/10 overflow-hidden">
+                <Card key={task.id} className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-orange-500/10 overflow-hidden flex flex-col">
                   <CardHeader className="pb-4 relative">
                     <div className="absolute top-0 right-0 p-4">
                        <Badge className="bg-orange-500 text-white shadow-lg">Open Role</Badge>
@@ -103,9 +148,9 @@ export default function VolunteeringPage() {
                       {task.park}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="pb-6">
-                    <p className="text-sm text-muted-foreground line-clamp-3 mb-6">
-                      {task.objective}
+                  <CardContent className="pb-6 flex-1">
+                    <p className="text-sm text-muted-foreground line-clamp-3 mb-6 italic">
+                      "{task.objective}"
                     </p>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/40 p-2 rounded-lg">
@@ -120,9 +165,12 @@ export default function VolunteeringPage() {
                       )}
                     </div>
                   </CardContent>
-                  <CardFooter className="pt-0">
-                    <Button className="w-full bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20">
-                      Express Interest
+                  <CardFooter className="pt-0 mt-auto">
+                    <Button 
+                      className="w-full bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20 font-bold h-11"
+                      onClick={() => handleTaskAction(task.id)}
+                    >
+                      {volunteerEmail ? "HELP WITH THIS TASK" : "REGISTER TO HELP"}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </CardFooter>
@@ -132,6 +180,22 @@ export default function VolunteeringPage() {
           )}
         </div>
       </div>
+
+      <VolunteerRegistrationModal 
+        open={isRegModalOpen} 
+        onOpenChange={setIsRegModalOpen} 
+        onSuccess={handleRegisterSuccess}
+        defaultEmail={user?.email || ""}
+      />
+
+      <TaskDetailModal
+        open={isTaskModalOpen}
+        onOpenChange={setIsTaskModalOpen}
+        task={selectedTask}
+        allUsers={allUsers}
+        allParks={allParks}
+        volunteerEmail={volunteerEmail}
+      />
     </DashboardShell>
   );
 }

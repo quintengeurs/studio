@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useFirestore, useUser } from "@/firebase";
-import { updateDoc, doc } from "firebase/firestore";
+import { updateDoc, doc, arrayUnion } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Task, Issue, User } from "@/lib/types";
 
@@ -40,9 +40,10 @@ interface TaskDetailModalProps {
   linkedIssue?: Issue;
   allUsers: User[];
   allParks?: any[];
+  volunteerEmail?: string | null;
 }
 
-export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks }: TaskDetailModalProps) {
+export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks, volunteerEmail }: TaskDetailModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
@@ -114,7 +115,11 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
         status: 'Pending Approval',
         completionNote: completionData.note,
         completionImageUrl: completionData.imageUrl,
-        collaborators: selectedColleagues
+        collaborators: selectedColleagues,
+        ...(volunteerEmail ? { 
+          completedByVolunteers: arrayUnion(volunteerEmail),
+          assignedTo: `Volunteer: ${volunteerEmail}` 
+        } : {})
       });
 
       if (task.linkedIssueId) {
