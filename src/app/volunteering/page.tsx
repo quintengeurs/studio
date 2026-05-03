@@ -20,8 +20,9 @@ import {
   HandMetal,
   UserCheck
 } from "lucide-react";
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useUser, useFirebase } from "@/firebase";
 import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { signInAnonymously } from "firebase/auth";
 import { Task } from "@/lib/types";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,7 @@ import { useDataContext } from "@/context/DataContext";
 export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
+  const { auth } = useFirebase();
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
   
@@ -43,37 +45,42 @@ export default function VolunteeringPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // Enable anonymous auth for volunteers if not already logged in
+    if (!user) {
+      signInAnonymously(auth).catch(err => console.error("Anon auth failed:", err));
+    }
+
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
-  }, []);
+  }, [user, auth]);
 
   // Public Portal Data
   const volunteerTasksQuery = useMemoFirebase(() => 
-    db ? query(
+    (db && user) ? query(
       collection(db, "tasks"), 
       where("isVolunteerEligible", "==", true),
       where("status", "==", "Todo"),
       limit(50)
     ) : null, 
-  [db]);
+  [db, user]);
 
   const { data: rawTasks = [], loading } = useCollection<Task>(volunteerTasksQuery as any);
 
   // Staff Management Data (Volunteer Log)
   const staffLogQuery = useMemoFirebase(() => 
-    db ? query(
+    (db && user) ? query(
       collection(db, "tasks"), 
       where("status", "==", "Completed"),
       where("isVolunteerEligible", "==", true),
       limit(100)
     ) : null, 
-  [db]);
+  [db, user]);
   const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
 
   const infoQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, "info_items"), where("isVolunteerVisible", "==", true), where("isArchived", "==", false));
-  }, [db]);
+  }, [db, user]);
   const { data: infoItems = [] } = useCollection<any>(infoQuery as any);
 
   const handleToggleInfoInterest = async (item: any) => {
