@@ -1263,7 +1263,7 @@ export default function VolunteeringPage() {
       <InfoItemModal
         open={isInfoModalOpen}
         onOpenChange={setIsInfoModalOpen}
-        editItem={editingInfoItem}
+        editItem={editingNewsItem}
       />
     </DashboardShell>
   );
