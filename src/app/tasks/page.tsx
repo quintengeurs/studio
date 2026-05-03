@@ -38,6 +38,7 @@ import {
   Camera
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import {
@@ -475,12 +476,13 @@ export default function TasksPage() {
               <Plus className="mr-2 h-4 w-4" /> Create Task
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="p-6 pb-2">
               <DialogTitle className="font-headline">Create New Task</DialogTitle>
               <DialogDescription>Assign a new operational task to the team.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <ScrollArea className="flex-1 px-6">
+              <div className="grid gap-4 py-4">
                 <Input placeholder="Task Title e.g. Mow North Lawn" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} />
                 <Textarea placeholder="Objective: What needs to be achieved?" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} />
               <div className="space-y-4 pt-2 border-t mt-2">
@@ -637,11 +639,11 @@ export default function TasksPage() {
                     </SelectContent>
                 </Select>
               </div>
-            </div>
-            <DialogFooter>
+            </ScrollArea>
+            <DialogFooter className="p-6 border-t">
               <Button className="w-full h-11 font-bold" onClick={handleCreateTask} disabled={!newTask.title || (newTask.isVolunteerEligible && !newTask.park) || (!newTask.isVolunteerEligible && !isGroupAssign && (!newTask.park || !newTask.assignedTo)) || (!newTask.isVolunteerEligible && isGroupAssign && (!groupRole || !groupPark)) || isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Task"}
-                </Button>
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
