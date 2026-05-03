@@ -145,9 +145,9 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
 
       await updateDoc(doc(db, "tasks", task.id), { 
         status: newStatus,
-        completionNote: completionData.note,
-        completionImageUrl: completionData.imageUrl,
-        collaborators: selectedColleagues,
+        completionNote: completionData.note || "",
+        completionImageUrl: completionData.imageUrl || "",
+        collaborators: selectedColleagues || [],
         ...(volunteerEmail ? { 
           completedByVolunteers: arrayUnion(volunteerEmail),
           assignedTo: `Volunteer: ${volunteerEmail}`,
@@ -155,24 +155,31 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
         } : {})
       });
 
+      // Attempt to update linked issue, but don't crash if it fails (likely due to permissions)
       if (task.linkedIssueId) {
-        await updateDoc(doc(db, "issues", task.linkedIssueId), { 
-          status: newStatus === 'Completed' ? 'Resolved' : 'Pending Approval',
-          collaborators: selectedColleagues,
-          resolutionNote: completionData.note,
-          resolutionImageUrl: completionData.imageUrl,
-          resolutionDate: new Date().toISOString()
-        });
+        try {
+          await updateDoc(doc(db, "issues", task.linkedIssueId), { 
+            status: newStatus === 'Completed' ? 'Resolved' : 'Pending Approval',
+            collaborators: selectedColleagues || [],
+            resolutionNote: completionData.note || "",
+            resolutionImageUrl: completionData.imageUrl || "",
+            resolutionDate: new Date().toISOString()
+          });
+        } catch (issueErr) {
+          console.warn("Could not update linked issue status (likely permissions):", issueErr);
+          // We continue because the task itself was updated successfully
+        }
       }
 
       toast({ 
-        title: "Task Submitted", 
-        description: "Work proof sent for approval." 
+        title: volunteerEmail ? "Thank You!" : "Task Submitted", 
+        description: volunteerEmail ? "Your contribution has been recorded. Check your activity tab for rewards!" : "Work proof sent for approval." 
       });
       if (onSuccess) onSuccess();
       onOpenChange(false);
     } catch (e) {
-      toast({ title: "Error", description: "Failed to submit work.", variant: "destructive" });
+      console.error("Task completion error:", e);
+      toast({ title: "Error", description: "Failed to submit work. Please check your connection and try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }

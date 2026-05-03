@@ -125,18 +125,24 @@ export default function VolunteeringPage() {
     setTasksLoading(true);
     try {
       const { getDocs } = await import("firebase/firestore");
-      // Simplify query to avoid index requirement for public users
+      // Use a simpler query to avoid index requirements for public/volunteer users
       const q = query(
         collection(db, "tasks"), 
-        where("isVolunteerEligible", "==", true),
-        limit(50)
+        where("isVolunteerEligible", "==", true)
       );
       const snapshot = await getDocs(q);
-      const allEligible = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task);
-      // Filter in-memory for status to ensure it works even without index
-      setTasks(allEligible.filter(t => ["Todo", "Doing"].includes(t.status)));
+      const allEligible = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+      
+      // Filter status and limit in-memory for maximum reliability
+      const activeTasks = allEligible
+        .filter(t => ["Todo", "Doing"].includes(t.status))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 50);
+        
+      setTasks(activeTasks);
     } catch (err) {
       console.error("Public tasks fetch error:", err);
+      setTasks([]);
     } finally {
       setTasksLoading(false);
     }
@@ -189,15 +195,16 @@ export default function VolunteeringPage() {
   const fetchNews = async () => {
     if (!db) return;
     try {
+      // Fetch all non-archived items and filter in-memory 
+      // This is more robust against missing indices and permission query constraints
       const q = query(
         collection(db, "info_items"), 
-        where("isVolunteerVisible", "==", true)
+        where("isArchived", "==", false)
       );
       const snapshot = await getDocs(q);
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Sort and filter archived in memory to avoid needing complex indices for public users
-      const filtered = docs.filter((d: any) => d.isArchived === false);
+      const filtered = docs.filter((d: any) => d.isVolunteerVisible === true);
       setInfoItems(filtered.sort((a: any, b: any) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -205,6 +212,15 @@ export default function VolunteeringPage() {
       }));
     } catch (err) {
       console.error("Hub News Fetch Error:", err);
+      // Fallback: try fetching all if the filtered query failed due to permissions on the 'where' clause
+      try {
+        const snapshot = await getDocs(collection(db, "info_items"));
+        const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const filtered = docs.filter((d: any) => d.isVolunteerVisible === true && !d.isArchived);
+        setInfoItems(filtered);
+      } catch (innerErr) {
+        console.error("Hub News Fallback Fetch Error:", innerErr);
+      }
     }
   };
 
@@ -448,7 +464,13 @@ export default function VolunteeringPage() {
                       <CardHeader className="pb-3 px-6">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                             <Badge variant="outline" className="text-[10px] font-bold text-orange-600 border-orange-200 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" /> {task.completedAt ? format(new Date(task.completedAt), 'MMM d, yyyy') : 'Recently'}</div>
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0">
+                                <Clock className="h-3 w-3" /> 
+                                {task.completedAt ? (() => {
+                                    try { return format(new Date(task.completedAt), 'MMM d, yyyy'); }
+                                    catch(e) { return 'Recently'; }
+                                })() : 'Recently'}
+                            </div>
                         </div>
                         <CardTitle className="font-headline text-lg group-hover:text-orange-600 break-words flex-1 min-w-0">{task.title}</CardTitle>
                       </CardHeader>
@@ -856,7 +878,12 @@ export default function VolunteeringPage() {
                           </div>
                           <div>
                             <p className="font-bold text-sm text-foreground">{task.title}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park} • {task.completedAt ? format(new Date(task.completedAt), 'MMM d, h:mm a') : 'Just now'}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                                {task.park} • {task.completedAt ? (() => {
+                                    try { return format(new Date(task.completedAt), 'MMM d, h:mm a'); }
+                                    catch(e) { return 'Recently'; }
+                                })() : 'Just now'}
+                            </p>
                           </div>
                         </div>
                         {task.rewardDescription && (
