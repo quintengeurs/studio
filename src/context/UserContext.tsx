@@ -4,7 +4,8 @@ import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 import { doc, collection, query, where, updateDoc } from 'firebase/firestore';
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { User, AccessPermissions, MANAGEMENT_ROLES } from '@/lib/types';
-import { getDefaultPermissionsForUser } from '@/lib/permissions';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { getDefaultPermissionsForUser, getEffectivePermissions } from '@/lib/permissions';
 
 interface UserContextType {
   profile: User | null;
@@ -20,6 +21,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
+  const isMobile = useIsMobile();
 
   const emailId = useMemo(() => 
     user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", 
@@ -56,8 +58,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const loading = authLoading || (loadingUid && loadingEmailId && loadingQuery);
 
   const permissions = useMemo(() => 
-    getDefaultPermissionsForUser(profile, user?.email), 
-  [profile, user?.email]);
+    getEffectivePermissions(profile, isMobile, user?.email), 
+  [profile, isMobile, user?.email]);
 
   const currentUserRoles = useMemo(() => {
     const rolesSet = new Set<string>();

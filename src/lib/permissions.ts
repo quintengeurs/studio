@@ -237,3 +237,43 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
     createIssue: true,
   };
 }
+
+/**
+ * Calculates the final, effective permission set for a user by merging role defaults 
+ * with any custom overrides stored in their user profile.
+ */
+export function getEffectivePermissions(
+  user: User | null | undefined, 
+  isMobile: boolean,
+  fallbackEmail?: string | null
+): AccessPermissions {
+  // 1. Get the base defaults for the current platform
+  const defaults = isMobile 
+    ? getDefaultMobilePermissionsForUser(user) 
+    : getDefaultPermissionsForUser(user, fallbackEmail);
+
+  // 2. Determine if the user is a system admin (special override that always gets full access)
+  const isSystemAdmin = 
+    user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || 
+    fallbackEmail?.toLowerCase() === 'quinten.geurs@gmail.com' ||
+    (user?.roles || []).includes('Admin');
+
+  if (isSystemAdmin) {
+    // Return full desktop permissions regardless of platform for system admins to ensure they are never locked out
+    return getDefaultPermissionsForUser(null, 'quinten.geurs@gmail.com');
+  }
+
+  // 3. Extract custom overrides from the user profile
+  const overrides = isMobile ? user?.mobilePermissions : user?.permissions;
+
+  // 4. Merge defaults with overrides (if any exist)
+  if (overrides && Object.keys(overrides).length > 0) {
+    return {
+      ...defaults,
+      ...overrides
+    };
+  }
+
+  return defaults;
+}
+
