@@ -631,20 +631,20 @@ export default function VolunteeringPage() {
         </div>
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="mb-6 bg-orange-50/50 p-1 rounded-xl h-12">
-            <TabsTrigger value="tasks" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-6 font-bold">
-              <Sparkles className="h-4 w-4" /> Available Tasks
+          <TabsList className="mb-6 bg-orange-50/50 p-1 rounded-xl h-12 w-full">
+            <TabsTrigger value="tasks" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+              <Sparkles className="h-4 w-4 shrink-0" /> <span className="truncate">Available Tasks</span>
             </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-6 font-bold relative">
-              <UserCheck className="h-4 w-4" /> My Activity
+            <TabsTrigger value="activity" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold relative text-xs sm:text-sm">
+              <UserCheck className="h-4 w-4 shrink-0" /> <span className="truncate">My Activity</span>
               {(myInProgressTasks.length > 0 || contributionsWithRewards.length > 0) && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[10px] text-white font-bold shadow-sm">
                   {myInProgressTasks.length + contributionsWithRewards.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="news" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-6 font-bold">
-              <Megaphone className="h-4 w-4" /> Hub News
+            <TabsTrigger value="news" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+              <Megaphone className="h-4 w-4 shrink-0" /> <span className="truncate">Hub News</span>
             </TabsTrigger>
           </TabsList>
 
