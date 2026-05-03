@@ -88,7 +88,11 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
   const handleStatusUpdate = async (newStatus: string) => {
     if (!db || !task) return;
     try {
-      await updateDoc(doc(db, "tasks", task.id), { status: newStatus });
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'Doing' && volunteerEmail) {
+        updateData.assignedTo = `Volunteer: ${volunteerEmail}`;
+      }
+      await updateDoc(doc(db, "tasks", task.id), updateData);
       toast({ title: "Task Updated", description: `Status set to ${newStatus}.` });
       if (onSuccess) onSuccess();
       onOpenChange(false);

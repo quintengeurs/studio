@@ -65,7 +65,7 @@ export default function VolunteeringPage() {
       const q = query(
         collection(db, "tasks"), 
         where("isVolunteerEligible", "==", true),
-        where("status", "==", "Todo"),
+        where("status", "in", ["Todo", "Doing"]),
         limit(50)
       );
       const snapshot = await getDocs(q);
@@ -214,11 +214,33 @@ export default function VolunteeringPage() {
     }
   };
 
-  // Filter tasks to hide ones already completed by this volunteer
+  // Filter tasks to show ones that are Todo OR being worked on by this volunteer
   const filteredTasks = useMemo(() => {
-    if (!volunteerEmail) return tasks;
-    return tasks.filter(t => !t.completedByVolunteers?.includes(volunteerEmail));
+    return tasks.filter(t => {
+        // If already completed by me, hide from available list
+        if (t.completedByVolunteers?.includes(volunteerEmail || "")) return false;
+        
+        // If it's being done by someone else, maybe show as "Busy" or hide?
+        // For now, if status is 'Doing' and NOT assigned to me, we can hide it 
+        // to avoid double-claiming, or show it as claimed.
+        if (t.status === 'Doing' && t.assignedTo !== `Volunteer: ${volunteerEmail}`) return false;
+        
+        return true;
+    });
   }, [tasks, volunteerEmail]);
+
+  // Filter completed tasks to only show ones that have an unredeemed reward
+  // OR show all if no reward was involved (maybe show for a limited time?)
+  const contributionsWithRewards = useMemo(() => {
+    if (!volunteerEmail) return [];
+    return myCompletedTasks.filter(t => {
+        // If no reward, clear off (user said "when volunteer indicates completed, it should clear off")
+        if (!t.rewardDescription) return false;
+        
+        // If reward exists, only show if NOT redeemed by me
+        return !t.redeemedByVolunteers?.includes(volunteerEmail);
+    });
+  }, [myCompletedTasks, volunteerEmail]);
 
   const handleRegisterSuccess = (email: string) => {
     setVolunteerEmail(email);
@@ -261,6 +283,22 @@ export default function VolunteeringPage() {
       toast({ title: "Registration Rejected" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to reject registration.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRedeemReward = async (taskId: string) => {
+    if (!db || !volunteerEmail || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, "tasks", taskId), {
+        redeemedByVolunteers: arrayUnion(volunteerEmail)
+      });
+      toast({ title: "Reward Redeemed!", description: "Thank you for your hard work. Enjoy your reward!" });
+      handleRefreshData();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to redeem reward.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -569,7 +607,9 @@ export default function VolunteeringPage() {
                       )}
                       <CardHeader className="pb-4 relative">
                         <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                           <Badge className="bg-orange-500 text-white shadow-lg">Open Opportunity</Badge>
+                           <Badge className={`${task.status === 'Doing' ? 'bg-blue-500' : 'bg-orange-500'} text-white shadow-lg`}>
+                             {task.status === 'Doing' ? 'In Progress' : 'Open Opportunity'}
+                           </Badge>
                            {task.rewardDescription && (
                              <Badge className="bg-pink-500 text-white shadow-md animate-pulse">🎁 Reward: {task.rewardDescription}</Badge>
                            )}
@@ -676,53 +716,48 @@ export default function VolunteeringPage() {
         </Tabs>
         
         {/* Completed Contributions & Rewards */}
-        {myCompletedTasks.length > 0 && (
+        {contributionsWithRewards.length > 0 && (
           <div className="space-y-6 pt-8 border-t">
             <div className="flex items-center gap-2">
               <Heart className="h-6 w-6 text-pink-500 fill-current" />
-              <h3 className="text-2xl font-bold">Your Contributions & Rewards</h3>
+              <h3 className="text-2xl font-bold">Your Available Rewards</h3>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {myCompletedTasks.map(task => (
+              {contributionsWithRewards.map(task => (
                 <Card 
                   key={task.id} 
-                  className="group border-pink-500/10 overflow-hidden flex flex-col bg-pink-50/20 cursor-pointer"
+                  className="group border-pink-500/10 overflow-hidden flex flex-col bg-pink-50/20 cursor-pointer rounded-3xl"
                   onClick={() => handleTaskAction(task.id)}
                 >
                   <CardHeader className="pb-4 relative">
                     <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                       <Badge className="bg-green-500 text-white shadow-lg">Completed</Badge>
-                       {task.rewardDescription && (
-                         <Badge className="bg-pink-500 text-white shadow-md animate-bounce">🎁 Reward Ready!</Badge>
-                       )}
+                       <Badge className="bg-green-500 text-white shadow-lg">Work Completed</Badge>
+                       <Badge className="bg-pink-500 text-white shadow-md animate-bounce">🎁 Reward Ready!</Badge>
                     </div>
                     <div className="h-12 w-12 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-500 mb-4">
                       <Heart className="h-6 w-6 fill-current" />
                     </div>
-                    <CardTitle className="text-xl leading-tight">{task.title}</CardTitle>
+                    <CardTitle className="text-xl leading-tight font-headline">{task.title}</CardTitle>
                     <CardDescription className="flex items-center gap-1 mt-1 text-pink-600 font-medium">
                       <MapPin className="h-3 w-3" />
                       {task.park}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pb-6 flex-1">
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4 italic">
-                      "{task.completionNote || task.objective}"
-                    </p>
-                    {task.rewardDescription && (
-                      <div className="p-3 rounded-lg bg-white border-2 border-dashed border-pink-200 text-center">
-                        <span className="text-[10px] font-bold uppercase text-pink-400 block mb-1">Your Reward</span>
-                        <span className="text-sm font-bold text-pink-600">{task.rewardDescription}</span>
-                      </div>
-                    )}
+                    <div className="p-4 rounded-2xl bg-white border-2 border-dashed border-pink-200 text-center shadow-inner">
+                      <span className="text-[10px] font-bold uppercase text-pink-400 block mb-1 tracking-widest">Your Reward</span>
+                      <span className="text-lg font-black text-pink-700">{task.rewardDescription}</span>
+                    </div>
+                    <p className="text-[10px] text-center mt-3 text-pink-500/60 font-bold uppercase tracking-tight">Click to view redemption code</p>
                   </CardContent>
-                  <CardFooter className="pt-0 mt-auto">
+                  <CardFooter className="pt-0 mt-auto p-0">
                     <Button 
-                      className="w-full bg-pink-500 hover:bg-pink-600 shadow-lg shadow-pink-500/20 font-bold h-11"
-                      onClick={(e) => { e.stopPropagation(); handleTaskAction(task.id); }}
+                      className="w-full bg-pink-500 hover:bg-pink-600 shadow-lg shadow-pink-500/20 font-bold h-12 rounded-none uppercase tracking-widest text-xs"
+                      onClick={(e) => { e.stopPropagation(); handleRedeemReward(task.id); }}
+                      disabled={isSubmitting}
                     >
-                      {task.rewardDescription ? "COLLECT REWARD" : "VIEW CONTRIBUTION"}
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      {isSubmitting ? "Processing..." : "Mark as Redeemed"}
+                      <CheckCircle2 className="ml-2 h-4 w-4" />
                     </Button>
                   </CardFooter>
                 </Card>
