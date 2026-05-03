@@ -33,17 +33,21 @@ export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
   const { allUsers, allParks } = useDataContext();
+  const { toast } = useToast();
+  
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
   }, []);
 
+  // Public Portal Data
   const volunteerTasksQuery = useMemoFirebase(() => 
     db ? query(
       collection(db, "tasks"), 
@@ -55,13 +59,23 @@ export default function VolunteeringPage() {
 
   const { data: rawTasks = [], loading } = useCollection<Task>(volunteerTasksQuery as any);
 
+  // Staff Management Data (Volunteer Log)
+  const staffLogQuery = useMemoFirebase(() => 
+    db ? query(
+      collection(db, "tasks"), 
+      where("status", "==", "Completed"),
+      where("isVolunteerEligible", "==", true),
+      limit(100)
+    ) : null, 
+  [db]);
+  const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
+
   const infoQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "info_items"), where("isVolunteerVisible", "==", true), where("isArchived", "==", false));
   }, [db]);
   const { data: infoItems = [] } = useCollection<any>(infoQuery as any);
 
-  const { toast } = useToast();
   const handleToggleInfoInterest = async (item: any) => {
     if (!db || !volunteerEmail) {
         setIsRegModalOpen(true);
@@ -84,27 +98,99 @@ export default function VolunteeringPage() {
     }
   };
 
-  // Filter out tasks this specific volunteer has already completed
   const tasks = useMemo(() => {
     if (!volunteerEmail) return rawTasks;
     return rawTasks.filter(t => !t.completedByVolunteers?.includes(volunteerEmail));
   }, [rawTasks, volunteerEmail]);
 
-  const selectedTask = useMemo(() => tasks.find(t => t.id === selectedTaskId) || null, [tasks, selectedTaskId]);
+  const selectedTask = useMemo(() => {
+    const allPossible = [...tasks, ...logTasks];
+    return allPossible.find(t => t.id === selectedTaskId) || null;
+  }, [tasks, logTasks, selectedTaskId]);
 
-  const handleRegisterSuccess = (email: string) => {
-    setVolunteerEmail(email);
-  };
+  if (user) {
+    // Staff View: Volunteer Log
+    return (
+      <DashboardShell 
+        title="Volunteer Log" 
+        description="A complete record of community volunteer contributions across all sites."
+      >
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <Users className="h-5 w-5 text-orange-500" />
+              Volunteer Contribution History
+            </h3>
+            <Badge variant="outline" className="font-bold">{logTasks.length} Records</Badge>
+          </div>
 
-  const handleTaskAction = (taskId: string) => {
-    if (!volunteerEmail) {
-      setIsRegModalOpen(true);
-      return;
-    }
-    setSelectedTaskId(taskId);
-    setIsTaskModalOpen(true);
-  };
+          {logLoading ? (
+            <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-orange-500" /></div>
+          ) : logTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
+              <Heart className="h-12 w-12 mb-4 text-orange-500 opacity-20" />
+              <p className="text-lg font-medium text-muted-foreground">No volunteer work logged yet.</p>
+              <p className="text-sm text-muted-foreground">Completed community tasks will appear here for your records.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {logTasks.map(task => (
+                <Card key={task.id} className="group relative overflow-hidden border-2 border-orange-500/10 hover:border-orange-500/30 transition-all shadow-md flex flex-col cursor-pointer" onClick={() => { setSelectedTaskId(task.id); setIsTaskModalOpen(true); }}>
+                  <div className="absolute top-0 right-0 p-3">
+                    <Badge className="bg-green-500 text-white shadow-lg text-[9px] uppercase font-bold tracking-widest">Completed</Badge>
+                  </div>
+                  <CardHeader className="pb-3 px-6">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-[10px] font-bold text-orange-600 border-orange-200 uppercase tracking-widest shrink-0 w-fit">{task.park}</Badge>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground shrink-0"><Clock className="h-3 w-3" /> {task.completedAt ? format(new Date(task.completedAt), 'MMM d, yyyy') : 'Recently'}</div>
+                    </div>
+                    <CardTitle className="font-headline text-lg group-hover:text-orange-600 break-words flex-1 min-w-0">{task.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-6 px-6 flex-1">
+                    <div className="space-y-4">
+                      <div className="p-3 rounded-lg bg-orange-50/50 border border-orange-100 flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/20 shrink-0">
+                            <Heart className="h-4 w-4 text-orange-600" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none tracking-tight">Volunteer</span>
+                            <span className="text-sm font-bold text-foreground truncate max-w-[150px]">
+                              {task.completedByVolunteers?.[0] || 'Community Member'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="pt-3 border-t border-orange-100">
+                          <p className="text-xs font-medium text-foreground leading-relaxed italic line-clamp-2">"{task.completionNote || task.objective}"</p>
+                        </div>
+                        
+                        {task.completionImageUrl && (
+                          <div className="relative aspect-video w-full rounded-xl border border-orange-200 overflow-hidden bg-muted/20 mt-1 shadow-inner">
+                            <Image src={task.completionImageUrl} alt="Proof" fill className="object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
 
+        <TaskDetailModal
+          open={isTaskModalOpen}
+          onOpenChange={setIsTaskModalOpen}
+          task={selectedTask}
+          allUsers={allUsers}
+          allParks={allParks}
+        />
+      </DashboardShell>
+    );
+  }
+
+  // Public View
   return (
     <DashboardShell 
       title="Volunteer Opportunities" 

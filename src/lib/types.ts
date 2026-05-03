@@ -1,6 +1,6 @@
 export type Role = 'Gardener' | 'Keeper' | 'Litter Picker' | 'Bin Run' | 'Area Manager' | 'Assistant Area Manager' | 'Operations Manager' | 'Head Gardener' | 'Parks Development Officer' | 'Tree Officer' | 'Biodiversity Manager' | 'Contractor' | 'Project Manager' | 'Events Manager' | 'Volunteering Coordinator' | 'Sports and Leisure Manager' | 'User Group Chair' | 'Park Manager' | 'Volunteer' | 'Admin';
 
-export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor'];
+export const OPERATIVE_ROLES: Role[] = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor', 'Volunteer'];
 export const MANAGEMENT_ROLES: Role[] = ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Parks Development Officer', 'Tree Officer', 'Biodiversity Manager', 'Project Manager', 'Events Manager', 'Volunteering Coordinator', 'Sports and Leisure Manager', 'User Group Chair', 'Park Manager', 'Admin'];
 
 export const CONTRACTOR_ROLE: Role = 'Contractor';

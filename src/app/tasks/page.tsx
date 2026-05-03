@@ -493,6 +493,7 @@ export default function TasksPage() {
                           <SelectItem value="Gardener">Gardeners</SelectItem>
                           <SelectItem value="Litter Picker">Litter Pickers</SelectItem>
                           <SelectItem value="Bin Run">Bin Run Team</SelectItem>
+                          <SelectItem value="Volunteer">Volunteers</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -517,6 +518,7 @@ export default function TasksPage() {
                     <Select value={newTask.assignedTo} onValueChange={v => setNewTask({...newTask, assignedTo: v})}>
                         <SelectTrigger><SelectValue placeholder="Select Assignee" /></SelectTrigger>
                         <SelectContent className="max-h-[300px]">
+                            <SelectItem value="Volunteer">Volunteer</SelectItem>
                             {users.map(u => <SelectItem key={u.id} value={u.name}>{u.name} ({u.role || u.roles?.[0]})</SelectItem>)}
                         </SelectContent>
                     </Select>

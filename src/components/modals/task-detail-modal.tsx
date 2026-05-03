@@ -109,22 +109,40 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
   const handleCompleteTask = async () => {
     if (!db || !task) return;
     setIsSubmitting(true);
+    
+    // Role-based validation
+    const operativeRoles = ['Gardener', 'Keeper', 'Litter Picker', 'Bin Run', 'Head Gardener', 'Contractor'];
+    const userRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
+    const isOperationalOrContractor = userRoles.some(r => operativeRoles.includes(r as string));
+
+    if (isOperationalOrContractor && !completionData.imageUrl) {
+      toast({ 
+        title: "Image Proof Required", 
+        description: "As an operational staff member or contractor, you must upload a photo proof to complete this task.", 
+        variant: "destructive" 
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
+      const newStatus = volunteerEmail ? 'Completed' : 'Pending Approval';
+
       await updateDoc(doc(db, "tasks", task.id), { 
-        status: 'Pending Approval',
+        status: newStatus,
         completionNote: completionData.note,
         completionImageUrl: completionData.imageUrl,
         collaborators: selectedColleagues,
         ...(volunteerEmail ? { 
           completedByVolunteers: arrayUnion(volunteerEmail),
-          assignedTo: `Volunteer: ${volunteerEmail}` 
+          assignedTo: `Volunteer: ${volunteerEmail}`,
+          completedAt: new Date().toISOString()
         } : {})
       });
 
       if (task.linkedIssueId) {
         await updateDoc(doc(db, "issues", task.linkedIssueId), { 
-          status: 'Pending Approval',
+          status: newStatus === 'Completed' ? 'Resolved' : 'Pending Approval',
           collaborators: selectedColleagues,
           resolutionNote: completionData.note,
           resolutionImageUrl: completionData.imageUrl,
