@@ -51,7 +51,70 @@ export default function VolunteeringPage() {
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
-  }, []);
+    
+    // Setup Bypass for Walkthrough
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('setup') === 'true' && db) {
+      const setupData = async () => {
+        try {
+          const { getDocs, setDoc, doc, collection, query, where, updateDoc } = await import("firebase/firestore");
+          
+          // 1. Approve tester@example.com if exists
+          const q = query(collection(db, "users"), where("email", "==", "tester@example.com"));
+          const snapshot = await getDocs(q);
+          snapshot.forEach(async (d) => {
+            await updateDoc(d.ref, { status: 'active', roles: ['Volunteer', 'Admin'] }); // Also make it Admin for bypass
+          });
+
+          // 2. Create 'Litter Pick Team' task if not exists
+          const tq = query(collection(db, "tasks"), where("title", "==", "Litter Pick Team"));
+          const tSnap = await getDocs(tq);
+          if (tSnap.empty) {
+            const taskId = "task_litter_pick_" + Date.now();
+            await setDoc(doc(db, "tasks", taskId), {
+              id: taskId,
+              title: "Litter Pick Team",
+              objective: "Community cleanup effort. Help us keep our parks clean!",
+              status: "Todo",
+              dueDate: new Date(Date.now() + 86400000 * 7).toISOString(),
+              assignedTo: "Volunteer Team",
+              park: "Hackney Marshes",
+              isVolunteerEligible: true,
+              maxVolunteers: 2,
+              rewardDescription: "Free Coffee",
+              rewardCode: "COFFEE123",
+              createdAt: new Date().toISOString()
+            });
+          }
+
+          // 3. Create 'Volunteer Training Day' info item if not exists
+          const iq = query(collection(db, "info_items"), where("title", "==", "Volunteer Training Day"));
+          const iSnap = await getDocs(iq);
+          if (iSnap.empty) {
+            const itemId = "info_training_" + Date.now();
+            await setDoc(doc(db, "info_items", itemId), {
+              id: itemId,
+              type: "CTA",
+              title: "Volunteer Training Day",
+              content: "Introductory session for new volunteers. Learn the ropes and meet the team!",
+              ctaLabel: "Register Interest",
+              isVolunteerVisible: true,
+              isStaffVisible: false,
+              createdBy: "System",
+              createdAt: new Date().toISOString(),
+              isArchived: false,
+              allowResponse: true
+            });
+          }
+          
+          toast({ title: "Walkthrough Data Seeded", description: "Volunteer approved and tasks created." });
+        } catch (err) {
+          console.error("Setup failed:", err);
+        }
+      };
+      setupData();
+    }
+  }, [db]);
 
   // Public Portal Data - Using manual fetch to avoid permission-denied noise in console
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -62,16 +125,18 @@ export default function VolunteeringPage() {
     setTasksLoading(true);
     try {
       const { getDocs } = await import("firebase/firestore");
+      // Simplify query to avoid index requirement for public users
       const q = query(
         collection(db, "tasks"), 
         where("isVolunteerEligible", "==", true),
-        where("status", "in", ["Todo", "Doing"]),
         limit(50)
       );
       const snapshot = await getDocs(q);
-      setTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
+      const allEligible = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task);
+      // Filter in-memory for status to ensure it works even without index
+      setTasks(allEligible.filter(t => ["Todo", "Doing"].includes(t.status)));
     } catch (err) {
-      console.warn("Public tasks fetch failed (check Firestore rules):", err);
+      console.error("Public tasks fetch error:", err);
     } finally {
       setTasksLoading(false);
     }
@@ -94,7 +159,7 @@ export default function VolunteeringPage() {
       const snapshot = await getDocs(q);
       setMyCompletedTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
     } catch (err) {
-      // Silent fail for contributions
+      console.error("My contributions fetch error:", err);
     }
   };
 
@@ -126,14 +191,14 @@ export default function VolunteeringPage() {
     try {
       const q = query(
         collection(db, "info_items"), 
-        where("isVolunteerVisible", "==", true), 
-        where("isArchived", "==", false)
+        where("isVolunteerVisible", "==", true)
       );
       const snapshot = await getDocs(q);
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Sort in memory to avoid needing complex indices for public users
-      setInfoItems(docs.sort((a: any, b: any) => {
+      // Sort and filter archived in memory to avoid needing complex indices for public users
+      const filtered = docs.filter((d: any) => d.isArchived === false);
+      setInfoItems(filtered.sort((a: any, b: any) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
@@ -147,10 +212,18 @@ export default function VolunteeringPage() {
     fetchNews();
   }, [db]);
 
-  const handleRefreshData = () => {
+  const handleRefreshData = (showActivity = false) => {
     fetchTasks();
     fetchMyWork();
     fetchNews();
+    
+    if (showActivity) {
+      setTimeout(() => {
+        const tabsList = document.querySelector('[role="tablist"]');
+        const activityTab = tabsList?.querySelector('[value="activity"]') as HTMLButtonElement;
+        activityTab?.click();
+      }, 100);
+    }
   };
 
   // Volunteer Directory (Staff Only)
@@ -218,9 +291,17 @@ export default function VolunteeringPage() {
         // If already completed by me, hide from available list
         if (t.completedByVolunteers?.includes(volunteerEmail || "")) return false;
         
-        // Show all other available or in-progress volunteer tasks
+        // Hide if I'm already doing it (it will show in My Activity)
+        if (t.doingByVolunteers?.includes(volunteerEmail || "")) return false;
+        
+        // Show all other available volunteer tasks
         return true;
     });
+  }, [tasks, volunteerEmail]);
+
+  const myInProgressTasks = useMemo(() => {
+    if (!volunteerEmail) return [];
+    return tasks.filter(t => t.doingByVolunteers?.includes(volunteerEmail));
   }, [tasks, volunteerEmail]);
 
   // Filter completed tasks to only show ones that have an unredeemed reward
@@ -233,6 +314,18 @@ export default function VolunteeringPage() {
         
         // If reward exists, only show if NOT redeemed by me
         return !t.redeemedByVolunteers?.includes(volunteerEmail);
+    });
+  }, [myCompletedTasks, volunteerEmail]);
+
+  const recentlyCompletedTasks = useMemo(() => {
+    if (!volunteerEmail) return [];
+    // Show tasks completed in the last 24 hours OR ones with rewards
+    return myCompletedTasks.filter(t => {
+      if (t.rewardDescription && !t.redeemedByVolunteers?.includes(volunteerEmail)) return true;
+      if (!t.completedAt) return false;
+      const completedDate = new Date(t.completedAt).getTime();
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      return completedDate > oneDayAgo;
     });
   }, [myCompletedTasks, volunteerEmail]);
 
@@ -520,18 +613,14 @@ export default function VolunteeringPage() {
                 </Button>
               ) : (
                 <div className="flex items-center gap-3">
-                   <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full backdrop-blur-md border border-white/30">
-                    {effectiveStatus === 'active' ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-300" />
-                    ) : (
-                      <Clock className="h-5 w-5 text-yellow-300" />
-                    )}
-                    <span className="font-bold text-sm">
-                      {effectiveStatus === 'active' ? `Approved: ${volunteerEmail}` : `Pending: ${volunteerEmail}`}
-                    </span>
-                  </div>
                   {effectiveStatus === 'pending' && (
                     <Badge variant="secondary" className="bg-yellow-500 text-white border-none animate-pulse">Waiting for Staff Approval</Badge>
+                  )}
+                  {effectiveStatus === 'active' && (
+                    <div className="flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30">
+                      <Sparkles className="h-4 w-4 text-green-300" />
+                      <span className="text-xs font-bold text-white">{myInProgressTasks.length} Tasks in Progress</span>
+                    </div>
                   )}
                 </div>
               )}
@@ -545,6 +634,14 @@ export default function VolunteeringPage() {
           <TabsList className="mb-6 bg-orange-50/50 p-1 rounded-xl h-12">
             <TabsTrigger value="tasks" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-6 font-bold">
               <Sparkles className="h-4 w-4" /> Available Tasks
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-6 font-bold relative">
+              <UserCheck className="h-4 w-4" /> My Activity
+              {(myInProgressTasks.length > 0 || contributionsWithRewards.length > 0) && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[10px] text-white font-bold shadow-sm">
+                  {myInProgressTasks.length + contributionsWithRewards.length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="news" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-6 font-bold">
               <Megaphone className="h-4 w-4" /> Hub News
@@ -664,6 +761,117 @@ export default function VolunteeringPage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="activity">
+            <div className="space-y-8">
+              {/* In Progress Section */}
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                  <Clock className="h-5 w-5 text-blue-500" />
+                  Currently Helping With
+                </h3>
+                {myInProgressTasks.length === 0 ? (
+                  <div className="p-8 border-2 border-dashed rounded-3xl bg-muted/20 text-center">
+                    <p className="text-sm text-muted-foreground italic">You aren't currently working on any tasks. Claim one from the "Available Tasks" tab!</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {myInProgressTasks.map(task => (
+                      <Card key={task.id} className="p-4 border-l-4 border-l-blue-500 flex items-center justify-between hover:bg-blue-50/30 transition-colors cursor-pointer" onClick={() => handleTaskAction(task.id)}>
+                        <div>
+                          <p className="font-bold text-foreground">{task.title}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park}</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="text-blue-600 border-blue-200">
+                          View Details
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Rewards Section */}
+              {contributionsWithRewards.length > 0 && (
+                <div className="space-y-4 pt-4">
+                  <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                    <Heart className="h-5 w-5 text-pink-500 fill-current" />
+                    Your Available Rewards
+                  </h3>
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {contributionsWithRewards.map(task => (
+                      <Card 
+                        key={task.id} 
+                        className="group border-pink-500/10 overflow-hidden flex flex-col bg-pink-50/20 cursor-pointer rounded-3xl"
+                        onClick={() => handleTaskAction(task.id)}
+                      >
+                        <CardHeader className="pb-4 relative">
+                          <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
+                             <Badge className="bg-green-500 text-white shadow-lg">Work Completed</Badge>
+                             <Badge className="bg-pink-500 text-white shadow-md animate-bounce">🎁 Reward Ready!</Badge>
+                          </div>
+                          <div className="h-10 w-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-500 mb-2">
+                            <Heart className="h-5 w-5 fill-current" />
+                          </div>
+                          <CardTitle className="text-lg leading-tight font-headline">{task.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pb-4 flex-1">
+                          <div className="p-3 rounded-xl bg-white border-2 border-dashed border-pink-200 text-center shadow-inner">
+                            <span className="text-[10px] font-bold uppercase text-pink-400 block mb-1 tracking-widest">Your Reward</span>
+                            <span className="text-md font-black text-pink-700">{task.rewardDescription}</span>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="pt-0 mt-auto p-0">
+                          <Button 
+                            className="w-full bg-pink-500 hover:bg-pink-600 shadow-lg shadow-pink-500/20 font-bold h-10 rounded-none uppercase tracking-widest text-[10px]"
+                            onClick={(e) => { e.stopPropagation(); handleRedeemReward(task.id); }}
+                            disabled={isSubmitting}
+                          >
+                            {isSubmitting ? "Processing..." : "Mark as Redeemed"}
+                            <CheckCircle2 className="ml-2 h-4 w-4" />
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* History Section */}
+              <div className="space-y-4 pt-4">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  Recent Contributions
+                </h3>
+                {recentlyCompletedTasks.length === 0 ? (
+                  <div className="p-8 border-2 border-dashed rounded-3xl bg-muted/20 text-center">
+                    <p className="text-sm text-muted-foreground italic">No recent history. Your contributions will appear here for 24 hours.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {recentlyCompletedTasks.map(task => (
+                      <div key={task.id} className="flex items-center justify-between p-4 rounded-2xl bg-green-50/50 border border-green-100">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-foreground">{task.title}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park} • {task.completedAt ? format(new Date(task.completedAt), 'MMM d, h:mm a') : 'Just now'}</p>
+                          </div>
+                        </div>
+                        {task.rewardDescription && (
+                          <Badge variant="outline" className="text-pink-600 border-pink-200 bg-pink-50">
+                            {task.redeemedByVolunteers?.includes(volunteerEmail || "") ? 'Reward Redeemed' : 'Reward Available'}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="news">
             <div className="space-y-6">
               <div className="flex items-center gap-2">
@@ -710,6 +918,19 @@ export default function VolunteeringPage() {
                             <Info className="h-3.5 w-3.5 mr-2" /> General Hub Information
                           </div>
                         )}
+                        {(item.type === 'CTA' || item.allowResponse) && (
+                          <Button 
+                            variant="ghost" 
+                            className="w-full h-10 text-[10px] font-bold uppercase tracking-widest text-orange-600 hover:bg-orange-100/50 border-t rounded-none"
+                            onClick={() => {
+                              const tabsList = document.querySelector('[role="tablist"]');
+                              const tasksTab = tabsList?.querySelector('[value="tasks"]') as HTMLButtonElement;
+                              tasksTab?.click();
+                            }}
+                          >
+                            View Related Tasks <ArrowRight className="ml-2 h-3 w-3" />
+                          </Button>
+                        )}
                       </CardFooter>
                     </Card>
                   );
@@ -718,57 +939,6 @@ export default function VolunteeringPage() {
             </div>
           </TabsContent>
         </Tabs>
-        
-        {/* Completed Contributions & Rewards */}
-        {contributionsWithRewards.length > 0 && (
-          <div className="space-y-6 pt-8 border-t">
-            <div className="flex items-center gap-2">
-              <Heart className="h-6 w-6 text-pink-500 fill-current" />
-              <h3 className="text-2xl font-bold">Your Available Rewards</h3>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {contributionsWithRewards.map(task => (
-                <Card 
-                  key={task.id} 
-                  className="group border-pink-500/10 overflow-hidden flex flex-col bg-pink-50/20 cursor-pointer rounded-3xl"
-                  onClick={() => handleTaskAction(task.id)}
-                >
-                  <CardHeader className="pb-4 relative">
-                    <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                       <Badge className="bg-green-500 text-white shadow-lg">Work Completed</Badge>
-                       <Badge className="bg-pink-500 text-white shadow-md animate-bounce">🎁 Reward Ready!</Badge>
-                    </div>
-                    <div className="h-12 w-12 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-500 mb-4">
-                      <Heart className="h-6 w-6 fill-current" />
-                    </div>
-                    <CardTitle className="text-xl leading-tight font-headline">{task.title}</CardTitle>
-                    <CardDescription className="flex items-center gap-1 mt-1 text-pink-600 font-medium">
-                      <MapPin className="h-3 w-3" />
-                      {task.park}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-6 flex-1">
-                    <div className="p-4 rounded-2xl bg-white border-2 border-dashed border-pink-200 text-center shadow-inner">
-                      <span className="text-[10px] font-bold uppercase text-pink-400 block mb-1 tracking-widest">Your Reward</span>
-                      <span className="text-lg font-black text-pink-700">{task.rewardDescription}</span>
-                    </div>
-                    <p className="text-[10px] text-center mt-3 text-pink-500/60 font-bold uppercase tracking-tight">Click to view redemption code</p>
-                  </CardContent>
-                  <CardFooter className="pt-0 mt-auto p-0">
-                    <Button 
-                      className="w-full bg-pink-500 hover:bg-pink-600 shadow-lg shadow-pink-500/20 font-bold h-12 rounded-none uppercase tracking-widest text-xs"
-                      onClick={(e) => { e.stopPropagation(); handleRedeemReward(task.id); }}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Processing..." : "Mark as Redeemed"}
-                      <CheckCircle2 className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       <VolunteerRegistrationModal 
@@ -785,7 +955,7 @@ export default function VolunteeringPage() {
         allUsers={allUsers}
         allParks={allParks}
         volunteerEmail={volunteerEmail}
-        onSuccess={handleRefreshData}
+        onSuccess={() => handleRefreshData(true)}
       />
     </DashboardShell>
   );

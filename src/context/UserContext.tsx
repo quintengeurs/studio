@@ -55,7 +55,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [profile]);
 
   const isAdmin = useMemo(() => 
-    currentUserRoles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
+    currentUserRoles.includes('Admin') || 
+    user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' ||
+    user?.email?.toLowerCase() === 'quinten.geurs@hackney.gov.uk',
   [currentUserRoles, user?.email]);
 
   const isManagement = useMemo(() => 
