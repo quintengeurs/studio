@@ -28,7 +28,7 @@ import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDocs } from "firebase/firestore";
 import { Task } from "@/lib/types";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -124,7 +124,6 @@ export default function VolunteeringPage() {
   const fetchNews = async () => {
     if (!db) return;
     try {
-      const { getDocs } = await import("firebase/firestore");
       const q = query(
         collection(db, "info_items"), 
         where("isVolunteerVisible", "==", true), 
@@ -132,12 +131,15 @@ export default function VolunteeringPage() {
       );
       const snapshot = await getDocs(q);
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      
       // Sort in memory to avoid needing complex indices for public users
-      setInfoItems(docs.sort((a: any, b: any) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
+      setInfoItems(docs.sort((a: any, b: any) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      }));
     } catch (err) {
-      // Silent fail for news
+      console.error("Hub News Fetch Error:", err);
     }
   };
 
