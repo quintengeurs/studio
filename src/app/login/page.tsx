@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowRight, Building2, Heart, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -119,14 +118,14 @@ export default function LoginPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1">
-                <div className="flex flex-wrap justify-center gap-3">
+              <CardContent className="flex-1 flex flex-col items-center">
+                <ul className="space-y-2 text-center">
                   {['Task Management', 'Asset Tracking', 'Issue Reporting', 'Strategic Planning'].map((feat) => (
-                    <Badge key={feat} variant="secondary" className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                      {feat}
-                    </Badge>
+                    <li key={feat} className="text-sm flex items-center justify-center gap-2 text-muted-foreground">
+                      <div className="h-1 w-1 rounded-full bg-primary" /> {feat}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </CardContent>
               <CardFooter className="w-full p-8 pt-4">
                 <Button className="w-full h-12 text-base font-bold gap-2 group-hover:gap-4 transition-all shadow-lg shadow-primary/20">
@@ -154,15 +153,16 @@ export default function LoginPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1">
-                <div className="flex flex-wrap justify-center gap-3">
+              <CardContent className="flex-1 flex flex-col items-center">
+                <ul className="space-y-2 text-center">
                   {['Find Opportunities', 'Log Interest', 'Community News', 'Event Registration'].map((feat) => (
-                    <Badge key={feat} variant="outline" className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider border-orange-200 text-orange-700 bg-orange-50/50">
-                      {feat}
-                    </Badge>
+                    <li key={feat} className="text-sm flex items-center justify-center gap-2 text-muted-foreground">
+                      <div className="h-1 w-1 rounded-full bg-orange-500" /> {feat}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </CardContent>
+
               <CardFooter className="w-full p-8 pt-4">
                 <Button className="w-full h-12 text-base font-bold bg-orange-500 hover:bg-orange-600 gap-2 group-hover:gap-4 transition-all shadow-lg shadow-orange-500/20 border-0">
                   Join Volunteers <ArrowRight className="h-5 w-5" />
