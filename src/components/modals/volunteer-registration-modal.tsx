@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { collection, addDoc } from "firebase/firestore";
+import { signInAnonymously } from "firebase/auth";
+import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Heart, ShieldCheck } from "lucide-react";
 
@@ -34,6 +36,7 @@ export function VolunteerRegistrationModal({
 }: VolunteerRegistrationModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
+  const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState(defaultEmail);
   const [gdprConsent, setGdprConsent] = useState(false);
@@ -44,6 +47,10 @@ export function VolunteerRegistrationModal({
     
     setIsSubmitting(true);
     try {
+      // Ensure we are at least anonymously authenticated to satisfy Firestore rules
+      if (!auth.currentUser) {
+        await signInAnonymously(auth);
+      }
       await addDoc(collection(db, "volunteers"), {
         email: email.toLowerCase(),
         gdprConsent: true,
