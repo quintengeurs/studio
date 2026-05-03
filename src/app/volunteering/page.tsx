@@ -99,20 +99,35 @@ export default function VolunteeringPage() {
   const { data: allVolunteers = [], loading: volunteersLoading } = useCollection<any>(volunteersQuery as any);
 
   // Current Public Volunteer Status
-  const currentVolunteerStatus = useMemo(() => {
-    if (!volunteerEmail || !allVolunteers.length) return 'unregistered';
-    const v = allVolunteers.find(vol => vol.email === volunteerEmail);
-    return v?.status || 'unregistered';
-  }, [volunteerEmail, allVolunteers]);
+  const [publicVolunteerData, setPublicVolunteerData] = useState<any[]>([]);
+  const [isCheckingPublicStatus, setIsCheckingPublicStatus] = useState(false);
 
-  // If user is public, we need to fetch their specific status even if they aren't staff
-  // (We'll use a small query for just this email if not already in allVolunteers)
-  const publicVolunteerQuery = useMemoFirebase(() => 
-    (db && !user && volunteerEmail && volunteerEmail.length > 5) ? query(collection(db, "volunteers"), where("email", "==", volunteerEmail)) : null, 
-  [db, user, volunteerEmail]);
-  const { data: publicVolunteerData = [] } = useCollection<any>(publicVolunteerQuery as any);
+  useEffect(() => {
+    if (!db || user || !volunteerEmail || volunteerEmail.length < 5) {
+      setPublicVolunteerData([]);
+      return;
+    }
 
-  const effectiveStatus = user ? 'active' : (publicVolunteerData[0]?.status || currentVolunteerStatus);
+    const checkStatus = async () => {
+      setIsCheckingPublicStatus(true);
+      try {
+        const { getDocs } = await import("firebase/firestore");
+        const q = query(collection(db, "volunteers"), where("email", "==", volunteerEmail));
+        const snapshot = await getDocs(q);
+        const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setPublicVolunteerData(docs);
+      } catch (err) {
+        console.warn("Public status check failed (likely permissions):", err);
+        setPublicVolunteerData([]);
+      } finally {
+        setIsCheckingPublicStatus(false);
+      }
+    };
+
+    checkStatus();
+  }, [db, user, volunteerEmail]);
+
+  const effectiveStatus = user ? 'active' : (publicVolunteerData[0]?.status || 'unregistered');
 
   const handleToggleInfoInterest = async (item: any) => {
     if (!db || !volunteerEmail) {

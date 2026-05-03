@@ -49,7 +49,9 @@ export function VolunteerRegistrationModal({
     try {
       // Ensure we are at least anonymously authenticated to satisfy Firestore rules
       if (!auth.currentUser) {
-        await signInAnonymously(auth);
+        await signInAnonymously(auth).catch(err => {
+          console.warn("Anonymous auth failed, proceeding as guest:", err);
+        });
       }
       await addDoc(collection(db, "volunteers"), {
         email: email.toLowerCase(),
