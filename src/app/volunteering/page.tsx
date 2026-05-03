@@ -25,7 +25,11 @@ import {
   Search,
   Pencil,
   Trash2,
-  Plus
+  Plus,
+  Download,
+  FileText,
+  Mail,
+  Home
 } from "lucide-react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,6 +39,14 @@ import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, a
 import { Task } from "@/lib/types";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogDescription 
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
 import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { InfoItemModal } from "@/components/modals/info-item-modal";
@@ -54,7 +66,8 @@ export default function VolunteeringPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [editingInfoItem, setEditingInfoItem] = useState<any | null>(null);
+  const [editingNewsItem, setEditingNewsItem] = useState<any | null>(null);
+  const [selectedItemForList, setSelectedItemForList] = useState<any | null>(null);
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
@@ -207,6 +220,7 @@ export default function VolunteeringPage() {
 
   const [cachedNews, setCachedNews] = useState<any[]>([]);
   const [fallbackNews, setFallbackNews] = useState<any[]>([]);
+  const [hasPermissionError, setHasPermissionError] = useState(false);
   
   useEffect(() => {
     // Load cache on mount
@@ -218,18 +232,27 @@ export default function VolunteeringPage() {
   useEffect(() => {
     // If useCollection fails, try a manual fetch as a fallback
     if (newsError && db) {
+      const isPermission = newsError?.message?.includes('permission') || (newsError as any)?.code === 'permission-denied';
+      if (isPermission) setHasPermissionError(true);
+
       const fetchFallback = async () => {
         try {
           const snapshot = await getDocs(collection(db, "info_items"));
           const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
           setFallbackNews(docs.filter((d: any) => d.isVolunteerVisible === true && !d.isArchived));
-        } catch (e) {
+          setHasPermissionError(false); // Succeeded with fallback
+        } catch (e: any) {
           console.error("News Fallback Failed:", e);
+          if (e?.message?.includes('permission') || e?.code === 'permission-denied') {
+            setHasPermissionError(true);
+          }
         }
       };
       fetchFallback();
+    } else if (!newsLoading && !newsError) {
+      setHasPermissionError(false);
     }
-  }, [newsError, db]);
+  }, [newsError, newsLoading, db]);
 
   const effectiveNews = useMemo(() => {
     const baseItems = volunteerNews.length > 0 ? volunteerNews : (fallbackNews.length > 0 ? fallbackNews : cachedNews);
@@ -453,6 +476,29 @@ export default function VolunteeringPage() {
     }
   };
 
+  const handleExportInterestedVolunteers = (item: any) => {
+    if (!item.interestedUserIds || item.interestedUserIds.length === 0) return;
+    
+    const headers = ["Email", "Status"];
+    const rows = item.interestedUserIds.map((email: string) => {
+      const v = allVolunteers.find(vol => vol.email === email);
+      return [email, v?.status || "Unregistered"];
+    });
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Interested_Volunteers_${item.title.replace(/\\s+/g, '_')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({ title: "Export Started", description: "Downloading volunteer list..." });
+  };
+
   const selectedTask = useMemo(() => {
     const allPossible = [...tasks, ...logTasks, ...myCompletedTasks];
     return allPossible.find(t => t.id === selectedTaskId) || null;
@@ -654,7 +700,7 @@ export default function VolunteeringPage() {
                   size="sm" 
                   className="bg-orange-500 hover:bg-orange-600 font-bold gap-2"
                   onClick={() => {
-                    setEditingInfoItem(null);
+                    setEditingNewsItem(null);
                     setIsInfoModalOpen(true);
                   }}
                 >
@@ -662,51 +708,79 @@ export default function VolunteeringPage() {
                 </Button>
               </div>
 
-              <div className="grid gap-4">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {effectiveNews.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
+                  <div className="col-span-full py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60 flex flex-col items-center justify-center">
                     <Megaphone className="h-12 w-12 mb-4 text-orange-500 opacity-20" />
                     <p className="text-lg font-medium text-muted-foreground">No volunteer news items published.</p>
                   </div>
                 ) : (
                   effectiveNews.map((item: any) => (
-                    <Card key={item.id} className="p-4 hover:bg-orange-50/30 transition-colors border-orange-500/10">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
-                             {item.type === 'Document' ? <FileText className="h-5 w-5" /> : <Megaphone className="h-5 w-5" />}
-                          </div>
-                          <div>
-                            <p className="font-bold text-foreground">{item.title}</p>
-                            <div className="flex items-center gap-3">
-                                <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[9px] uppercase font-bold tracking-widest border-none">{item.type}</Badge>
-                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Posted {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'Recently'}</p>
-                            </div>
-                          </div>
+                    <Card key={item.id} className="group relative overflow-hidden border-2 border-orange-500/10 hover:border-orange-500/30 transition-all duration-500 shadow-md hover:shadow-xl bg-card flex flex-col h-full rounded-3xl">
+                      <CardHeader className="pb-3 w-full">
+                        <div className="flex justify-between items-start mb-3">
+                          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-200 uppercase text-[9px] font-bold tracking-widest px-2">
+                            {item.type}
+                          </Badge>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'Recently'}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-muted-foreground hover:text-primary hover:bg-primary/10"
-                            onClick={() => {
-                              setEditingInfoItem(item);
-                              setIsInfoModalOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleArchiveInfo(item.id)}
-                            disabled={isSubmitting}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <CardTitle className="text-xl font-headline group-hover:text-orange-600 transition-colors leading-tight">{item.title}</CardTitle>
+                      </CardHeader>
+
+                      <CardContent className="flex-1 w-full pb-6">
+                        <p className="text-sm text-foreground/80 leading-relaxed italic line-clamp-4 group-hover:line-clamp-none transition-all duration-300">
+                          "{item.content}"
+                        </p>
+                      </CardContent>
+
+                      <CardFooter className="w-full pt-4 border-t bg-orange-50/30 mt-auto flex flex-col gap-3">
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-orange-600"
+                              onClick={() => {
+                                setEditingNewsItem(item);
+                                setIsInfoModalOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleArchiveInfo(item.id)}
+                              disabled={isSubmitting}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {(item.type === 'CTA' || item.allowResponse) && item.interestedUserIds && item.interestedUserIds.length > 0 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-[10px] font-bold uppercase text-orange-600 h-8 gap-1.5"
+                              onClick={() => setSelectedItemForList(item)}
+                            >
+                              <Users className="h-3.5 w-3.5" /> {item.interestedUserIds.length} Interested
+                            </Button>
+                          )}
                         </div>
-                      </div>
+                        
+                        {(item.type === 'CTA' || item.allowResponse) && (
+                           <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full text-[10px] font-bold uppercase border-orange-200 text-orange-600 hover:bg-orange-100/50 h-9 gap-2"
+                            onClick={() => handleExportInterestedVolunteers(item)}
+                            disabled={!item.interestedUserIds || item.interestedUserIds.length === 0}
+                          >
+                            <Download className="h-3.5 w-3.5" /> Export Volunteer List
+                          </Button>
+                        )}
+                      </CardFooter>
                     </Card>
                   ))
                 )}
@@ -726,8 +800,59 @@ export default function VolunteeringPage() {
         <InfoItemModal
           open={isInfoModalOpen}
           onOpenChange={setIsInfoModalOpen}
-          editItem={editingInfoItem}
+          editItem={editingNewsItem}
         />
+
+        <Dialog open={!!selectedItemForList} onOpenChange={(open) => !open && setSelectedItemForList(null)}>
+          <DialogContent className="sm:max-w-[450px] rounded-3xl">
+            <DialogHeader>
+              <DialogTitle className="font-headline text-2xl text-orange-600">Volunteer Engagement</DialogTitle>
+              <DialogDescription>
+                Registered interest for:
+                <br/>
+                <span className="font-bold text-foreground">"{selectedItemForList?.title}"</span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 max-h-[480px] overflow-y-auto py-4 pr-2">
+              {selectedItemForList?.interestedUserIds?.map((email: string) => {
+                const v = allVolunteers.find(vol => vol.email === email);
+                return (
+                  <div key={email} className="flex flex-col gap-3 p-4 border-2 rounded-2xl bg-orange-50/30 border-orange-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-orange-200 shadow-sm">
+                          <AvatarFallback className="bg-orange-500/10 text-orange-600 font-bold">{email.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-foreground leading-tight truncate max-w-[200px]">{email}</span>
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tight">
+                            {v ? `${v.status} Volunteer` : 'Unregistered Contact'}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[9px] font-bold bg-orange-500/5 text-orange-700 border-orange-200 uppercase tracking-tighter">Interest Logged</Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-2 pt-2 border-t border-dashed border-orange-200">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="h-3 w-3 shrink-0" />
+                        <span className="text-[10px] font-medium truncate">{email}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="pt-2">
+              <Button 
+                className="w-full bg-orange-500 hover:bg-orange-600 font-bold uppercase tracking-widest text-xs h-12 rounded-2xl"
+                onClick={() => handleExportInterestedVolunteers(selectedItemForList)}
+              >
+                <Download className="h-4 w-4 mr-2" /> Download CSV List
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DashboardShell>
     );
   }
@@ -1036,6 +1161,19 @@ export default function VolunteeringPage() {
                    Array.from({ length: 2 }).map((_, i) => (
                     <div key={i} className="h-48 rounded-3xl bg-muted animate-pulse" />
                   ))
+                ) : (hasPermissionError && effectiveNews.length === 0) ? (
+                  <div className="col-span-full py-12 px-6 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-orange-50/30 text-center">
+                    <ShieldAlert className="h-12 w-12 mb-4 text-orange-500 opacity-50" />
+                    <h4 className="text-lg font-bold text-foreground mb-2">Member Content Restricted</h4>
+                    <p className="text-sm text-muted-foreground mb-6 max-w-sm">Some hub news and announcements are restricted to registered volunteers. Please sign in to view the full news feed.</p>
+                    <Button 
+                        variant="outline" 
+                        className="border-orange-200 text-orange-600 hover:bg-orange-50 font-bold"
+                        onClick={() => window.location.href = '/login'}
+                    >
+                        Volunteer Sign In
+                    </Button>
+                  </div>
                 ) : effectiveNews.length === 0 ? (
                   <div className="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl opacity-50 bg-muted/20">
                     <Megaphone className="h-10 w-10 mb-3 text-orange-500" />
