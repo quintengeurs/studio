@@ -106,10 +106,6 @@ export default function VolunteeringPage() {
     fetchMyWork();
   }, [db, volunteerEmail]);
 
-  const handleRefreshData = () => {
-    fetchTasks();
-    fetchMyWork();
-  };
 
   // Staff Management Data (Volunteer Log)
   const staffLogQuery = useMemoFirebase(() => 
