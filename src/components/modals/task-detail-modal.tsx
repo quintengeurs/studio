@@ -41,9 +41,10 @@ interface TaskDetailModalProps {
   allUsers: User[];
   allParks?: any[];
   volunteerEmail?: string | null;
+  onSuccess?: () => void;
 }
 
-export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks, volunteerEmail }: TaskDetailModalProps) {
+export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks, volunteerEmail, onSuccess }: TaskDetailModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
@@ -89,6 +90,8 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
     try {
       await updateDoc(doc(db, "tasks", task.id), { status: newStatus });
       toast({ title: "Task Updated", description: `Status set to ${newStatus}.` });
+      if (onSuccess) onSuccess();
+      onOpenChange(false);
     } catch (e) {
       toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
     }
@@ -154,6 +157,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
         title: "Task Submitted", 
         description: "Work proof sent for approval." 
       });
+      if (onSuccess) onSuccess();
       onOpenChange(false);
     } catch (e) {
       toast({ title: "Error", description: "Failed to submit work.", variant: "destructive" });

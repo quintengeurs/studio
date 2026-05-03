@@ -57,52 +57,57 @@ export default function VolunteeringPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchTasks = async () => {
     if (!db) return;
-    const fetchTasks = async () => {
-      setTasksLoading(true);
-      try {
-        const { getDocs } = await import("firebase/firestore");
-        const q = query(
-          collection(db, "tasks"), 
-          where("isVolunteerEligible", "==", true),
-          where("status", "==", "Todo"),
-          limit(50)
-        );
-        const snapshot = await getDocs(q);
-        setTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
-      } catch (err) {
-        console.warn("Public tasks fetch failed (check Firestore rules):", err);
-      } finally {
-        setTasksLoading(false);
-      }
-    };
-    fetchTasks();
-  }, [db]);
+    setTasksLoading(true);
+    try {
+      const { getDocs } = await import("firebase/firestore");
+      const q = query(
+        collection(db, "tasks"), 
+        where("isVolunteerEligible", "==", true),
+        where("status", "==", "Todo"),
+        limit(50)
+      );
+      const snapshot = await getDocs(q);
+      setTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
+    } catch (err) {
+      console.warn("Public tasks fetch failed (check Firestore rules):", err);
+    } finally {
+      setTasksLoading(false);
+    }
+  };
 
-  // Volunteer's own contributions
-  const [myCompletedTasks, setMyCompletedTasks] = useState<Task[]>([]);
-  useEffect(() => {
+  const fetchMyWork = async () => {
     if (!db || !volunteerEmail) {
       setMyCompletedTasks([]);
       return;
     }
-    const fetchMyWork = async () => {
-      try {
-        const { getDocs } = await import("firebase/firestore");
-        const q = query(
-          collection(db, "tasks"), 
-          where("completedByVolunteers", "array-contains", volunteerEmail),
-          limit(50)
-        );
-        const snapshot = await getDocs(q);
-        setMyCompletedTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
-      } catch (err) {
-        // Silent fail for contributions
-      }
-    };
+    try {
+      const { getDocs } = await import("firebase/firestore");
+      const q = query(
+        collection(db, "tasks"), 
+        where("completedByVolunteers", "array-contains", volunteerEmail),
+        limit(50)
+      );
+      const snapshot = await getDocs(q);
+      setMyCompletedTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
+    } catch (err) {
+      // Silent fail for contributions
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, [db]);
+
+  useEffect(() => {
     fetchMyWork();
   }, [db, volunteerEmail]);
+
+  const handleRefreshData = () => {
+    fetchTasks();
+    fetchMyWork();
+  };
 
   // Staff Management Data (Volunteer Log)
   const staffLogQuery = useMemoFirebase(() => 
@@ -723,6 +728,7 @@ export default function VolunteeringPage() {
         allUsers={allUsers}
         allParks={allParks}
         volunteerEmail={volunteerEmail}
+        onSuccess={handleRefreshData}
       />
     </DashboardShell>
   );
