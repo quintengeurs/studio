@@ -5,6 +5,7 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { User, ParkDetail, RegistryConfig, Asset, Issue } from '@/lib/types';
 import { doc } from 'firebase/firestore';
+import { useUserContext } from './UserContext';
 
 interface DataContextType {
   allUsers: User[];
@@ -21,10 +22,13 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const db = useFirestore();
   const { user } = useUser();
+  const { profile, isAdmin } = useUserContext();
+
+  const canAccessRestricted = !!(user && (profile || isAdmin));
 
   const usersQuery = useMemoFirebase(() => 
-    (db && user) ? query(collection(db, "users"), orderBy("name", "asc")) : null, 
-  [db, user]);
+    (db && canAccessRestricted) ? query(collection(db, "users"), orderBy("name", "asc")) : null, 
+  [db, canAccessRestricted]);
   const { data: allUsers = [], loading: loadingUsers } = useCollection<User>(usersQuery as any);
 
   const parksQuery = useMemoFirebase(() => 
@@ -37,13 +41,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryRef as any);
 
   const assetsQuery = useMemoFirebase(() => 
-    (db && user) ? query(collection(db, "assets"), orderBy("name", "asc")) : null, 
-  [db, user]);
+    (db && canAccessRestricted) ? query(collection(db, "assets"), orderBy("name", "asc")) : null, 
+  [db, canAccessRestricted]);
   const { data: allAssets = [], loading: loadingAssets } = useCollection<Asset>(assetsQuery as any);
 
   const issuesQuery = useMemoFirebase(() => 
-    (db && user) ? query(collection(db, "issues"), orderBy("createdAt", "desc")) : null, 
-  [db, user]);
+    (db && canAccessRestricted) ? query(collection(db, "issues"), orderBy("createdAt", "desc")) : null, 
+  [db, canAccessRestricted]);
   const { data: allIssues = [], loading: loadingIssues } = useCollection<Issue>(issuesQuery as any);
 
   const value = {
