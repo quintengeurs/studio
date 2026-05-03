@@ -77,6 +77,8 @@ export default function VolunteeringPage() {
     }
   };
 
+  const [myCompletedTasks, setMyCompletedTasks] = useState<Task[]>([]);
+
   const fetchMyWork = async () => {
     if (!db || !volunteerEmail) {
       setMyCompletedTasks([]);
