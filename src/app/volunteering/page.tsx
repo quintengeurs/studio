@@ -444,7 +444,7 @@ export default function VolunteeringPage() {
                       )}
                       <CardHeader className="pb-4 relative">
                         <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                           <Badge className="bg-orange-500 text-white shadow-lg">Open Role</Badge>
+                           <Badge className="bg-orange-500 text-white shadow-lg">Open Opportunity</Badge>
                            {task.rewardDescription && (
                              <Badge className="bg-pink-500 text-white shadow-md animate-pulse">🎁 Reward: {task.rewardDescription}</Badge>
                            )}
@@ -467,7 +467,14 @@ export default function VolunteeringPage() {
                         <div className="space-y-3">
                           <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/40 p-2 rounded-lg">
                             <Calendar className="h-3.5 w-3.5" />
-                            <span>Available: {format(new Date(task.dueDate), 'PPP')}</span>
+                            <div className="flex flex-col">
+                              <span>Available: {format(new Date(task.dueDate), 'PPP')}</span>
+                              {task.displayTime && (
+                                <span className="text-[10px] font-bold text-orange-600 flex items-center gap-1">
+                                  <Clock className="h-2.5 w-2.5" /> Preferred Time: {task.displayTime}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
