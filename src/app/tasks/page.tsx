@@ -639,7 +639,8 @@ export default function TasksPage() {
                     </SelectContent>
                 </Select>
               </div>
-            </ScrollArea>
+            </div>
+          </ScrollArea>
             <DialogFooter className="p-6 border-t">
               <Button className="w-full h-11 font-bold" onClick={handleCreateTask} disabled={!newTask.title || (newTask.isVolunteerEligible && !newTask.park) || (!newTask.isVolunteerEligible && !isGroupAssign && (!newTask.park || !newTask.assignedTo)) || (!newTask.isVolunteerEligible && isGroupAssign && (!groupRole || !groupPark)) || isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Task"}
