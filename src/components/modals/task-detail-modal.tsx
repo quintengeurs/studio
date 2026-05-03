@@ -334,9 +334,11 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
             {((task.status === 'Doing' && (!task.isVolunteerEligible || task.doingByVolunteers?.includes(volunteerEmail || ""))) || task.status === 'Pending Approval') && (
               <div className="space-y-6 pt-2 border-t text-left">
                 <div className="space-y-2 text-left">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Completion Note & Proof</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                    {task.isVolunteerEligible ? 'Volunteer Note (Optional)' : 'Completion Note & Proof'}
+                  </Label>
                   <Textarea 
-                    placeholder="Describe the completed work..." 
+                    placeholder={task.isVolunteerEligible ? "How was your session? Any highlights for social media?" : "Describe the completed work..."} 
                     value={completionData.note}
                     onChange={e => setCompletionData({...completionData, note: e.target.value})}
                     disabled={task.status === 'Pending Approval'}
@@ -363,18 +365,20 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
                     ) : task.status !== 'Pending Approval' && (
                       <Button 
                         variant="outline" 
-                        className="w-full h-24 border-dashed border-2 flex flex-col gap-2 bg-muted/10 hover:bg-muted/30"
+                        className={`w-full h-24 border-dashed border-2 flex flex-col gap-2 ${task.isVolunteerEligible ? 'bg-orange-50/50 hover:bg-orange-100/50 border-orange-200 text-orange-600' : 'bg-muted/10 hover:bg-muted/30'}`}
                         onClick={() => fileInputRef.current?.click()}
                       >
-                        <Camera className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-xs font-bold text-muted-foreground uppercase">Upload Proof Image</span>
+                        <Camera className={`h-6 w-6 ${task.isVolunteerEligible ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                        <span className={`text-xs font-bold uppercase ${task.isVolunteerEligible ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                          {task.isVolunteerEligible ? 'Upload Team Photo (Optional)' : 'Upload Proof Image'}
+                        </span>
                       </Button>
                     )}
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                   </div>
                 </div>
 
-                {task.status !== 'Pending Approval' && (
+                {task.status !== 'Pending Approval' && !task.isVolunteerEligible && (
                   <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
