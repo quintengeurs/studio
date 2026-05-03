@@ -90,10 +90,13 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
     try {
       const updateData: any = { status: newStatus };
       if (newStatus === 'Doing' && volunteerEmail) {
-        updateData.assignedTo = `Volunteer: ${volunteerEmail}`;
+        updateData.doingByVolunteers = arrayUnion(volunteerEmail);
+        // We still set assignedTo for staff visibility, 
+        // but it will show the first/primary person or we can change it to a count later.
+        updateData.assignedTo = `Volunteer Team (${(task.doingByVolunteers?.length || 0) + 1} active)`;
       }
       await updateDoc(doc(db, "tasks", task.id), updateData);
-      toast({ title: "Task Updated", description: `Status set to ${newStatus}.` });
+      toast({ title: "Task Joined", description: `You are now working on this task.` });
       if (onSuccess) onSuccess();
       onOpenChange(false);
     } catch (e) {
@@ -309,16 +312,18 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
               </div>
             )}
 
-            {task.status === 'Todo' && (
+            {(task.status === 'Todo' || (task.status === 'Doing' && task.isVolunteerEligible && !task.doingByVolunteers?.includes(volunteerEmail || ""))) && (
               <Button 
                 className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600' : 'bg-accent hover:bg-accent/90'}`} 
                 onClick={() => handleStatusUpdate('Doing')}
               >
-                {task.isVolunteerEligible ? 'COMMENCE VOLUNTEERING' : 'START THIS TASK NOW'}
+                {task.isVolunteerEligible 
+                  ? (task.status === 'Doing' ? 'JOIN VOLUNTEER TEAM' : 'COMMENCE VOLUNTEERING') 
+                  : 'START THIS TASK NOW'}
               </Button>
             )}
 
-            {(task.status === 'Doing' || task.status === 'Pending Approval') && (
+            {((task.status === 'Doing' && (!task.isVolunteerEligible || task.doingByVolunteers?.includes(volunteerEmail || ""))) || task.status === 'Pending Approval') && (
               <div className="space-y-6 pt-2 border-t text-left">
                 <div className="space-y-2 text-left">
                   <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Completion Note & Proof</Label>
@@ -401,7 +406,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
           </div>
         </ScrollArea>
 
-        {task.status === 'Doing' && (
+        {task.status === 'Doing' && (!task.isVolunteerEligible || task.doingByVolunteers?.includes(volunteerEmail || "")) && (
           <DialogFooter className="p-6 border-t">
             <Button 
               className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-accent text-accent-foreground'}`} 

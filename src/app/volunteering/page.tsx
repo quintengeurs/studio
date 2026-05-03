@@ -214,17 +214,13 @@ export default function VolunteeringPage() {
     }
   };
 
-  // Filter tasks to show ones that are Todo OR being worked on by this volunteer
+  // Filter tasks to show ones that are available
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
         // If already completed by me, hide from available list
         if (t.completedByVolunteers?.includes(volunteerEmail || "")) return false;
         
-        // If it's being done by someone else, maybe show as "Busy" or hide?
-        // For now, if status is 'Doing' and NOT assigned to me, we can hide it 
-        // to avoid double-claiming, or show it as claimed.
-        if (t.status === 'Doing' && t.assignedTo !== `Volunteer: ${volunteerEmail}`) return false;
-        
+        // Show all other available or in-progress volunteer tasks
         return true;
     });
   }, [tasks, volunteerEmail]);
@@ -607,9 +603,14 @@ export default function VolunteeringPage() {
                       )}
                       <CardHeader className="pb-4 relative">
                         <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                           <Badge className={`${task.status === 'Doing' ? 'bg-blue-500' : 'bg-orange-500'} text-white shadow-lg`}>
-                             {task.status === 'Doing' ? 'In Progress' : 'Open Opportunity'}
+                           <Badge className={`${task.doingByVolunteers?.includes(volunteerEmail || "") ? 'bg-blue-500' : 'bg-orange-500'} text-white shadow-lg`}>
+                             {task.doingByVolunteers?.includes(volunteerEmail || "") ? 'In Progress' : 'Open Opportunity'}
                            </Badge>
+                           {task.doingByVolunteers && task.doingByVolunteers.length > 0 && (
+                             <Badge variant="secondary" className="bg-white/90 text-orange-600 shadow-sm border-orange-200 text-[9px] font-black">
+                               <Users className="h-3 w-3 mr-1" /> {task.doingByVolunteers.length} ACTIVE
+                             </Badge>
+                           )}
                            {task.rewardDescription && (
                              <Badge className="bg-pink-500 text-white shadow-md animate-pulse">🎁 Reward: {task.rewardDescription}</Badge>
                            )}

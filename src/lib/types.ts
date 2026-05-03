@@ -137,6 +137,7 @@ export interface Task {
   displayTime?: string; // e.g. "09:00"
   isVolunteerEligible?: boolean;
   completedByVolunteers?: string[];
+  doingByVolunteers?: string[];
   redeemedByVolunteers?: string[];
   volunteerImageUrl?: string;
   rewardDescription?: string;
