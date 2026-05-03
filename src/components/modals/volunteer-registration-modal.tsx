@@ -17,7 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore } from "@/firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, ShieldCheck } from "lucide-react";
+import { Heart, ShieldCheck, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface VolunteerRegistrationModalProps {
   open: boolean;
@@ -38,8 +39,8 @@ export function VolunteerRegistrationModal({
   const [email, setEmail] = useState(defaultEmail);
   const [gdprConsent, setGdprConsent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!db || !email || !gdprConsent) return;
     
     setIsSubmitting(true);
@@ -75,59 +76,62 @@ export function VolunteerRegistrationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2">
           <div className="flex items-center gap-2 text-orange-500 mb-2">
             <Heart className="h-5 w-5 fill-current" />
             <span className="text-xs font-bold uppercase tracking-widest">Join the Team</span>
           </div>
           <DialogTitle className="text-2xl font-headline">Volunteer Registration</DialogTitle>
           <DialogDescription>
-            Register your interest to help maintain our parks. Once registered, you'll see a list of active tasks you can help with.
+            Register your interest to help maintain our parks. Once registered, you&quot;ll see a list of active tasks you can help with.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-6 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email Address</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="h-11"
-            />
-          </div>
-          <div className="flex items-start space-x-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-            <Checkbox 
-              id="gdpr" 
-              checked={gdprConsent} 
-              onCheckedChange={(checked) => setGdprConsent(!!checked)}
-              className="mt-1 border-orange-300 data-[state=checked]:bg-orange-500"
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor="gdpr"
-                className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-orange-900"
-              >
-                GDPR Consent
-              </Label>
-              <p className="text-xs text-orange-700/70">
-                I agree to be contacted about future volunteering opportunities and for my participation to be logged in the system.
-              </p>
+        <ScrollArea className="flex-1 px-6">
+          <form onSubmit={handleSubmit} className="grid gap-6 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11"
+              />
             </div>
-          </div>
-          <DialogFooter>
-            <Button 
-              type="submit" 
-              className="w-full h-12 bg-orange-500 hover:bg-orange-600 font-bold"
-              disabled={isSubmitting || !email || !gdprConsent}
-            >
-              {isSubmitting ? "Registering..." : "COMPLETE REGISTRATION"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <div className="flex items-start space-x-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+              <Checkbox 
+                id="gdpr" 
+                checked={gdprConsent} 
+                onCheckedChange={(checked) => setGdprConsent(!!checked)}
+                className="mt-1 border-orange-300 data-[state=checked]:bg-orange-500"
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="gdpr"
+                  className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-orange-900"
+                >
+                  GDPR Consent
+                </Label>
+                <p className="text-xs text-orange-700/70">
+                  I agree to be contacted about future volunteering opportunities and for my participation to be logged in the system.
+                </p>
+              </div>
+            </div>
+          </form>
+        </ScrollArea>
+        <DialogFooter className="p-6 border-t">
+          <Button 
+            type="submit" 
+            className="w-full h-12 bg-orange-500 hover:bg-orange-600 font-bold"
+            disabled={isSubmitting || !email || !gdprConsent}
+            onClick={() => handleSubmit()}
+          >
+            {isSubmitting ? "Registering..." : "COMPLETE REGISTRATION"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

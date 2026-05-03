@@ -25,7 +25,8 @@ import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { InfoItem, InfoItemType } from "@/lib/types";
-import { Megaphone, FileText, Info, HandMetal } from "lucide-react";
+import { Megaphone, FileText, Info, HandMetal, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserContext } from "@/context/UserContext";
 
 interface InfoItemModalProps {
@@ -131,8 +132,8 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle className="font-headline text-2xl flex items-center gap-3">
             {getIcon()} 
             {editItem ? 'Edit' : 'Add'} Info Corner Item
@@ -140,7 +141,8 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
           <DialogDescription>Share updates, documents, or opportunities with all staff.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <ScrollArea className="flex-1 px-6">
+          <div className="space-y-6 py-4">
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase text-muted-foreground">Item Type</Label>
             <Select 
@@ -247,9 +249,10 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
               />
             </div>
           </div>
-        </div>
+          </div>
+        </ScrollArea>
 
-        <DialogFooter>
+        <DialogFooter className="p-6 border-t mt-auto">
           <Button 
             className="w-full font-bold h-12 uppercase tracking-widest"
             disabled={!formData.title || !formData.content || (formData.type === 'Document' && !formData.url) || isSubmitting}
