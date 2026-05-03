@@ -190,48 +190,45 @@ export default function VolunteeringPage() {
   const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
 
   // Hub News
-  const [infoItems, setInfoItems] = useState<any[]>([]);
+  const volunteerNewsQuery = useMemoFirebase(() => 
+    db ? query(
+      collection(db, "info_items"), 
+      where("isVolunteerVisible", "==", true),
+      where("isArchived", "==", false)
+    ) : null, 
+  [db]);
+  const { data: volunteerNews = [], loading: newsLoading, error: newsError } = useCollection<any>(volunteerNewsQuery as any);
 
-  const fetchNews = async () => {
-    if (!db) return;
-    try {
-      // Fetch all non-archived items and filter in-memory 
-      // This is more robust against missing indices and permission query constraints
-      const q = query(
-        collection(db, "info_items"), 
-        where("isArchived", "==", false)
-      );
-      const snapshot = await getDocs(q);
-      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      
-      const filtered = docs.filter((d: any) => d.isVolunteerVisible === true);
-      setInfoItems(filtered.sort((a: any, b: any) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      }));
-    } catch (err) {
-      console.error("Hub News Fetch Error:", err);
-      // Fallback: try fetching all if the filtered query failed due to permissions on the 'where' clause
-      try {
-        const snapshot = await getDocs(collection(db, "info_items"));
-        const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        const filtered = docs.filter((d: any) => d.isVolunteerVisible === true && !d.isArchived);
-        setInfoItems(filtered);
-      } catch (innerErr) {
-        console.error("Hub News Fallback Fetch Error:", innerErr);
-      }
+  const [fallbackNews, setFallbackNews] = useState<any[]>([]);
+  useEffect(() => {
+    // If useCollection fails, try a manual fetch as a fallback
+    if (newsError && db) {
+      const fetchFallback = async () => {
+        try {
+          const snapshot = await getDocs(collection(db, "info_items"));
+          const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          setFallbackNews(docs.filter((d: any) => d.isVolunteerVisible === true && !d.isArchived));
+        } catch (e) {
+          console.error("News Fallback Failed:", e);
+        }
+      };
+      fetchFallback();
     }
-  };
+  }, [newsError, db]);
+
+  const effectiveNews = useMemo(() => {
+    if (volunteerNews.length > 0) return volunteerNews;
+    return fallbackNews;
+  }, [volunteerNews, fallbackNews]);
 
   useEffect(() => {
-    fetchNews();
+    // fetchNews is now handled by useCollection
   }, [db]);
 
   const handleRefreshData = (showActivity = false) => {
     fetchTasks();
     fetchMyWork();
-    fetchNews();
+    // fetchNews is now handled by useCollection
     
     if (showActivity) {
       setTimeout(() => {
@@ -906,62 +903,73 @@ export default function VolunteeringPage() {
                 <h3 className="text-2xl font-bold">Volunteer Hub News</h3>
               </div>
               <div className="grid gap-6 md:grid-cols-2">
-                {infoItems.map((item: any) => {
-                  const isInterested = item.interestedUserIds?.includes(volunteerEmail || "");
-                  return (
-                    <Card key={item.id} className="border-2 border-orange-100 bg-orange-50/20 hover:bg-orange-50/40 transition-colors rounded-3xl overflow-hidden">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-200 uppercase text-[9px] font-bold tracking-widest px-2">
-                            {item.type === 'CTA' ? 'Special Event' : item.type}
-                          </Badge>
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{format(new Date(item.createdAt), 'MMM d, yyyy')}</span>
-                        </div>
-                        <CardTitle className="text-xl font-headline mt-2">{item.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="pb-4">
-                        <p className="text-sm text-foreground/80 leading-relaxed italic line-clamp-3">
-                          "{item.content}"
-                        </p>
-                      </CardContent>
-                      <CardFooter className="pt-2 border-t border-orange-100/50 p-0">
-                        {item.type === 'Document' && item.url ? (
-                          <Button asChild className="w-full gap-2 font-bold uppercase tracking-widest text-xs h-12 bg-orange-500 hover:bg-orange-600 rounded-none" variant="default">
-                            <a href={item.url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3.5 w-3.5" /> View Info Document
-                            </a>
-                          </Button>
-                        ) : (item.type === 'CTA' || item.allowResponse) ? (
-                          <Button 
-                            onClick={() => handleToggleInfoInterest(item)}
-                            variant={isInterested ? "secondary" : "default"}
-                            className={`w-full gap-2 font-bold uppercase tracking-widest text-xs h-12 rounded-none ${isInterested ? 'bg-green-600/10 text-green-700 hover:bg-green-600/20' : 'bg-orange-500 hover:bg-orange-600'}`}
-                          >
-                            {isInterested ? <UserCheck className="h-3.5 w-3.5" /> : <HandMetal className="h-3.5 w-3.5 text-white" />}
-                            {isInterested ? "Interest Logged" : item.ctaLabel || "Register Interest"}
-                          </Button>
-                        ) : (
-                          <div className="h-12 w-full flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic border-t">
-                            <Info className="h-3.5 w-3.5 mr-2" /> General Hub Information
+                {newsLoading && effectiveNews.length === 0 ? (
+                   Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="h-48 rounded-3xl bg-muted animate-pulse" />
+                  ))
+                ) : effectiveNews.length === 0 ? (
+                  <div className="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl opacity-50 bg-muted/20">
+                    <Megaphone className="h-10 w-10 mb-3 text-orange-500" />
+                    <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">No news updates for volunteers yet.</p>
+                  </div>
+                ) : (
+                  effectiveNews.map((item: any) => {
+                    const isInterested = item.interestedUserIds?.includes(volunteerEmail || "");
+                    return (
+                      <Card key={item.id} className="border-2 border-orange-100 bg-orange-50/20 hover:bg-orange-50/40 transition-colors rounded-3xl overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-200 uppercase text-[9px] font-bold tracking-widest px-2">
+                              {item.type === 'CTA' ? 'Special Event' : item.type}
+                            </Badge>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">{item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'Recently'}</span>
                           </div>
-                        )}
-                        {(item.type === 'CTA' || item.allowResponse) && (
-                          <Button 
-                            variant="ghost" 
-                            className="w-full h-10 text-[10px] font-bold uppercase tracking-widest text-orange-600 hover:bg-orange-100/50 border-t rounded-none"
-                            onClick={() => {
-                              const tabsList = document.querySelector('[role="tablist"]');
-                              const tasksTab = tabsList?.querySelector('[value="tasks"]') as HTMLButtonElement;
-                              tasksTab?.click();
-                            }}
-                          >
-                            View Related Tasks <ArrowRight className="ml-2 h-3 w-3" />
-                          </Button>
-                        )}
-                      </CardFooter>
-                    </Card>
-                  );
-                })}
+                          <CardTitle className="text-xl font-headline mt-2">{item.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pb-4">
+                          <p className="text-sm text-foreground/80 leading-relaxed italic line-clamp-3">
+                            "{item.content}"
+                          </p>
+                        </CardContent>
+                        <CardFooter className="pt-2 border-t border-orange-100/50 p-0 flex flex-col">
+                          {item.type === 'Document' && item.url ? (
+                            <Button asChild className="w-full gap-2 font-bold uppercase tracking-widest text-xs h-12 bg-orange-500 hover:bg-orange-600 rounded-none border-none" variant="default">
+                              <a href={item.url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-3.5 w-3.5" /> View Info Document
+                              </a>
+                            </Button>
+                          ) : (item.type === 'CTA' || item.allowResponse) ? (
+                            <Button 
+                              onClick={() => handleToggleInfoInterest(item)}
+                              variant={isInterested ? "secondary" : "default"}
+                              className={`w-full gap-2 font-bold uppercase tracking-widest text-xs h-12 rounded-none border-none ${isInterested ? 'bg-green-600/10 text-green-700 hover:bg-green-600/20' : 'bg-orange-500 hover:bg-orange-600'}`}
+                            >
+                              {isInterested ? <UserCheck className="h-3.5 w-3.5" /> : <HandMetal className="h-3.5 w-3.5 text-white" />}
+                              {isInterested ? "Interest Logged" : item.ctaLabel || "Register Interest"}
+                            </Button>
+                          ) : (
+                            <div className="h-12 w-full flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic border-t">
+                              <Info className="h-3.5 w-3.5 mr-2" /> General Hub Information
+                            </div>
+                          )}
+                          {(item.type === 'CTA' || item.allowResponse) && (
+                            <Button 
+                              variant="ghost" 
+                              className="w-full h-10 text-[10px] font-bold uppercase tracking-widest text-orange-600 hover:bg-orange-100/50 border-t rounded-none"
+                              onClick={() => {
+                                const tabsList = document.querySelector('[role="tablist"]');
+                                const tasksTab = tabsList?.querySelector('[value="tasks"]') as HTMLButtonElement;
+                                tasksTab?.click();
+                              }}
+                            >
+                              View Related Tasks <ArrowRight className="ml-2 h-3 w-3" />
+                            </Button>
+                          )}
+                        </CardFooter>
+                      </Card>
+                    );
+                  })
+                )}
               </div>
             </div>
           </TabsContent>
