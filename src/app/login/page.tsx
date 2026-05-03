@@ -19,8 +19,9 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
-import { Building2, Heart, ArrowRight, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Heart, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -84,94 +85,102 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
         {/* Background Accents */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         
-        <div className="w-full max-w-4xl grid gap-8 md:grid-cols-2 relative z-10">
-          <div className="md:col-span-2 text-center space-y-4 mb-4">
+        <div className="max-w-4xl w-full mx-auto relative z-10 flex flex-col items-center">
+          <div className="text-center space-y-4 mb-12">
             <div className="flex justify-center mb-6">
-              <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20">
-                <Leaf className="h-10 w-10" />
+              <div className="h-20 w-20 rounded-3xl bg-primary flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20 rotate-3 hover:rotate-0 transition-transform duration-500">
+                <Leaf className="h-12 w-12" />
               </div>
             </div>
-            <h1 className="text-4xl font-headline font-bold tracking-tight">Welcome to Hackney Parks</h1>
-            <p className="text-muted-foreground max-w-md mx-auto">Select your portal to access the management system or join our community of volunteers.</p>
+            <h1 className="text-5xl font-headline font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Welcome to Hackney Parks</h1>
+            <p className="text-muted-foreground text-lg max-w-lg mx-auto">Select your portal to access the management system or join our community of volunteers.</p>
           </div>
 
-          {/* Staff Card */}
-          <Card 
-            className="border-2 hover:border-primary/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-1 overflow-hidden"
-            onClick={() => setViewMode('staff-login')}
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <ShieldCheck className="h-24 w-24" />
-            </div>
-            <CardHeader className="space-y-1">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-2">
-                <Building2 className="h-6 w-6" />
+          <div className="grid gap-8 md:grid-cols-2 w-full">
+            {/* Staff Card */}
+            <Card 
+              className="border-2 hover:border-primary/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-2 overflow-hidden flex flex-col items-center text-center"
+              onClick={() => setViewMode('staff-login')}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <ShieldCheck className="h-32 w-32" />
               </div>
-              <CardTitle className="text-2xl font-bold">Staff Portal</CardTitle>
-              <CardDescription>
-                Internal tools for park operatives, managers, and contractors.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {['Task Management', 'Asset Tracking', 'Issue Reporting', 'Strategic Planning'].map((feat) => (
-                  <li key={feat} className="text-xs flex items-center gap-2 text-muted-foreground">
-                    <div className="h-1 w-1 rounded-full bg-primary" /> {feat}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full font-bold gap-2 group-hover:gap-4 transition-all">
-                Staff Sign In <ArrowRight className="h-4 w-4" />
-              </Button>
-            </CardFooter>
-          </Card>
+              <CardHeader className="space-y-4 flex flex-col items-center pt-8">
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Building2 className="h-8 w-8" />
+                </div>
+                <div>
+                  <CardTitle className="text-3xl font-bold">Staff Portal</CardTitle>
+                  <CardDescription className="mt-2 text-base">
+                    Internal tools for park operatives, managers, and contractors.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <div className="flex flex-wrap justify-center gap-3">
+                  {['Task Management', 'Asset Tracking', 'Issue Reporting', 'Strategic Planning'].map((feat) => (
+                    <Badge key={feat} variant="secondary" className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                      {feat}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter className="w-full p-8 pt-4">
+                <Button className="w-full h-12 text-base font-bold gap-2 group-hover:gap-4 transition-all shadow-lg shadow-primary/20">
+                  Staff Sign In <ArrowRight className="h-5 w-5" />
+                </Button>
+              </CardFooter>
+            </Card>
 
-          {/* Volunteer Card */}
-          <Card 
-            className="border-2 hover:border-orange-500/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-1 overflow-hidden"
-            onClick={() => router.push('/volunteering')}
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Users className="h-24 w-24" />
-            </div>
-            <CardHeader className="space-y-1">
-              <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 mb-2">
-                <Heart className="h-6 w-6" />
+            {/* Volunteer Card */}
+            <Card 
+              className="border-2 hover:border-orange-500/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-2 overflow-hidden flex flex-col items-center text-center"
+              onClick={() => router.push('/volunteering')}
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Users className="h-32 w-32" />
               </div>
-              <CardTitle className="text-2xl font-bold">Volunteer Hub</CardTitle>
-              <CardDescription>
-                Help us maintain our parks and green spaces. No login required to browse.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {['Find Opportunities', 'Log Interest', 'Community News', 'Event Registration'].map((feat) => (
-                  <li key={feat} className="text-xs flex items-center gap-2 text-muted-foreground">
-                    <div className="h-1 w-1 rounded-full bg-orange-500" /> {feat}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full font-bold bg-orange-500 hover:bg-orange-600 gap-2 group-hover:gap-4 transition-all">
-                Join Volunteers <ArrowRight className="h-4 w-4" />
-              </Button>
-            </CardFooter>
-          </Card>
+              <CardHeader className="space-y-4 flex flex-col items-center pt-8">
+                <div className="h-16 w-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 transition-colors group-hover:bg-orange-500 group-hover:text-white">
+                  <Heart className="h-8 w-8" />
+                </div>
+                <div>
+                  <CardTitle className="text-3xl font-bold">Volunteer Hub</CardTitle>
+                  <CardDescription className="mt-2 text-base">
+                    Help us maintain our parks and green spaces. No login required.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <div className="flex flex-wrap justify-center gap-3">
+                  {['Find Opportunities', 'Log Interest', 'Community News', 'Event Registration'].map((feat) => (
+                    <Badge key={feat} variant="outline" className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider border-orange-200 text-orange-700 bg-orange-50/50">
+                      {feat}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter className="w-full p-8 pt-4">
+                <Button className="w-full h-12 text-base font-bold bg-orange-500 hover:bg-orange-600 gap-2 group-hover:gap-4 transition-all shadow-lg shadow-orange-500/20 border-0">
+                  Join Volunteers <ArrowRight className="h-5 w-5" />
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
 
-          <div className="md:col-span-2 text-center pt-8">
-             <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-               Hackney Council | Parks & Green Spaces
+          <div className="text-center pt-16">
+             <div className="h-px w-24 bg-border mx-auto mb-6" />
+             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold opacity-60">
+               Hackney Council • Parks & Green Spaces Management
              </p>
           </div>
         </div>
       </div>
     );
+
   }
 
   return (
