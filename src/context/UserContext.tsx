@@ -39,23 +39,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [db, emailId]);
   const { data: profileByEmail, loading: loadingEmailId } = useDoc<User>(profileByEmailRef as any);
 
-  // 3. Check by Email Field (search pattern - case-insensitive fallback)
-  const userProfileQuery = useMemoFirebase(() => {
-    if (!db || !user?.email) return null;
-    return query(collection(db, "users"), where("email", "==", user.email));
-  }, [db, user?.email]);
-  
-  const { data: profileResults = [], loading: loadingQuery } = useCollection<User>(userProfileQuery as any);
-
-  // 4. Secondary Email Check (if direct match fails, try lowercase search if it was stored differently)
-  const userProfileQueryLower = useMemoFirebase(() => {
-    if (!db || !user?.email) return null;
-    return query(collection(db, "users"), where("email", "==", user.email.toLowerCase()));
-  }, [db, user?.email]);
-  const { data: profileResultsLower = [] } = useCollection<User>(userProfileQueryLower as any);
-
-  const profile = profileByEmail || profileByUid || profileResults[0] || profileResultsLower[0] || null;
-  const loading = authLoading || (loadingUid && loadingEmailId && loadingQuery);
+  const profile = profileByEmail || profileByUid || null;
+  const loading = authLoading || (loadingUid && loadingEmailId);
 
   const permissions = useMemo(() => 
     getEffectivePermissions(profile, isMobile, user?.email), 
