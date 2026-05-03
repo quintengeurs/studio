@@ -28,12 +28,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { data: allUsers = [], loading: loadingUsers } = useCollection<User>(usersQuery as any);
 
   const parksQuery = useMemoFirebase(() => 
-    (db && user) ? query(collection(db, "parks_details"), orderBy("name", "asc")) : null, 
-  [db, user]);
+    db ? query(collection(db, "parks_details"), orderBy("name", "asc")) : null, 
+  [db]);
   const { data: allParksRaw, loading: loadingParks } = useCollection<ParkDetail>(parksQuery as any);
   const allParks = allParksRaw || [];
 
-  const registryRef = useMemo(() => (db && user) ? doc(db, "settings", "registry") : null, [db, user]);
+  const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryRef as any);
 
   const assetsQuery = useMemoFirebase(() => 
