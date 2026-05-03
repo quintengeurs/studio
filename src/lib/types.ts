@@ -291,6 +291,7 @@ export interface InfoItem {
   interestedUserIds?: string[];
   allowResponse?: boolean;
   isVolunteerVisible?: boolean;
+  isStaffVisible?: boolean;
   createdBy: string;
   createdAt: string;
   isArchived: boolean;
