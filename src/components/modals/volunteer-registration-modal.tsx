@@ -48,13 +48,13 @@ export function VolunteerRegistrationModal({
         email: email.toLowerCase(),
         gdprConsent: true,
         registeredAt: new Date().toISOString(),
-        status: 'active'
+        status: 'pending'
       });
       
       localStorage.setItem("volunteerEmail", email.toLowerCase());
       toast({
-        title: "Registration Successful",
-        description: "Welcome to the team! You can now see and claim volunteering tasks.",
+        title: "Registration Received",
+        description: "Thank you! Your registration is pending approval by our staff. You'll be able to see tasks once approved.",
       });
       onSuccess(email.toLowerCase());
       onOpenChange(false);
