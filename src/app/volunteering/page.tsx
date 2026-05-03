@@ -200,8 +200,7 @@ export default function VolunteeringPage() {
   const volunteerNewsQuery = useMemoFirebase(() => 
     db ? query(
       collection(db, "info_items"), 
-      where("isVolunteerVisible", "==", true),
-      where("isArchived", "==", false)
+      where("isVolunteerVisible", "==", true)
     ) : null, 
   [db]);
   const { data: volunteerNews = [], loading: newsLoading, error: newsError } = useCollection<any>(volunteerNewsQuery as any);
@@ -224,8 +223,14 @@ export default function VolunteeringPage() {
   }, [newsError, db]);
 
   const effectiveNews = useMemo(() => {
-    if (volunteerNews.length > 0) return volunteerNews;
-    return fallbackNews;
+    const baseItems = volunteerNews.length > 0 ? volunteerNews : fallbackNews;
+    return baseItems
+      .filter((d: any) => d.isArchived !== true)
+      .sort((a: any, b: any) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
   }, [volunteerNews, fallbackNews]);
 
   useEffect(() => {
@@ -437,23 +442,23 @@ export default function VolunteeringPage() {
         description="Monitor contributions and approve new community volunteers."
       >
         <Tabs defaultValue="log" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="log" className="flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" /> Contribution Log
+          <TabsList className="mb-6 bg-muted/50 p-1 rounded-xl h-12 w-full">
+            <TabsTrigger value="log" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-1 sm:px-6 font-bold text-[10px] sm:text-sm">
+              <ClipboardList className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Contribution Log</span> <span className="sm:hidden">Log</span>
             </TabsTrigger>
-            <TabsTrigger value="approvals" className="flex items-center gap-2 relative">
-              <UserPlus className="h-4 w-4" /> Pending Approvals
+            <TabsTrigger value="approvals" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-1 sm:px-6 font-bold relative text-[10px] sm:text-sm">
+              <UserPlus className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Pending Approvals</span> <span className="sm:hidden">New</span>
               {allVolunteers.filter(v => v.status === 'pending').length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white font-bold shadow-sm">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white font-bold shadow-sm border-2 border-white">
                   {allVolunteers.filter(v => v.status === 'pending').length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="volunteers" className="flex items-center gap-2">
-              <Users className="h-4 w-4" /> Approved Volunteers
+            <TabsTrigger value="volunteers" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-1 sm:px-6 font-bold text-[10px] sm:text-sm">
+              <Users className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Approved Volunteers</span> <span className="sm:hidden">Staff</span>
             </TabsTrigger>
-            <TabsTrigger value="news_mgmt" className="flex items-center gap-2">
-              <Megaphone className="h-4 w-4" /> Volunteer News Hub
+            <TabsTrigger value="news_mgmt" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-1 sm:px-6 font-bold text-[10px] sm:text-sm">
+              <Megaphone className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Volunteer News Hub</span> <span className="sm:hidden">News</span>
             </TabsTrigger>
           </TabsList>
 
@@ -634,13 +639,13 @@ export default function VolunteeringPage() {
               </div>
 
               <div className="grid gap-4">
-                {volunteerNews.length === 0 ? (
+                {effectiveNews.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
                     <Megaphone className="h-12 w-12 mb-4 text-orange-500 opacity-20" />
                     <p className="text-lg font-medium text-muted-foreground">No volunteer news items published.</p>
                   </div>
                 ) : (
-                  volunteerNews.map((item: any) => (
+                  effectiveNews.map((item: any) => (
                     <Card key={item.id} className="p-4 hover:bg-orange-50/30 transition-colors border-orange-500/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
