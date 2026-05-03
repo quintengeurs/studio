@@ -22,7 +22,10 @@ import {
   ClipboardList,
   UserPlus,
   ShieldAlert,
-  Search
+  Search,
+  Pencil,
+  Trash2,
+  Plus
 } from "lucide-react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,6 +37,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
 import { TaskDetailModal } from "@/components/modals/task-detail-modal";
+import { InfoItemModal } from "@/components/modals/info-item-modal";
 import { useDataContext } from "@/context/DataContext";
 
 export default function VolunteeringPage() {
@@ -48,6 +52,9 @@ export default function VolunteeringPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [editingInfoItem, setEditingInfoItem] = useState<any | null>(null);
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
@@ -404,6 +411,19 @@ export default function VolunteeringPage() {
     }
   };
 
+  const handleArchiveInfo = async (itemId: string) => {
+    if (!db || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, "info_items", itemId), { isArchived: true });
+      toast({ title: "News Item Archived" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to archive item.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const selectedTask = useMemo(() => {
     const allPossible = [...tasks, ...logTasks, ...myCompletedTasks];
     return allPossible.find(t => t.id === selectedTaskId) || null;
@@ -431,6 +451,9 @@ export default function VolunteeringPage() {
             </TabsTrigger>
             <TabsTrigger value="volunteers" className="flex items-center gap-2">
               <Users className="h-4 w-4" /> Approved Volunteers
+            </TabsTrigger>
+            <TabsTrigger value="news_mgmt" className="flex items-center gap-2">
+              <Megaphone className="h-4 w-4" /> Volunteer News Hub
             </TabsTrigger>
           </TabsList>
 
@@ -590,6 +613,77 @@ export default function VolunteeringPage() {
               )}
             </div>
           </TabsContent>
+
+          <TabsContent value="news_mgmt">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-orange-600">
+                  <Megaphone className="h-5 w-5" />
+                  Volunteer Communication Hub
+                </h3>
+                <Button 
+                  size="sm" 
+                  className="bg-orange-500 hover:bg-orange-600 font-bold gap-2"
+                  onClick={() => {
+                    setEditingInfoItem(null);
+                    setIsInfoModalOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Add Volunteer News
+                </Button>
+              </div>
+
+              <div className="grid gap-4">
+                {volunteerNews.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
+                    <Megaphone className="h-12 w-12 mb-4 text-orange-500 opacity-20" />
+                    <p className="text-lg font-medium text-muted-foreground">No volunteer news items published.</p>
+                  </div>
+                ) : (
+                  volunteerNews.map((item: any) => (
+                    <Card key={item.id} className="p-4 hover:bg-orange-50/30 transition-colors border-orange-500/10">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+                             {item.type === 'Document' ? <FileText className="h-5 w-5" /> : <Megaphone className="h-5 w-5" />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-foreground">{item.title}</p>
+                            <div className="flex items-center gap-3">
+                                <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[9px] uppercase font-bold tracking-widest border-none">{item.type}</Badge>
+                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Posted {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'Recently'}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              setEditingInfoItem(item);
+                              setIsInfoModalOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleArchiveInfo(item.id)}
+                            disabled={isSubmitting}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
 
         <TaskDetailModal
@@ -598,6 +692,12 @@ export default function VolunteeringPage() {
           task={selectedTask}
           allUsers={allUsers}
           allParks={allParks}
+        />
+
+        <InfoItemModal
+          open={isInfoModalOpen}
+          onOpenChange={setIsInfoModalOpen}
+          editItem={editingInfoItem}
         />
       </DashboardShell>
     );
@@ -991,6 +1091,12 @@ export default function VolunteeringPage() {
         allParks={allParks}
         volunteerEmail={volunteerEmail}
         onSuccess={() => handleRefreshData(true)}
+      />
+
+      <InfoItemModal
+        open={isInfoModalOpen}
+        onOpenChange={setIsInfoModalOpen}
+        editItem={editingInfoItem}
       />
     </DashboardShell>
   );
