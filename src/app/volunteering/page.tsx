@@ -103,6 +103,19 @@ export default function VolunteeringPage() {
     return rawTasks.filter(t => !t.completedByVolunteers?.includes(volunteerEmail));
   }, [rawTasks, volunteerEmail]);
 
+  const handleRegisterSuccess = (email: string) => {
+    setVolunteerEmail(email);
+  };
+
+  const handleTaskAction = (taskId: string) => {
+    if (!volunteerEmail) {
+      setIsRegModalOpen(true);
+      return;
+    }
+    setSelectedTaskId(taskId);
+    setIsTaskModalOpen(true);
+  };
+
   const selectedTask = useMemo(() => {
     const allPossible = [...tasks, ...logTasks];
     return allPossible.find(t => t.id === selectedTaskId) || null;
