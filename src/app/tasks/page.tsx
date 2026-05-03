@@ -34,7 +34,8 @@ import {
   Search,
   Filter,
   X,
-  Heart
+  Heart,
+  Camera
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -69,7 +70,6 @@ import { Switch } from "@/components/ui/switch";
 import { addDays, addMonths, format } from "date-fns";
 import { compressImage } from "@/lib/image-compress";
 import { useRef } from "react";
-import { Camera } from "lucide-react";
 
 export default function TasksPage() {
   const { toast } = useToast();
