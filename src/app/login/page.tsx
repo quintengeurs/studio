@@ -19,7 +19,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
-import { ArrowRight, Building2, Heart, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Heart } from "lucide-react";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -90,7 +90,7 @@ export default function LoginPage() {
         <div className="max-w-4xl w-full mx-auto relative z-10 flex flex-col items-center">
           <div className="text-center space-y-4 mb-12">
             <div className="flex justify-center mb-6">
-              <div className="h-20 w-20 rounded-3xl bg-primary flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20 rotate-3 hover:rotate-0 transition-transform duration-500">
+              <div className="h-20 w-20 rounded-3xl bg-primary flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20 hover:scale-110 transition-transform duration-500">
                 <Leaf className="h-12 w-12" />
               </div>
             </div>
@@ -104,9 +104,6 @@ export default function LoginPage() {
               className="border-2 hover:border-primary/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-2 overflow-hidden flex flex-col items-center text-center"
               onClick={() => setViewMode('staff-login')}
             >
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <ShieldCheck className="h-32 w-32" />
-              </div>
               <CardHeader className="space-y-4 flex flex-col items-center pt-8">
                 <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   <Building2 className="h-8 w-8" />
@@ -139,9 +136,6 @@ export default function LoginPage() {
               className="border-2 hover:border-orange-500/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-2 overflow-hidden flex flex-col items-center text-center"
               onClick={() => router.push('/volunteering')}
             >
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Users className="h-32 w-32" />
-              </div>
               <CardHeader className="space-y-4 flex flex-col items-center pt-8">
                 <div className="h-16 w-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 transition-colors group-hover:bg-orange-500 group-hover:text-white">
                   <Heart className="h-8 w-8" />
