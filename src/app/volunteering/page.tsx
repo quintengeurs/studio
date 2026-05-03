@@ -53,27 +53,56 @@ export default function VolunteeringPage() {
     if (savedEmail) setVolunteerEmail(savedEmail);
   }, []);
 
-  // Public Portal Data
-  const volunteerTasksQuery = useMemoFirebase(() => 
-    db ? query(
-      collection(db, "tasks"), 
-      where("isVolunteerEligible", "==", true),
-      where("status", "==", "Todo"),
-      limit(50)
-    ) : null, 
-  [db]);
+  // Public Portal Data - Using manual fetch to avoid permission-denied noise in console
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
 
-  const { data: rawTasks = [], loading } = useCollection<Task>(volunteerTasksQuery as any);
+  useEffect(() => {
+    if (!db) return;
+    const fetchTasks = async () => {
+      setTasksLoading(true);
+      try {
+        const { getDocs } = await import("firebase/firestore");
+        const q = query(
+          collection(db, "tasks"), 
+          where("isVolunteerEligible", "==", true),
+          where("status", "==", "Todo"),
+          limit(50)
+        );
+        const snapshot = await getDocs(q);
+        setTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
+      } catch (err) {
+        console.warn("Public tasks fetch failed (check Firestore rules):", err);
+      } finally {
+        setTasksLoading(false);
+      }
+    };
+    fetchTasks();
+  }, [db]);
 
-  // Volunteer's own contributions (to show rewards)
-  const completedTasksQuery = useMemoFirebase(() => 
-    (db && volunteerEmail) ? query(
-      collection(db, "tasks"), 
-      where("completedByVolunteers", "array-contains", volunteerEmail),
-      limit(50)
-    ) : null, 
-  [db, volunteerEmail]);
-  const { data: myCompletedTasks = [] } = useCollection<Task>(completedTasksQuery as any);
+  // Volunteer's own contributions
+  const [myCompletedTasks, setMyCompletedTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    if (!db || !volunteerEmail) {
+      setMyCompletedTasks([]);
+      return;
+    }
+    const fetchMyWork = async () => {
+      try {
+        const { getDocs } = await import("firebase/firestore");
+        const q = query(
+          collection(db, "tasks"), 
+          where("completedByVolunteers", "array-contains", volunteerEmail),
+          limit(50)
+        );
+        const snapshot = await getDocs(q);
+        setMyCompletedTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Task));
+      } catch (err) {
+        // Silent fail for contributions
+      }
+    };
+    fetchMyWork();
+  }, [db, volunteerEmail]);
 
   // Staff Management Data (Volunteer Log)
   const staffLogQuery = useMemoFirebase(() => 
@@ -86,11 +115,22 @@ export default function VolunteeringPage() {
   [db, user]);
   const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
 
-  const infoQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "info_items"), where("isVolunteerVisible", "==", true), where("isArchived", "==", false));
+  // Hub News
+  const [infoItems, setInfoItems] = useState<any[]>([]);
+  useEffect(() => {
+    if (!db) return;
+    const fetchNews = async () => {
+      try {
+        const { getDocs } = await import("firebase/firestore");
+        const q = query(collection(db, "info_items"), where("isVolunteerVisible", "==", true), where("isArchived", "==", false));
+        const snapshot = await getDocs(q);
+        setInfoItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        // Silent fail for news
+      }
+    };
+    fetchNews();
   }, [db]);
-  const { data: infoItems = [] } = useCollection<any>(infoQuery as any);
 
   // Volunteer Directory (Staff Only)
   const volunteersQuery = useMemoFirebase(() => 
@@ -151,10 +191,11 @@ export default function VolunteeringPage() {
     }
   };
 
-  const tasks = useMemo(() => {
-    if (!volunteerEmail) return rawTasks;
-    return rawTasks.filter(t => !t.completedByVolunteers?.includes(volunteerEmail));
-  }, [rawTasks, volunteerEmail]);
+  // Filter tasks to hide ones already completed by this volunteer
+  const filteredTasks = useMemo(() => {
+    if (!volunteerEmail) return tasks;
+    return tasks.filter(t => !t.completedByVolunteers?.includes(volunteerEmail));
+  }, [tasks, volunteerEmail]);
 
   const handleRegisterSuccess = (email: string) => {
     setVolunteerEmail(email);
@@ -418,7 +459,7 @@ export default function VolunteeringPage() {
                 </h3>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Users className="h-4 w-4" />
-                  <span>{tasks.length} roles available</span>
+                  <span>{filteredTasks.length} roles available</span>
                 </div>
               </div>
 
@@ -432,20 +473,20 @@ export default function VolunteeringPage() {
                 </div>
               )}
 
-              {loading ? (
+              {tasksLoading ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {[1, 2, 3].map(i => (
                     <Card key={i} className="animate-pulse bg-muted h-[300px] rounded-3xl" />
                   ))}
                 </div>
-              ) : tasks.length === 0 ? (
+              ) : filteredTasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/20">
                   <Users className="h-12 w-12 mb-4 opacity-20" />
                   <p className="text-lg font-medium">No active volunteer roles at the moment.</p>
                 </div>
               ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {tasks.map(task => (
+                  {filteredTasks.map(task => (
                     <Card 
                       key={task.id} 
                       className={`group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-orange-500/10 overflow-hidden flex flex-col cursor-pointer rounded-3xl ${effectiveStatus === 'pending' ? 'opacity-50 grayscale pointer-events-none' : ''}`}
