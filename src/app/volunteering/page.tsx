@@ -1219,19 +1219,6 @@ export default function VolunteeringPage() {
                               <Info className="h-3.5 w-3.5 mr-2" /> General Hub Information
                             </div>
                           )}
-                          {(item.type === 'CTA' || item.allowResponse) && (
-                            <Button 
-                              variant="ghost" 
-                              className="w-full h-10 text-[10px] font-bold uppercase tracking-widest text-orange-600 hover:bg-orange-100/50 border-t rounded-none"
-                              onClick={() => {
-                                const tabsList = document.querySelector('[role="tablist"]');
-                                const tasksTab = tabsList?.querySelector('[value="tasks"]') as HTMLButtonElement;
-                                tasksTab?.click();
-                              }}
-                            >
-                              View Related Tasks <ArrowRight className="ml-2 h-3 w-3" />
-                            </Button>
-                          )}
                         </CardFooter>
                       </Card>
                     );
