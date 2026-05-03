@@ -17,18 +17,19 @@ interface DashboardShellProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  isPublic?: boolean;
 }
 
-export function DashboardShell({ children, title, description, actions }: DashboardShellProps) {
+export function DashboardShell({ children, title, description, actions, isPublic }: DashboardShellProps) {
   const isMobile = useIsMobile();
   const { user, loading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !isPublic) {
       router.push("/login");
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, isPublic]);
 
   if (loading) {
     return (
@@ -38,21 +39,27 @@ export function DashboardShell({ children, title, description, actions }: Dashbo
     );
   }
 
-  if (!user) {
+  if (!user && !isPublic) {
     return null;
   }
 
+  const showNav = !!user;
+
   return (
     <div className="flex min-h-screen bg-background w-full overflow-x-hidden">
-      {!isMobile && <AppSidebar />}
-      <SidebarInset className="flex flex-col pb-20 md:pb-0 w-full min-w-0">
-        {isMobile ? (
+      {showNav && !isMobile && <AppSidebar />}
+      <SidebarInset className={`flex flex-col ${showNav ? 'pb-20 md:pb-0' : ''} w-full min-w-0`}>
+        {showNav && isMobile ? (
           <MobileTopHeader />
         ) : (
           <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-6 border-b bg-card sticky top-0 z-30">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
+              {showNav && (
+                <>
+                  <SidebarTrigger className="-ml-1" />
+                  <Separator orientation="vertical" className="mr-2 h-4" />
+                </>
+              )}
               <div>
                 <h1 className="text-lg font-headline font-bold text-foreground leading-none">{title}</h1>
                 {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
@@ -79,7 +86,7 @@ export function DashboardShell({ children, title, description, actions }: Dashbo
           </div>
         </main>
         
-        {isMobile && <MobileBottomNav />}
+        {showNav && isMobile && <MobileBottomNav />}
       </SidebarInset>
     </div>
   );

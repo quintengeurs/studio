@@ -109,6 +109,7 @@ export default function VolunteeringPage() {
     <DashboardShell 
       title="Volunteer Opportunities" 
       description="Help us maintain and improve our local parks and green spaces."
+      isPublic={true}
     >
       <div className="space-y-8">
         {/* Hero Section */}

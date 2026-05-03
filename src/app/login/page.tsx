@@ -19,6 +19,8 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
+import { Building2, Heart, ArrowRight, ShieldCheck, Users } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -31,6 +33,7 @@ export default function LoginPage() {
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+  const [viewMode, setViewMode] = useState<'selection' | 'staff-login'>('selection');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +80,100 @@ export default function LoginPage() {
     }
   };
 
+  if (viewMode === 'selection') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+        {/* Background Accents */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl" />
+        
+        <div className="w-full max-w-4xl grid gap-8 md:grid-cols-2 relative z-10">
+          <div className="md:col-span-2 text-center space-y-4 mb-4">
+            <div className="flex justify-center mb-6">
+              <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20">
+                <Leaf className="h-10 w-10" />
+              </div>
+            </div>
+            <h1 className="text-4xl font-headline font-bold tracking-tight">Welcome to Hackney Parks</h1>
+            <p className="text-muted-foreground max-w-md mx-auto">Select your portal to access the management system or join our community of volunteers.</p>
+          </div>
+
+          {/* Staff Card */}
+          <Card 
+            className="border-2 hover:border-primary/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-1 overflow-hidden"
+            onClick={() => setViewMode('staff-login')}
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <ShieldCheck className="h-24 w-24" />
+            </div>
+            <CardHeader className="space-y-1">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-2">
+                <Building2 className="h-6 w-6" />
+              </div>
+              <CardTitle className="text-2xl font-bold">Staff Portal</CardTitle>
+              <CardDescription>
+                Internal tools for park operatives, managers, and contractors.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {['Task Management', 'Asset Tracking', 'Issue Reporting', 'Strategic Planning'].map((feat) => (
+                  <li key={feat} className="text-xs flex items-center gap-2 text-muted-foreground">
+                    <div className="h-1 w-1 rounded-full bg-primary" /> {feat}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full font-bold gap-2 group-hover:gap-4 transition-all">
+                Staff Sign In <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {/* Volunteer Card */}
+          <Card 
+            className="border-2 hover:border-orange-500/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-1 overflow-hidden"
+            onClick={() => router.push('/volunteering')}
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Users className="h-24 w-24" />
+            </div>
+            <CardHeader className="space-y-1">
+              <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 mb-2">
+                <Heart className="h-6 w-6" />
+              </div>
+              <CardTitle className="text-2xl font-bold">Volunteer Hub</CardTitle>
+              <CardDescription>
+                Help us maintain our parks and green spaces. No login required to browse.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {['Find Opportunities', 'Log Interest', 'Community News', 'Event Registration'].map((feat) => (
+                  <li key={feat} className="text-xs flex items-center gap-2 text-muted-foreground">
+                    <div className="h-1 w-1 rounded-full bg-orange-500" /> {feat}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full font-bold bg-orange-500 hover:bg-orange-600 gap-2 group-hover:gap-4 transition-all">
+                Join Volunteers <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <div className="md:col-span-2 text-center pt-8">
+             <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+               Hackney Council | Parks & Green Spaces
+             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md border-2">
@@ -86,7 +183,7 @@ export default function LoginPage() {
               <Leaf className="h-8 w-8" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-headline font-bold">Hackney Parks Management</CardTitle>
+          <CardTitle className="text-2xl font-headline font-bold">Staff Login</CardTitle>
           <CardDescription>
             Enter your credentials to access the management system
           </CardDescription>
@@ -135,6 +232,14 @@ export default function LoginPage() {
             </div>
             <Button type="submit" className="w-full font-bold" disabled={loading}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In"}
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full font-bold border-dashed" 
+              onClick={() => setViewMode('selection')}
+            >
+              Back to Selection
             </Button>
           </form>
         </CardContent>
