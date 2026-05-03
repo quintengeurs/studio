@@ -121,12 +121,27 @@ export default function Dashboard() {
 
   const myRequestsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    if (isManagement) return query(collection(db, "requests"), where("status", "!=", "Collected"), limit(15));
+    // Notifications should only be for those who raised it or updated it as manager
+    // We use a broader query and filter client-side if needed, but for now we'll restrict the fetch
+    if (isManagement) {
+      // Managers see everything they are involved in
+      return query(collection(db, "requests"), where("status", "!=", "Collected"), limit(30));
+    }
     if (userEffectiveName) return query(collection(db, "requests"), where("requestedBy", "==", userEffectiveName), where("status", "!=", "Collected"), limit(10));
     return null;
   }, [db, userEffectiveName, isManagement]);
 
-  const { data: myRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
+  const { data: rawMyRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
+
+  const myRequests = useMemo(() => {
+    if (isManagement || isAdmin) {
+      return rawMyRequests.filter(r => 
+        r.requestedBy === userEffectiveName || 
+        r.updatedBy === userEffectiveName
+      );
+    }
+    return rawMyRequests;
+  }, [rawMyRequests, isManagement, isAdmin, userEffectiveName]);
 
   // Optimized: Use context for summaries if management, or personalized queries if operative
   const { allIssues, allParks } = useDataContext();

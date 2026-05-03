@@ -68,7 +68,11 @@ export default function RequestsManagementPage() {
   const handleUpdateStatus = async (id: string, newStatus: string, note?: string) => {
     if (!db) return;
     try {
-      const updateData: any = { status: newStatus };
+      const updateData: any = { 
+        status: newStatus,
+        updatedBy: profile?.name || user?.displayName || user?.email || "Manager",
+        updatedAt: new Date().toISOString()
+      };
       if (note) updateData.managerNote = note;
 
       await updateDoc(doc(db, "requests", id), updateData);

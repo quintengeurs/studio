@@ -198,6 +198,8 @@ export interface MaterialRequest {
   status: 'Open' | 'In Progress' | 'Available' | 'Collected' | 'Archived';
   createdAt: string;
   managerNote?: string;
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export interface ParkUpdate {
