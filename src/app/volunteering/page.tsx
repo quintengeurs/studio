@@ -205,7 +205,16 @@ export default function VolunteeringPage() {
   [db]);
   const { data: volunteerNews = [], loading: newsLoading, error: newsError } = useCollection<any>(volunteerNewsQuery as any);
 
+  const [cachedNews, setCachedNews] = useState<any[]>([]);
   const [fallbackNews, setFallbackNews] = useState<any[]>([]);
+  
+  useEffect(() => {
+    // Load cache on mount
+    const saved = localStorage.getItem("volunteer_news_cache");
+    if (saved) {
+      try { setCachedNews(JSON.parse(saved)); } catch (e) {}
+    }
+  }, []);
   useEffect(() => {
     // If useCollection fails, try a manual fetch as a fallback
     if (newsError && db) {
@@ -223,15 +232,22 @@ export default function VolunteeringPage() {
   }, [newsError, db]);
 
   const effectiveNews = useMemo(() => {
-    const baseItems = volunteerNews.length > 0 ? volunteerNews : fallbackNews;
-    return baseItems
-      .filter((d: any) => d.isArchived !== true)
+    const baseItems = volunteerNews.length > 0 ? volunteerNews : (fallbackNews.length > 0 ? fallbackNews : cachedNews);
+    const filtered = baseItems
+      .filter((d: any) => d.isArchived !== true && d.isVolunteerVisible === true)
       .sort((a: any, b: any) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-  }, [volunteerNews, fallbackNews]);
+
+    // Update cache if we got fresh data
+    if ((volunteerNews.length > 0 || fallbackNews.length > 0) && filtered.length > 0) {
+      localStorage.setItem("volunteer_news_cache", JSON.stringify(filtered));
+    }
+
+    return filtered;
+  }, [volunteerNews, fallbackNews, cachedNews]);
 
   useEffect(() => {
     // fetchNews is now handled by useCollection
@@ -305,8 +321,16 @@ export default function VolunteeringPage() {
         title: isInterested ? "Interest Removed" : "Interest Recorded", 
         description: isInterested ? "You are no longer marked as interested." : "Your interest has been logged. We will contact you soon!" 
       });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to update interest.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Interest Update Error:", error);
+      const isPermission = error?.message?.includes('permission') || error?.code === 'permission-denied';
+      toast({ 
+        title: "Registration Required", 
+        description: isPermission 
+            ? "Your interest couldn't be logged. Please ensure you are logged in or contact staff directly." 
+            : "Failed to update interest. Please try again.", 
+        variant: "destructive" 
+      });
     }
   };
 
