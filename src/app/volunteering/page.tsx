@@ -268,6 +268,9 @@ export default function VolunteeringPage() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="volunteers" className="flex items-center gap-2">
+              <Users className="h-4 w-4" /> Approved Volunteers
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="log">
@@ -369,6 +372,49 @@ export default function VolunteeringPage() {
                         </Button>
                         <Button size="sm" className="bg-orange-500 hover:bg-orange-600" onClick={() => handleApproveVolunteer(v.id)} disabled={isSubmitting}>
                           Approve
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="volunteers">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-green-600">
+                  <Users className="h-5 w-5" />
+                  Active Community Volunteers
+                </h3>
+                <Badge variant="outline" className="font-bold">{allVolunteers.filter(v => v.status === 'active').length} Active</Badge>
+              </div>
+
+              {allVolunteers.filter(v => v.status === 'active').length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
+                  <Users className="h-12 w-12 mb-4 text-green-500 opacity-20" />
+                  <p className="text-lg font-medium text-muted-foreground">No approved volunteers yet.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {allVolunteers.filter(v => v.status === 'active').map(v => (
+                    <Card key={v.id} className="p-4 flex items-center justify-between hover:bg-green-50/30 transition-colors border-green-500/10">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold uppercase">
+                          {v.email.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-foreground">{v.email}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-[9px] uppercase font-bold tracking-widest border-none">Active Volunteer</Badge>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Joined {v.registeredAt ? format(new Date(v.registeredAt), 'MMM d, yyyy') : 'Unknown'}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteVolunteer(v.id)} disabled={isSubmitting}>
+                          Deactivate
                         </Button>
                       </div>
                     </Card>
