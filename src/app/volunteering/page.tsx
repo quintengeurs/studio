@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Search
 } from "lucide-react";
+import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
@@ -107,7 +108,7 @@ export default function VolunteeringPage() {
   // If user is public, we need to fetch their specific status even if they aren't staff
   // (We'll use a small query for just this email if not already in allVolunteers)
   const publicVolunteerQuery = useMemoFirebase(() => 
-    (db && !user && volunteerEmail) ? query(collection(db, "volunteers"), where("email", "==", volunteerEmail)) : null, 
+    (db && !user && volunteerEmail && volunteerEmail.length > 5) ? query(collection(db, "volunteers"), where("email", "==", volunteerEmail)) : null, 
   [db, user, volunteerEmail]);
   const { data: publicVolunteerData = [] } = useCollection<any>(publicVolunteerQuery as any);
 
@@ -201,7 +202,7 @@ export default function VolunteeringPage() {
           <TabsList className="mb-6">
             <TabsTrigger value="log" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" /> Contribution Log
-            </Badge>
+            </TabsTrigger>
             <TabsTrigger value="approvals" className="flex items-center gap-2 relative">
               <UserPlus className="h-4 w-4" /> Pending Approvals
               {allVolunteers.filter(v => v.status === 'pending').length > 0 && (

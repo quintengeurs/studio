@@ -27,14 +27,7 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
   const profileByEmailRef = useMemo(() => db && emailId ? doc(db, "users", emailId) : null, [db, emailId]);
   const { data: profileByEmail, loading: loadingEmailId } = useDoc<UserProfile>(profileByEmailRef as any);
 
-  // 3. Check by Email Field (search pattern)
-  const usersQuery = useMemoFirebase(() => {
-    if (!db || !user?.email) return null;
-    return query(collection(db, "users"), where("email", "==", user.email));
-  }, [db, user?.email]);
-  const { data: profileByQuery = [], loading: loadingQuery } = useCollection<UserProfile>(usersQuery as any);
-  
-  const currentUserProfile = profileByEmail || profileByUid || profileByQuery[0];
+  const currentUserProfile = profileByEmail || profileByUid || null;
 
   const [bootTimeout, setBootTimeout] = useState(false);
   useEffect(() => {
@@ -42,7 +35,7 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, []);
 
-  const isLoading = (userLoading || loadingUid || loadingEmailId || loadingQuery) && !bootTimeout;
+  const isLoading = (userLoading || loadingUid || loadingEmailId) && !bootTimeout;
   
   // By default, if the field is missing, we allow desktop view for backward compatibility
   // If user has a permissions object, derive from whether any desktop permission is enabled
