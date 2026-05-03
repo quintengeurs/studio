@@ -67,12 +67,16 @@ import { useDataContext } from "@/context/DataContext";
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { addDays, addMonths, format } from "date-fns";
+import { compressImage } from "@/lib/image-compress";
+import { useRef } from "react";
+import { Camera } from "lucide-react";
 
 export default function TasksPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const volunteerImageRef = useRef<HTMLInputElement>(null);
 
   const [taskLimit, setTaskLimit] = useState(25);
   const tasksQuery = useMemoFirebase(() => 
@@ -294,8 +298,23 @@ export default function TasksPage() {
     dueDate: format(new Date(), 'yyyy-MM-dd'),
     displayTime: "",
     frequency: "One-off" as Frequency,
-    isVolunteerEligible: false
+    isVolunteerEligible: false,
+    volunteerImageUrl: "",
+    rewardDescription: "",
+    rewardCode: ""
   });
+
+  const handleVolunteerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressedDataUrl = await compressImage(file, 800, 800, 0.7);
+        setNewTask(prev => ({ ...prev, volunteerImageUrl: compressedDataUrl }));
+      } catch (error) {
+        toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
+      }
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -318,7 +337,10 @@ export default function TasksPage() {
         displayTime: newTask.displayTime || null,
         frequency: newTask.frequency !== 'One-off' ? newTask.frequency : null,
         status: 'Todo' as const,
-        isVolunteerEligible: newTask.isVolunteerEligible
+        isVolunteerEligible: newTask.isVolunteerEligible,
+        volunteerImageUrl: newTask.isVolunteerEligible ? newTask.volunteerImageUrl : null,
+        rewardDescription: newTask.isVolunteerEligible ? newTask.rewardDescription : null,
+        rewardCode: newTask.isVolunteerEligible ? newTask.rewardCode : null
     };
 
     if (newTask.isVolunteerEligible) {
@@ -329,7 +351,19 @@ export default function TasksPage() {
         await addDoc(collection(db, "tasks"), taskData);
         toast({ title: "Task Created", description: `Task assigned to ${taskData.assignedTo}.` });
         setIsTaskDialogOpen(false);
-        setNewTask({ title: "", objective: "", park: "", assignedTo: "", dueDate: format(new Date(), 'yyyy-MM-dd'), displayTime: "", frequency: "One-off", isVolunteerEligible: false });
+        setNewTask({ 
+            title: "", 
+            objective: "", 
+            park: "", 
+            assignedTo: "", 
+            dueDate: format(new Date(), 'yyyy-MM-dd'), 
+            displayTime: "", 
+            frequency: "One-off", 
+            isVolunteerEligible: false,
+            volunteerImageUrl: "",
+            rewardDescription: "",
+            rewardCode: ""
+        });
         setIsGroupAssign(false);
     } catch (error) {
         toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
@@ -473,13 +507,61 @@ export default function TasksPage() {
                 </div>
 
                 {newTask.isVolunteerEligible ? (
-                  <div className="p-3 rounded-lg bg-orange-50 border border-orange-100 animate-in zoom-in-95 duration-200">
+                  <div className="p-3 rounded-lg bg-orange-50 border border-orange-100 animate-in zoom-in-95 duration-200 space-y-4">
                     <Select value={newTask.park} onValueChange={v => setNewTask({...newTask, park: v})}>
                         <SelectTrigger className="bg-white border-orange-200"><SelectValue placeholder="Select Park for Volunteers" /></SelectTrigger>
                         <SelectContent>
                             {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                         </SelectContent>
                     </Select>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Enticing Photo (Optional)</Label>
+                      <div className="flex flex-col gap-2">
+                        {newTask.volunteerImageUrl ? (
+                          <div className="relative w-full aspect-video rounded-md overflow-hidden border shadow-sm group">
+                            <Image src={newTask.volunteerImageUrl} alt="Volunteer Preview" fill className="object-cover" />
+                            <Button 
+                              size="icon" variant="destructive" 
+                              className="absolute top-2 right-2 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => setNewTask(prev => ({ ...prev, volunteerImageUrl: "" }))}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            className="w-full h-20 border-dashed border-2 flex flex-col gap-1 bg-white hover:bg-orange-100/50 border-orange-200 text-orange-600"
+                            onClick={() => volunteerImageRef.current?.click()}
+                          >
+                            <Camera className="h-5 w-5" />
+                            <span className="text-[10px] font-bold uppercase">Upload Enticing Photo</span>
+                          </Button>
+                        )}
+                        <input type="file" ref={volunteerImageRef} className="hidden" accept="image/*" onChange={handleVolunteerImageUpload} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Completion Reward (Optional)</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input 
+                          placeholder="Reward Name e.g. Free Coffee" 
+                          value={newTask.rewardDescription}
+                          onChange={e => setNewTask({...newTask, rewardDescription: e.target.value})}
+                          className="bg-white border-orange-200 text-xs h-9"
+                        />
+                        <Input 
+                          placeholder="Reward Code e.g. VOL10" 
+                          value={newTask.rewardCode}
+                          onChange={e => setNewTask({...newTask, rewardCode: e.target.value})}
+                          className="bg-white border-orange-200 text-xs h-9"
+                        />
+                      </div>
+                      <p className="text-[9px] text-orange-600/70 italic leading-tight">If set, volunteers will see this reward and code upon completing the task.</p>
+                    </div>
+
                     <p className="text-[10px] text-orange-700 mt-2 font-medium">This task will be visible to all registered volunteers in this park.</p>
                   </div>
                 ) : isGroupAssign ? (

@@ -57,6 +57,16 @@ export default function VolunteeringPage() {
 
   const { data: rawTasks = [], loading } = useCollection<Task>(volunteerTasksQuery as any);
 
+  // Volunteer's own contributions (to show rewards)
+  const completedTasksQuery = useMemoFirebase(() => 
+    (db && volunteerEmail) ? query(
+      collection(db, "tasks"), 
+      where("completedByVolunteers", "array-contains", volunteerEmail),
+      limit(50)
+    ) : null, 
+  [db, volunteerEmail]);
+  const { data: myCompletedTasks = [] } = useCollection<Task>(completedTasksQuery as any);
+
   // Staff Management Data (Volunteer Log)
   const staffLogQuery = useMemoFirebase(() => 
     (db && user) ? query(
@@ -115,9 +125,9 @@ export default function VolunteeringPage() {
   };
 
   const selectedTask = useMemo(() => {
-    const allPossible = [...tasks, ...logTasks];
+    const allPossible = [...tasks, ...logTasks, ...myCompletedTasks];
     return allPossible.find(t => t.id === selectedTaskId) || null;
-  }, [tasks, logTasks, selectedTaskId]);
+  }, [tasks, logTasks, myCompletedTasks, selectedTaskId]);
 
   if (user) {
     // Staff View: Volunteer Log
@@ -207,6 +217,7 @@ export default function VolunteeringPage() {
       title="Volunteer Opportunities" 
       description="Help us maintain and improve our local parks and green spaces."
       isPublic={true}
+      hideHeader={true}
     >
       <div className="space-y-8">
         {/* Hero Section */}
@@ -322,14 +333,29 @@ export default function VolunteeringPage() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {tasks.map(task => (
-                <Card key={task.id} className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-orange-500/10 overflow-hidden flex flex-col">
+                <Card 
+                  key={task.id} 
+                  className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-orange-500/10 overflow-hidden flex flex-col cursor-pointer"
+                  onClick={() => handleTaskAction(task.id)}
+                >
+                  {task.volunteerImageUrl && (
+                    <div className="relative aspect-video w-full overflow-hidden">
+                      <Image src={task.volunteerImageUrl} alt={task.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                    </div>
+                  )}
                   <CardHeader className="pb-4 relative">
-                    <div className="absolute top-0 right-0 p-4">
+                    <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
                        <Badge className="bg-orange-500 text-white shadow-lg">Open Role</Badge>
+                       {task.rewardDescription && (
+                         <Badge className="bg-pink-500 text-white shadow-md animate-pulse">🎁 Reward: {task.rewardDescription}</Badge>
+                       )}
                     </div>
-                    <div className="h-12 w-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-4 group-hover:scale-110 transition-transform">
-                      <Users className="h-6 w-6" />
-                    </div>
+                    {!task.volunteerImageUrl && (
+                      <div className="h-12 w-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-4 group-hover:scale-110 transition-transform">
+                        <Users className="h-6 w-6" />
+                      </div>
+                    )}
                     <CardTitle className="text-xl leading-tight">{task.title}</CardTitle>
                     <CardDescription className="flex items-center gap-1 mt-1 text-orange-600 font-medium">
                       <MapPin className="h-3 w-3" />
@@ -367,6 +393,62 @@ export default function VolunteeringPage() {
             </div>
           )}
         </div>
+        
+        {/* Completed Contributions & Rewards */}
+        {myCompletedTasks.length > 0 && (
+          <div className="space-y-6 pt-8 border-t">
+            <div className="flex items-center gap-2">
+              <Heart className="h-6 w-6 text-pink-500 fill-current" />
+              <h3 className="text-2xl font-bold">Your Contributions & Rewards</h3>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {myCompletedTasks.map(task => (
+                <Card 
+                  key={task.id} 
+                  className="group border-pink-500/10 overflow-hidden flex flex-col bg-pink-50/20 cursor-pointer"
+                  onClick={() => handleTaskAction(task.id)}
+                >
+                  <CardHeader className="pb-4 relative">
+                    <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
+                       <Badge className="bg-green-500 text-white shadow-lg">Completed</Badge>
+                       {task.rewardDescription && (
+                         <Badge className="bg-pink-500 text-white shadow-md animate-bounce">🎁 Reward Ready!</Badge>
+                       )}
+                    </div>
+                    <div className="h-12 w-12 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-500 mb-4">
+                      <Heart className="h-6 w-6 fill-current" />
+                    </div>
+                    <CardTitle className="text-xl leading-tight">{task.title}</CardTitle>
+                    <CardDescription className="flex items-center gap-1 mt-1 text-pink-600 font-medium">
+                      <MapPin className="h-3 w-3" />
+                      {task.park}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-6 flex-1">
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4 italic">
+                      "{task.completionNote || task.objective}"
+                    </p>
+                    {task.rewardDescription && (
+                      <div className="p-3 rounded-lg bg-white border-2 border-dashed border-pink-200 text-center">
+                        <span className="text-[10px] font-bold uppercase text-pink-400 block mb-1">Your Reward</span>
+                        <span className="text-sm font-bold text-pink-600">{task.rewardDescription}</span>
+                      </div>
+                    )}
+                  </CardContent>
+                  <CardFooter className="pt-0 mt-auto">
+                    <Button 
+                      className="w-full bg-pink-500 hover:bg-pink-600 shadow-lg shadow-pink-500/20 font-bold h-11"
+                      onClick={(e) => { e.stopPropagation(); handleTaskAction(task.id); }}
+                    >
+                      {task.rewardDescription ? "COLLECT REWARD" : "VIEW CONTRIBUTION"}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <VolunteerRegistrationModal 

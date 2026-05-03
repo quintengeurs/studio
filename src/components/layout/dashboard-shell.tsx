@@ -18,9 +18,10 @@ interface DashboardShellProps {
   description?: string;
   actions?: React.ReactNode;
   isPublic?: boolean;
+  hideHeader?: boolean;
 }
 
-export function DashboardShell({ children, title, description, actions, isPublic }: DashboardShellProps) {
+export function DashboardShell({ children, title, description, actions, isPublic, hideHeader }: DashboardShellProps) {
   const isMobile = useIsMobile();
   const { user, loading } = useUser();
   const router = useRouter();
@@ -51,7 +52,7 @@ export function DashboardShell({ children, title, description, actions, isPublic
       <SidebarInset className={`flex flex-col ${showNav ? 'pb-20 md:pb-0' : ''} w-full min-w-0`}>
         {showNav && isMobile ? (
           <MobileTopHeader />
-        ) : (
+        ) : !hideHeader ? (
           <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-6 border-b bg-card sticky top-0 z-30">
             <div className="flex items-center gap-2">
               {showNav && (
@@ -69,11 +70,11 @@ export function DashboardShell({ children, title, description, actions, isPublic
               {actions}
             </div>
           </header>
-        )}
+        ) : null}
         
         <main className="p-4 md:p-6 w-full overflow-x-hidden">
           <div className="mx-auto max-w-7xl w-full">
-            {isMobile && (
+            {isMobile && !hideHeader && (
                <div className="mb-6">
                 <h1 className="text-2xl font-headline font-bold text-foreground break-words">{title}</h1>
                 {description && <p className="text-sm text-muted-foreground mt-1 break-words">{description}</p>}

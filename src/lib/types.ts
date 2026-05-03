@@ -137,6 +137,9 @@ export interface Task {
   displayTime?: string; // e.g. "09:00"
   isVolunteerEligible?: boolean;
   completedByVolunteers?: string[];
+  volunteerImageUrl?: string;
+  rewardDescription?: string;
+  rewardCode?: string;
 }
 
 export interface RecurringSchedule {

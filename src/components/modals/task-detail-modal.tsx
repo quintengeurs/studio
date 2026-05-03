@@ -197,6 +197,41 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
               </p>
             </div>
 
+            {task.volunteerImageUrl && (
+              <div className="relative aspect-video w-full rounded-xl overflow-hidden border shadow-sm">
+                <Image src={task.volunteerImageUrl} alt="Volunteer Role" fill className="object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              </div>
+            )}
+
+            {task.isVolunteerEligible && task.status === 'Completed' && task.completedByVolunteers?.includes(volunteerEmail || "") && task.rewardDescription && (
+              <div className="p-6 rounded-2xl bg-gradient-to-br from-pink-500 to-orange-500 text-white shadow-xl animate-in zoom-in-95 duration-300">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
+                    <Heart className="h-5 w-5 fill-current" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg leading-tight tracking-tight">Reward Unlocked!</h4>
+                    <p className="text-[10px] uppercase font-bold opacity-80 tracking-widest">Thank you for your help</p>
+                  </div>
+                </div>
+                
+                <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 mb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 block mb-1">Your Reward</span>
+                  <span className="text-xl font-bold">{task.rewardDescription}</span>
+                </div>
+
+                {task.rewardCode && (
+                  <div className="bg-white text-orange-600 rounded-xl p-4 flex flex-col items-center justify-center border-2 border-white/50 shadow-inner">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500/70 mb-1">Redemption Code</span>
+                    <span className="text-2xl font-black tracking-widest">{task.rewardCode}</span>
+                  </div>
+                )}
+                
+                <p className="text-[10px] text-center mt-4 opacity-80 font-medium">Present this code at the park office or participating vendors to claim your reward.</p>
+              </div>
+            )}
+
             {linkedIssue && (
               <div className="space-y-2">
                 <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1.5">
@@ -267,8 +302,11 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
             )}
 
             {task.status === 'Todo' && (
-              <Button className="w-full h-12 font-bold bg-accent hover:bg-accent/90" onClick={() => handleStatusUpdate('Doing')}>
-                START THIS TASK NOW
+              <Button 
+                className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600' : 'bg-accent hover:bg-accent/90'}`} 
+                onClick={() => handleStatusUpdate('Doing')}
+              >
+                {task.isVolunteerEligible ? 'COMMENCE VOLUNTEERING' : 'START THIS TASK NOW'}
               </Button>
             )}
 
@@ -357,8 +395,12 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
 
         {task.status === 'Doing' && (
           <DialogFooter className="p-6 border-t">
-            <Button className="w-full h-12 font-bold text-accent-foreground" onClick={handleCompleteTask} disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "SUBMIT WORK FOR APPROVAL"}
+            <Button 
+              className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-accent text-accent-foreground'}`} 
+              onClick={handleCompleteTask} 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : task.isVolunteerEligible ? "COMPLETE VOLUNTEERING" : "SUBMIT WORK FOR APPROVAL"}
               <Send className="ml-2 h-4 w-4" />
             </Button>
           </DialogFooter>
