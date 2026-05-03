@@ -87,7 +87,7 @@ export function VolunteerRegistrationModal({
             Register your interest to help maintain our parks. Once registered, you&quot;ll see a list of active tasks you can help with.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-1 px-6">
+        <div className="flex-1 overflow-y-auto px-6">
           <form onSubmit={handleSubmit} className="grid gap-6 py-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email Address</Label>
@@ -121,7 +121,7 @@ export function VolunteerRegistrationModal({
               </div>
             </div>
           </form>
-        </ScrollArea>
+        </div>
         <DialogFooter className="p-6 border-t">
           <Button 
             type="submit" 

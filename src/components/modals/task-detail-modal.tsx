@@ -204,8 +204,8 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1">
-          <div className="px-6 pb-6 space-y-8">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="pb-6 space-y-8">
             <div className="space-y-2 pt-2">
               <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Objective & Requirements</Label>
               <p className="text-sm leading-relaxed bg-muted/30 p-4 rounded-lg border italic font-medium">
@@ -416,7 +416,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {task.status === 'Doing' && (!task.isVolunteerEligible || task.doingByVolunteers?.includes(volunteerEmail || "")) && (
           <DialogFooter className="p-6 border-t">

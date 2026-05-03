@@ -141,7 +141,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
           <DialogDescription>Share updates, documents, or opportunities with all staff.</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6">
+        <div className="flex-1 overflow-y-auto px-6">
           <div className="space-y-6 py-4">
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase text-muted-foreground">Item Type</Label>
@@ -250,7 +250,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
             </div>
           </div>
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="p-6 border-t mt-auto">
           <Button 

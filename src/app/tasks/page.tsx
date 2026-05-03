@@ -481,7 +481,7 @@ export default function TasksPage() {
               <DialogTitle className="font-headline">Create New Task</DialogTitle>
               <DialogDescription>Assign a new operational task to the team.</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="flex-1 px-6">
+            <div className="flex-1 overflow-y-auto px-6">
               <div className="grid gap-4 py-4">
                 <Input placeholder="Task Title e.g. Mow North Lawn" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} />
                 <Textarea placeholder="Objective: What needs to be achieved?" value={newTask.objective} onChange={e => setNewTask({...newTask, objective: e.target.value})} />
@@ -640,7 +640,7 @@ export default function TasksPage() {
                 </Select>
               </div>
             </div>
-          </ScrollArea>
+            </div>
             <DialogFooter className="p-6 border-t">
               <Button className="w-full h-11 font-bold" onClick={handleCreateTask} disabled={!newTask.title || (newTask.isVolunteerEligible && !newTask.park) || (!newTask.isVolunteerEligible && !isGroupAssign && (!newTask.park || !newTask.assignedTo)) || (!newTask.isVolunteerEligible && isGroupAssign && (!groupRole || !groupPark)) || isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Task"}
