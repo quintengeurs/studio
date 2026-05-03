@@ -603,14 +603,19 @@ export default function VolunteeringPage() {
                       )}
                       <CardHeader className="pb-4 relative">
                         <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                           <Badge className={`${task.doingByVolunteers?.includes(volunteerEmail || "") ? 'bg-blue-500' : 'bg-orange-500'} text-white shadow-lg`}>
-                             {task.doingByVolunteers?.includes(volunteerEmail || "") ? 'In Progress' : 'Open Opportunity'}
+                           <Badge className={`${task.doingByVolunteers?.includes(volunteerEmail || "") ? 'bg-blue-500' : (task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) ? 'bg-muted text-muted-foreground' : 'bg-orange-500'} text-white shadow-lg`}>
+                             {task.doingByVolunteers?.includes(volunteerEmail || "") 
+                               ? 'In Progress' 
+                               : (task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) 
+                                 ? 'Role Full' 
+                                 : 'Open Opportunity'}
                            </Badge>
-                           {task.doingByVolunteers && task.doingByVolunteers.length > 0 && (
-                             <Badge variant="secondary" className="bg-white/90 text-orange-600 shadow-sm border-orange-200 text-[9px] font-black">
-                               <Users className="h-3 w-3 mr-1" /> {task.doingByVolunteers.length} ACTIVE
+                           {(task.doingByVolunteers?.length || 0) > 0 || task.maxVolunteers ? (
+                             <Badge variant="secondary" className={`bg-white/90 ${task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers ? 'text-red-600 border-red-200' : 'text-orange-600 border-orange-200'} shadow-sm text-[9px] font-black`}>
+                               <Users className="h-3 w-3 mr-1" /> 
+                               {task.doingByVolunteers?.length || 0}{task.maxVolunteers ? `/${task.maxVolunteers}` : ''} ACTIVE
                              </Badge>
-                           )}
+                           ) : null}
                            {task.rewardDescription && (
                              <Badge className="bg-pink-500 text-white shadow-md animate-pulse">🎁 Reward: {task.rewardDescription}</Badge>
                            )}

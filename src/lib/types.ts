@@ -139,6 +139,7 @@ export interface Task {
   completedByVolunteers?: string[];
   doingByVolunteers?: string[];
   redeemedByVolunteers?: string[];
+  maxVolunteers?: number;
   volunteerImageUrl?: string;
   rewardDescription?: string;
   rewardCode?: string;

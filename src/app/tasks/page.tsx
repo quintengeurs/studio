@@ -301,7 +301,8 @@ export default function TasksPage() {
     isVolunteerEligible: false,
     volunteerImageUrl: "",
     rewardDescription: "",
-    rewardCode: ""
+    rewardCode: "",
+    maxVolunteers: 0
   });
 
   const handleVolunteerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -340,7 +341,8 @@ export default function TasksPage() {
         isVolunteerEligible: newTask.isVolunteerEligible,
         volunteerImageUrl: newTask.isVolunteerEligible ? newTask.volunteerImageUrl : null,
         rewardDescription: newTask.isVolunteerEligible ? newTask.rewardDescription : null,
-        rewardCode: newTask.isVolunteerEligible ? newTask.rewardCode : null
+        rewardCode: newTask.isVolunteerEligible ? newTask.rewardCode : null,
+        maxVolunteers: (newTask.isVolunteerEligible && newTask.maxVolunteers > 0) ? newTask.maxVolunteers : null
     };
 
     if (newTask.isVolunteerEligible) {
@@ -362,7 +364,8 @@ export default function TasksPage() {
             isVolunteerEligible: false,
             volunteerImageUrl: "",
             rewardDescription: "",
-            rewardCode: ""
+            rewardCode: "",
+            maxVolunteers: 0
         });
         setIsGroupAssign(false);
     } catch (error) {
@@ -560,6 +563,18 @@ export default function TasksPage() {
                         />
                       </div>
                       <p className="text-[9px] text-orange-600/70 italic leading-tight">If set, volunteers will see this reward and code upon completing the task.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Volunteer Capacity (Optional)</Label>
+                      <Input 
+                        type="number"
+                        placeholder="Unlimited" 
+                        value={newTask.maxVolunteers || ""}
+                        onChange={e => setNewTask({...newTask, maxVolunteers: parseInt(e.target.value) || 0})}
+                        className="bg-white border-orange-200 text-xs h-9"
+                      />
+                      <p className="text-[9px] text-orange-600/70 italic leading-tight">Limit how many people can join this task at once. Leave as 0 for unlimited.</p>
                     </div>
 
                     <p className="text-[10px] text-orange-700 mt-2 font-medium">This task will be visible to all registered volunteers in this park.</p>

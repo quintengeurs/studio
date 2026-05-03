@@ -88,6 +88,11 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
   const handleStatusUpdate = async (newStatus: string) => {
     if (!db || !task) return;
     try {
+      if (newStatus === 'Doing' && task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) {
+        toast({ title: "Task Full", description: "This volunteer role has reached its capacity.", variant: "destructive" });
+        return;
+      }
+
       const updateData: any = { status: newStatus };
       if (newStatus === 'Doing' && volunteerEmail) {
         updateData.doingByVolunteers = arrayUnion(volunteerEmail);
@@ -316,9 +321,12 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
               <Button 
                 className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600' : 'bg-accent hover:bg-accent/90'}`} 
                 onClick={() => handleStatusUpdate('Doing')}
+                disabled={(task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) || isSubmitting}
               >
                 {task.isVolunteerEligible 
-                  ? (task.status === 'Doing' ? 'JOIN VOLUNTEER TEAM' : 'COMMENCE VOLUNTEERING') 
+                  ? (task.status === 'Doing' 
+                      ? ((task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) ? 'ROLE FULL' : 'JOIN VOLUNTEER TEAM') 
+                      : 'COMMENCE VOLUNTEERING') 
                   : 'START THIS TASK NOW'}
               </Button>
             )}
