@@ -134,7 +134,7 @@ export default function VolunteeringPage() {
 
   // Volunteer Directory (Staff Only)
   const volunteersQuery = useMemoFirebase(() => 
-    (db && user) ? query(collection(db, "volunteers"), orderBy("registeredAt", "desc")) : null, 
+    (db && user) ? query(collection(db, "users"), where("isVolunteer", "==", true), orderBy("registeredAt", "desc")) : null, 
   [db, user]);
   const { data: allVolunteers = [], loading: volunteersLoading } = useCollection<any>(volunteersQuery as any);
 
@@ -152,7 +152,7 @@ export default function VolunteeringPage() {
       setIsCheckingPublicStatus(true);
       try {
         const { getDocs } = await import("firebase/firestore");
-        const q = query(collection(db, "volunteers"), where("email", "==", volunteerEmail));
+        const q = query(collection(db, "users"), where("isVolunteer", "==", true), where("email", "==", volunteerEmail));
         const snapshot = await getDocs(q);
         const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setPublicVolunteerData(docs);
@@ -221,7 +221,7 @@ export default function VolunteeringPage() {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await updateDoc(doc(db, "volunteers", volunteerId), { status: 'active' });
+      await updateDoc(doc(db, "users", volunteerId), { status: 'active' });
       toast({ title: "Volunteer Approved", description: "They can now see and claim tasks." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to approve volunteer.", variant: "destructive" });
@@ -234,7 +234,7 @@ export default function VolunteeringPage() {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await updateDoc(doc(db, "volunteers", volunteerId), { status: 'rejected' });
+      await updateDoc(doc(db, "users", volunteerId), { status: 'rejected' });
       toast({ title: "Registration Rejected" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to reject registration.", variant: "destructive" });

@@ -44,11 +44,15 @@ export function VolunteerRegistrationModal({
     
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "volunteers"), {
+      await addDoc(collection(db, "users"), {
         email: email.toLowerCase(),
+        name: email.split('@')[0], // Use email prefix as temporary name
         gdprConsent: true,
         registeredAt: new Date().toISOString(),
-        status: 'pending'
+        status: 'pending',
+        isVolunteer: true, // Flag to distinguish from staff
+        roles: ['Volunteer'],
+        depot: 'Community'
       });
       
       localStorage.setItem("volunteerEmail", email.toLowerCase());
