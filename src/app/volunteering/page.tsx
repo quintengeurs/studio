@@ -192,6 +192,7 @@ export default function VolunteeringPage() {
     return allPossible.find(t => t.id === selectedTaskId) || null;
   }, [tasks, logTasks, myCompletedTasks, selectedTaskId]);
 
+  if (user) {
     // Staff View: Volunteer Management
     return (
       <DashboardShell 
