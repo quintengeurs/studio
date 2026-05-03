@@ -47,6 +47,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
     url: "",
     ctaLabel: "I'm interested",
     allowResponse: true,
+    isStaffVisible: true,
     isVolunteerVisible: false
   });
 
@@ -59,6 +60,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         url: editItem.url || "",
         ctaLabel: editItem.ctaLabel || "I'm interested",
         allowResponse: editItem.allowResponse !== false,
+        isStaffVisible: editItem.isStaffVisible !== false, // Default to true if not set
         isVolunteerVisible: editItem.isVolunteerVisible || false
       });
     } else {
@@ -69,6 +71,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         url: "",
         ctaLabel: "I'm interested",
         allowResponse: true,
+        isStaffVisible: true,
         isVolunteerVisible: false
       });
     }
@@ -86,6 +89,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         url: formData.type === 'Document' ? formData.url : null,
         ctaLabel: (formData.type === 'CTA' || formData.allowResponse) ? formData.ctaLabel : null,
         allowResponse: formData.allowResponse,
+        isStaffVisible: formData.isStaffVisible,
         isVolunteerVisible: formData.isVolunteerVisible,
         createdBy: editItem ? editItem.createdBy : profile.name,
         createdAt: editItem ? editItem.createdAt : new Date().toISOString(),
@@ -218,16 +222,30 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
             </div>
           )}
 
-          <div className="flex items-center justify-between p-4 border rounded-xl bg-orange-50/50 border-orange-100">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-bold text-orange-900">Show to Volunteers</Label>
-              <p className="text-[10px] text-orange-700/70">Display this item in the Volunteering Portal.</p>
+          <div className="grid grid-cols-1 gap-4">
+            <div className="flex items-center justify-between p-4 border rounded-xl bg-blue-50/50 border-blue-100">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold text-blue-900">Show to Staff</Label>
+                <p className="text-[10px] text-blue-700/70">Display this in the Staff Info Corner.</p>
+              </div>
+              <Switch 
+                checked={formData.isStaffVisible} 
+                onCheckedChange={v => setFormData({...formData, isStaffVisible: v})} 
+                className="data-[state=checked]:bg-blue-500"
+              />
             </div>
-            <Switch 
-              checked={formData.isVolunteerVisible} 
-              onCheckedChange={v => setFormData({...formData, isVolunteerVisible: v})} 
-              className="data-[state=checked]:bg-orange-500"
-            />
+
+            <div className="flex items-center justify-between p-4 border rounded-xl bg-orange-50/50 border-orange-100">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold text-orange-900">Show to Volunteers</Label>
+                <p className="text-[10px] text-orange-700/70">Display this in the Volunteering Portal.</p>
+              </div>
+              <Switch 
+                checked={formData.isVolunteerVisible} 
+                onCheckedChange={v => setFormData({...formData, isVolunteerVisible: v})} 
+                className="data-[state=checked]:bg-orange-500"
+              />
+            </div>
           </div>
         </div>
 

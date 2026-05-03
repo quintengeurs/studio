@@ -65,7 +65,12 @@ export default function InfoCornerPage() {
     return query(collection(db, "info_items"), where("isArchived", "==", false), orderBy("createdAt", "desc"));
   }, [db]);
 
-  const { data: items = [], loading } = useCollection<InfoItem>(infoQuery as any);
+  const { data: rawItems = [], loading } = useCollection<InfoItem>(infoQuery as any);
+
+  // Filter items to show only those visible to staff (backward compatible)
+  const items = useMemo(() => {
+    return rawItems.filter(item => item.isStaffVisible !== false);
+  }, [rawItems]);
 
   const handleToggleInterest = async (item: InfoItem) => {
     if (!db || !profile) return;

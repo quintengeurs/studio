@@ -124,20 +124,36 @@ export default function VolunteeringPage() {
 
   // Hub News
   const [infoItems, setInfoItems] = useState<any[]>([]);
-  useEffect(() => {
+
+  const fetchNews = async () => {
     if (!db) return;
-    const fetchNews = async () => {
-      try {
-        const { getDocs } = await import("firebase/firestore");
-        const q = query(collection(db, "info_items"), where("isVolunteerVisible", "==", true), where("isArchived", "==", false));
-        const snapshot = await getDocs(q);
-        setInfoItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        // Silent fail for news
-      }
-    };
+    try {
+      const { getDocs } = await import("firebase/firestore");
+      const q = query(
+        collection(db, "info_items"), 
+        where("isVolunteerVisible", "==", true), 
+        where("isArchived", "==", false)
+      );
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort in memory to avoid needing complex indices for public users
+      setInfoItems(docs.sort((a: any, b: any) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ));
+    } catch (err) {
+      // Silent fail for news
+    }
+  };
+
+  useEffect(() => {
     fetchNews();
   }, [db]);
+
+  const handleRefreshData = () => {
+    fetchTasks();
+    fetchMyWork();
+    fetchNews();
+  };
 
   // Volunteer Directory (Staff Only)
   const volunteersQuery = useMemoFirebase(() => 
