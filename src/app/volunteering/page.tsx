@@ -69,6 +69,9 @@ export default function VolunteeringPage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [editingNewsItem, setEditingNewsItem] = useState<any | null>(null);
   const [selectedItemForList, setSelectedItemForList] = useState<any | null>(null);
+
+  const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
+  const [editingTaskData, setEditingTaskData] = useState<any>(null);
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
@@ -480,6 +483,32 @@ export default function VolunteeringPage() {
     }
   };
 
+  const handleUpdateTask = async () => {
+    if (!db || !editingTaskData || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, "tasks", editingTaskData.id), {
+        title: editingTaskData.title,
+        objective: editingTaskData.objective,
+        park: editingTaskData.park,
+        dueDate: editingTaskData.dueDate,
+        displayTime: editingTaskData.displayTime || null,
+        rewardDescription: editingTaskData.rewardDescription || null,
+        rewardCode: editingTaskData.rewardCode || null,
+        maxVolunteers: editingTaskData.maxVolunteers || null,
+        volunteerPoints: editingTaskData.volunteerPoints || null,
+        volunteerImageUrl: editingTaskData.volunteerImageUrl || null
+      });
+      toast({ title: "Task Updated", description: "The volunteer opportunity has been updated." });
+      setIsEditTaskModalOpen(false);
+      handleRefreshData();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update task.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleArchiveInfo = async (itemId: string) => {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
@@ -758,8 +787,8 @@ export default function VolunteeringPage() {
                           size="sm" 
                           className="text-muted-foreground hover:text-orange-600 hover:bg-orange-100/50"
                           onClick={() => {
-                            setSelectedTaskId(task.id);
-                            setIsTaskModalOpen(true);
+                            setEditingTaskData({...task});
+                            setIsEditTaskModalOpen(true);
                           }}
                         >
                           <Pencil className="h-4 w-4 mr-2" /> Edit Task
@@ -1406,6 +1435,123 @@ export default function VolunteeringPage() {
         volunteerEmail={volunteerEmail}
         onSuccess={() => handleRefreshData(true)}
       />
+
+      <Dialog open={isEditTaskModalOpen} onOpenChange={setIsEditTaskModalOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="font-headline">Edit Volunteer Opportunity</DialogTitle>
+            <DialogDescription>Update the details for this community task.</DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto px-6">
+            {editingTaskData && (
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Task Identity</Label>
+                  <Input 
+                    placeholder="Task Title" 
+                    value={editingTaskData.title} 
+                    onChange={e => setEditingTaskData({...editingTaskData, title: e.target.value})} 
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Objective</Label>
+                  <Textarea 
+                    placeholder="What needs to be achieved?" 
+                    value={editingTaskData.objective} 
+                    onChange={e => setEditingTaskData({...editingTaskData, objective: e.target.value})} 
+                  />
+                </div>
+
+                <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Location</Label>
+                      <Select value={editingTaskData.park} onValueChange={v => setEditingTaskData({...editingTaskData, park: v})}>
+                        <SelectTrigger className="bg-white border-orange-200 h-9">
+                          <SelectValue placeholder="Select Park" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(allParks.length > 0 ? allParks : [{name: editingTaskData.park}]).map((p: any) => (
+                            <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Due Date</Label>
+                      <Input 
+                        type="date" 
+                        value={editingTaskData.dueDate ? editingTaskData.dueDate.split('T')[0] : ''} 
+                        onChange={e => setEditingTaskData({...editingTaskData, dueDate: e.target.value})} 
+                        className="bg-white border-orange-200 h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Volunteer Points Awarded</Label>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map(p => (
+                        <Button 
+                          key={p}
+                          type="button"
+                          variant={editingTaskData.volunteerPoints === p ? "default" : "outline"}
+                          className={`flex-1 h-9 font-bold ${editingTaskData.volunteerPoints === p ? 'bg-orange-500 hover:bg-orange-600 border-none' : 'border-orange-200 text-orange-600 hover:bg-orange-50 bg-white'}`}
+                          onClick={() => setEditingTaskData({...editingTaskData, volunteerPoints: p})}
+                        >
+                          {p}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Completion Reward (Optional)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input 
+                        placeholder="Reward Name" 
+                        value={editingTaskData.rewardDescription || ""}
+                        onChange={e => setEditingTaskData({...editingTaskData, rewardDescription: e.target.value})}
+                        className="bg-white border-orange-200 text-xs h-9"
+                      />
+                      <Input 
+                        placeholder="Reward Code" 
+                        value={editingTaskData.rewardCode || ""}
+                        onChange={e => setEditingTaskData({...editingTaskData, rewardCode: e.target.value})}
+                        className="bg-white border-orange-200 text-xs h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Volunteer Capacity</Label>
+                    <Input 
+                      type="number"
+                      placeholder="Unlimited" 
+                      value={editingTaskData.maxVolunteers || ""}
+                      onChange={e => setEditingTaskData({...editingTaskData, maxVolunteers: parseInt(e.target.value) || 0})}
+                      className="bg-white border-orange-200 text-xs h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="p-6 border-t bg-muted/20">
+            <Button variant="ghost" onClick={() => setIsEditTaskModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button 
+              className="bg-orange-500 hover:bg-orange-600 font-bold px-8" 
+              onClick={handleUpdateTask} 
+              disabled={isSubmitting || !editingTaskData?.title}
+            >
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <InfoItemModal
         open={isInfoModalOpen}
