@@ -303,7 +303,8 @@ export default function TasksPage() {
     volunteerImageUrl: "",
     rewardDescription: "",
     rewardCode: "",
-    maxVolunteers: 0
+    maxVolunteers: 0,
+    volunteerPoints: 1
   });
 
   const handleVolunteerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -343,7 +344,8 @@ export default function TasksPage() {
         volunteerImageUrl: newTask.isVolunteerEligible ? newTask.volunteerImageUrl : null,
         rewardDescription: newTask.isVolunteerEligible ? newTask.rewardDescription : null,
         rewardCode: newTask.isVolunteerEligible ? newTask.rewardCode : null,
-        maxVolunteers: (newTask.isVolunteerEligible && newTask.maxVolunteers > 0) ? newTask.maxVolunteers : null
+        maxVolunteers: (newTask.isVolunteerEligible && newTask.maxVolunteers > 0) ? newTask.maxVolunteers : null,
+        volunteerPoints: newTask.isVolunteerEligible ? newTask.volunteerPoints : null
     };
 
     if (newTask.isVolunteerEligible) {
@@ -366,7 +368,8 @@ export default function TasksPage() {
             volunteerImageUrl: "",
             rewardDescription: "",
             rewardCode: "",
-            maxVolunteers: 0
+            maxVolunteers: 0,
+            volunteerPoints: 1
         });
         setIsGroupAssign(false);
     } catch (error) {
@@ -577,6 +580,24 @@ export default function TasksPage() {
                         className="bg-white border-orange-200 text-xs h-9"
                       />
                       <p className="text-[9px] text-orange-600/70 italic leading-tight">Limit how many people can join this task at once. Leave as 0 for unlimited.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Volunteer Points Awarded</Label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map(p => (
+                          <Button 
+                            key={p}
+                            type="button"
+                            variant={newTask.volunteerPoints === p ? "default" : "outline"}
+                            className={`flex-1 h-9 font-bold ${newTask.volunteerPoints === p ? 'bg-orange-500 hover:bg-orange-600 border-none' : 'border-orange-200 text-orange-600 hover:bg-orange-50'}`}
+                            onClick={() => setNewTask({...newTask, volunteerPoints: p})}
+                          >
+                            {p}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-orange-600/70 italic leading-tight">Complexity level of the task (points awarded on completion).</p>
                     </div>
 
                     <p className="text-[10px] text-orange-700 mt-2 font-medium">This task will be visible to all registered volunteers in this park.</p>

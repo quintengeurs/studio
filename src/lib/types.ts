@@ -72,6 +72,10 @@ export interface User {
   createdAt?: string;
   permissions?: AccessPermissions;
   mobilePermissions?: AccessPermissions;
+  totalPoints?: number;
+  completedTasksCount?: number;
+  status?: string;
+  registeredAt?: string;
 }
 
 export interface Asset {
@@ -143,6 +147,7 @@ export interface Task {
   volunteerImageUrl?: string;
   rewardDescription?: string;
   rewardCode?: string;
+  volunteerPoints?: number;
 }
 
 export interface RecurringSchedule {

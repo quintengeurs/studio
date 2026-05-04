@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useFirestore, useUser } from "@/firebase";
-import { updateDoc, doc, arrayUnion } from "firebase/firestore";
+import { updateDoc, doc, arrayUnion, increment } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Task, Issue, User } from "@/lib/types";
 
@@ -154,6 +154,21 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
           completedAt: new Date().toISOString()
         } : {})
       });
+
+      // Award Points to Volunteer Profile
+      if (volunteerEmail && task.volunteerPoints) {
+        const vProfile = allUsers.find(u => u.email?.toLowerCase() === volunteerEmail.toLowerCase());
+        if (vProfile && vProfile.id) {
+          try {
+            await updateDoc(doc(db, "users", vProfile.id), {
+              totalPoints: increment(task.volunteerPoints),
+              completedTasksCount: increment(1)
+            });
+          } catch (profileErr) {
+            console.warn("Could not award points (likely permissions):", profileErr);
+          }
+        }
+      }
 
       // Attempt to update linked issue, but don't crash if it fails (likely due to permissions)
       if (task.linkedIssueId) {

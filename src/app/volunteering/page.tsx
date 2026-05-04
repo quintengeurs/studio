@@ -140,6 +140,10 @@ export default function VolunteeringPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
 
+  const currentVolunteerProfile = useMemo(() => 
+    allVolunteers.find(v => v.email?.toLowerCase() === volunteerEmail?.toLowerCase()),
+  [allVolunteers, volunteerEmail]);
+
   const fetchTasks = async () => {
     if (!db) return;
     setTasksLoading(true);
@@ -685,9 +689,13 @@ export default function VolunteeringPage() {
                         </div>
                         <div>
                           <p className="font-bold text-foreground">{v.email}</p>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <Badge variant="secondary" className="bg-green-100 text-green-700 text-[9px] uppercase font-bold tracking-widest border-none">Active Volunteer</Badge>
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Joined {v.registeredAt ? format(new Date(v.registeredAt), 'MMM d, yyyy') : 'Unknown'}</p>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest border-l pl-2 border-muted-foreground/30">
+                               <Sparkles className="h-3 w-3 text-orange-500" /> {v.totalPoints || 0} Points
+                               <span className="mx-1 opacity-30">•</span>
+                               <CheckCircle2 className="h-3 w-3 text-green-600" /> {v.completedTasksCount || 0} Tasks
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -991,6 +999,9 @@ export default function VolunteeringPage() {
             </TabsTrigger>
             <TabsTrigger value="news" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Megaphone className="h-4 w-4 shrink-0" /> <span className="truncate">Hub News</span>
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+              <Home className="h-4 w-4 shrink-0" /> <span className="truncate">My Profile</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1297,6 +1308,80 @@ export default function VolunteeringPage() {
                     );
                   })
                 )}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="profile">
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <Home className="h-6 w-6 text-orange-500" />
+                <h3 className="text-2xl font-bold">Volunteer Profile</h3>
+              </div>
+              
+              <div className="grid gap-6 md:grid-cols-3">
+                <Card className="md:col-span-1 p-6 border-2 border-orange-100 bg-orange-50/30 rounded-3xl flex flex-col items-center text-center">
+                  <Avatar className="h-24 w-24 border-4 border-white shadow-xl mb-4">
+                    <AvatarFallback className="bg-gradient-to-br from-orange-500 to-pink-500 text-white text-3xl font-black">
+                      {volunteerEmail?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <h4 className="text-xl font-bold text-foreground truncate w-full">{volunteerEmail}</h4>
+                  <Badge className="bg-orange-500/10 text-orange-600 border-none uppercase text-[10px] font-bold tracking-widest mt-2 px-3">
+                    Active Volunteer
+                  </Badge>
+                  <div className="w-full h-px bg-orange-200/50 my-6" />
+                  <p className="text-xs text-muted-foreground italic leading-relaxed">
+                    "Thank you for being part of our community. Every point you earn helps us keep our parks beautiful."
+                  </p>
+                </Card>
+
+                <div className="md:col-span-2 grid gap-6 sm:grid-cols-2">
+                  <Card className="p-6 border-2 border-orange-100 bg-white rounded-3xl shadow-sm group hover:border-orange-500/30 transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600">
+                        <Sparkles className="h-6 w-6" />
+                      </div>
+                      <Badge variant="outline" className="text-orange-600 border-orange-200">Lifetime Points</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-5xl font-black text-foreground">{currentVolunteerProfile?.totalPoints || 0}</span>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Points Earned</p>
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-orange-50">
+                       <Progress value={((currentVolunteerProfile?.totalPoints || 0) % 100)} className="h-1.5 bg-orange-100" />
+                       <p className="text-[10px] text-muted-foreground mt-2 font-bold uppercase tracking-tighter">{(100 - ((currentVolunteerProfile?.totalPoints || 0) % 100))} points until next rank</p>
+                    </div>
+                  </Card>
+
+                  <Card className="p-6 border-2 border-green-100 bg-white rounded-3xl shadow-sm group hover:border-green-500/30 transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-12 w-12 rounded-2xl bg-green-100 flex items-center justify-center text-green-600">
+                        <CheckCircle2 className="h-6 w-6" />
+                      </div>
+                      <Badge variant="outline" className="text-green-600 border-green-200">Total Impact</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-5xl font-black text-foreground">{currentVolunteerProfile?.completedTasksCount || 0}</span>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tasks Completed</p>
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-green-50">
+                      <div className="flex -space-x-2">
+                        {Array.from({ length: Math.min(5, currentVolunteerProfile?.completedTasksCount || 0) }).map((_, i) => (
+                          <div key={i} className="h-6 w-6 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
+                            <Heart className="h-3 w-3 text-white fill-current" />
+                          </div>
+                        ))}
+                        {(currentVolunteerProfile?.completedTasksCount || 0) > 5 && (
+                          <div className="h-6 w-6 rounded-full bg-muted border-2 border-white flex items-center justify-center text-[8px] font-bold">
+                            +{(currentVolunteerProfile?.completedTasksCount || 0) - 5}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2 font-bold uppercase tracking-tighter">Your community contribution</p>
+                    </div>
+                  </Card>
+                </div>
               </div>
             </div>
           </TabsContent>
