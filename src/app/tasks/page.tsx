@@ -345,7 +345,8 @@ export default function TasksPage() {
         rewardDescription: newTask.isVolunteerEligible ? newTask.rewardDescription : null,
         rewardCode: newTask.isVolunteerEligible ? newTask.rewardCode : null,
         maxVolunteers: (newTask.isVolunteerEligible && newTask.maxVolunteers > 0) ? newTask.maxVolunteers : null,
-        volunteerPoints: newTask.isVolunteerEligible ? newTask.volunteerPoints : null
+        volunteerPoints: newTask.isVolunteerEligible ? newTask.volunteerPoints : null,
+        createdAt: new Date().toISOString()
     };
 
     if (newTask.isVolunteerEligible) {
@@ -451,7 +452,8 @@ export default function TasksPage() {
                     assignedTo: task.assignedTo,
                     dueDate: nextDate,
                     frequency: task.frequency,
-                    status: 'Todo'
+                    status: 'Todo',
+                    createdAt: new Date().toISOString()
                 });
             }
         }

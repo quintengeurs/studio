@@ -216,7 +216,7 @@ export default function VolunteeringPage() {
     (db && user) ? query(
       collection(db, "tasks"), 
       where("isVolunteerEligible", "==", true),
-      orderBy("createdAt", "desc"),
+      orderBy("dueDate", "asc"),
       limit(100)
     ) : null, 
   [db, user]);
@@ -748,7 +748,7 @@ export default function VolunteeringPage() {
                             }`}>
                               {task.status}
                             </Badge>
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park} • {task.category}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park}</p>
                           </div>
                         </div>
                       </div>
