@@ -140,9 +140,6 @@ export default function VolunteeringPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
 
-  const currentVolunteerProfile = useMemo(() => 
-    allVolunteers.find(v => v.email?.toLowerCase() === volunteerEmail?.toLowerCase()),
-  [allVolunteers, volunteerEmail]);
 
   const fetchTasks = async () => {
     if (!db) return;
@@ -310,6 +307,10 @@ export default function VolunteeringPage() {
     (db && user) ? query(collection(db, "users"), where("isVolunteer", "==", true), orderBy("registeredAt", "desc")) : null, 
   [db, user]);
   const { data: allVolunteers = [], loading: volunteersLoading } = useCollection<any>(volunteersQuery as any);
+
+  const currentVolunteerProfile = useMemo(() => 
+    allVolunteers.find(v => v.email?.toLowerCase() === volunteerEmail?.toLowerCase()),
+  [allVolunteers, volunteerEmail]);
 
   // Current Public Volunteer Status
   const [publicVolunteerData, setPublicVolunteerData] = useState<any[]>([]);
