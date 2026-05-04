@@ -209,6 +209,17 @@ export default function VolunteeringPage() {
   [db, user]);
   const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
 
+  // Staff Task Management (Active Opportunities)
+  const staffTasksQuery = useMemoFirebase(() => 
+    (db && user) ? query(
+      collection(db, "tasks"), 
+      where("isVolunteerEligible", "==", true),
+      orderBy("createdAt", "desc"),
+      limit(100)
+    ) : null, 
+  [db, user]);
+  const { data: allVolunteerTasks = [], loading: staffTasksLoading } = useCollection<Task>(staffTasksQuery as any);
+
   // Hub News
   const volunteerNewsQuery = useMemoFirebase(() => 
     db ? query(
@@ -527,6 +538,9 @@ export default function VolunteeringPage() {
             <TabsTrigger value="volunteers" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-1 sm:px-6 font-bold text-[10px] sm:text-sm">
               <Users className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Approved Volunteers</span> <span className="sm:hidden">Staff</span>
             </TabsTrigger>
+            <TabsTrigger value="tasks_mgmt" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-1 sm:px-6 font-bold text-[10px] sm:text-sm">
+              <Sparkles className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Opportunity Management</span> <span className="sm:hidden">Tasks</span>
+            </TabsTrigger>
             <TabsTrigger value="news_mgmt" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-1 sm:px-6 font-bold text-[10px] sm:text-sm">
               <Megaphone className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Volunteer News Hub</span> <span className="sm:hidden">News</span>
             </TabsTrigger>
@@ -680,6 +694,65 @@ export default function VolunteeringPage() {
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteVolunteer(v.id)} disabled={isSubmitting}>
                           Deactivate
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+           <TabsContent value="tasks_mgmt">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold flex items-center gap-2 text-orange-600">
+                  <Sparkles className="h-5 w-5" />
+                  Active Volunteer Opportunities
+                </h3>
+                <Badge variant="outline" className="font-bold">
+                  {allVolunteerTasks.filter(t => t.status !== 'Completed').length} Active
+                </Badge>
+              </div>
+
+              {allVolunteerTasks.filter(t => t.status !== 'Completed').length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
+                  <Sparkles className="h-12 w-12 mb-4 text-orange-500 opacity-20" />
+                  <p className="text-lg font-medium text-muted-foreground">No active volunteer tasks found.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {allVolunteerTasks.filter(t => t.status !== 'Completed').map(task => (
+                    <Card key={task.id} className="p-4 flex items-center justify-between hover:bg-orange-50/30 transition-colors border-orange-500/10">
+                      <div className="flex items-center gap-4">
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                          task.status === 'Doing' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
+                        }`}>
+                          <Sparkles className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-foreground">{task.title}</p>
+                          <div className="flex items-center gap-3">
+                            <Badge variant="secondary" className={`text-[9px] uppercase font-bold tracking-widest border-none ${
+                              task.status === 'Doing' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              {task.status}
+                            </Badge>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park} • {task.category}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-muted-foreground hover:text-orange-600 hover:bg-orange-100/50"
+                          onClick={() => {
+                            setSelectedTaskId(task.id);
+                            setIsTaskModalOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" /> Edit Task
                         </Button>
                       </div>
                     </Card>
