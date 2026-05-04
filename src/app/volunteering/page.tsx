@@ -45,7 +45,8 @@ import {
     DialogContent, 
     DialogHeader, 
     DialogTitle, 
-    DialogDescription 
+    DialogDescription,
+    DialogFooter
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
