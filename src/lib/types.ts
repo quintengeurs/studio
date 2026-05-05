@@ -228,6 +228,8 @@ export interface ParkUpdate {
 export interface ParkDetail {
   id: string;
   name: string;
+  latitude?: number;
+  longitude?: number;
   headGardener?: string;
   areaManager?: string;
   depot?: string;

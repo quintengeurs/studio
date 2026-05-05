@@ -33,7 +33,8 @@ import {
   Clock,
   Lock,
   Shield,
-  Edit3
+  Edit3,
+  Compass
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
@@ -688,7 +689,32 @@ export default function ParksPage() {
                             </Select>
                           </div>
                         </div>
-  
+
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                           <div className="space-y-2">
+                             <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Latitude (Weather)</Label>
+                             <Input 
+                               type="number" 
+                               step="any"
+                               placeholder="e.g. 51.5074" 
+                               value={editForm.latitude || ""} 
+                               onChange={e => setEditForm({...editForm, latitude: parseFloat(e.target.value) || 0})} 
+                               disabled={!sectionPerms.keyInfo.edit}
+                             />
+                           </div>
+                           <div className="space-y-2">
+                             <Label className="text-[10px] font-bold uppercase tracking-widest opacity-70">Longitude (Weather)</Label>
+                             <Input 
+                               type="number" 
+                               step="any"
+                               placeholder="e.g. -0.1278" 
+                               value={editForm.longitude || ""} 
+                               onChange={e => setEditForm({...editForm, longitude: parseFloat(e.target.value) || 0})} 
+                               disabled={!sectionPerms.keyInfo.edit}
+                             />
+                           </div>
+                        </div>
+
                         <div className="flex flex-col gap-4 bg-muted/20 p-4 rounded-xl border border-primary/10">
                           <div className="space-y-2">
                              <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Green Flag Award Status</Label>
@@ -961,6 +987,17 @@ export default function ParksPage() {
                             <UserIcon className="h-3 w-3 text-primary" /> Park Officer
                           </span>
                           <span className="font-bold text-sm">{selectedParkDetail.parkOfficer || "Not Assigned"}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 pt-4 border-t border-primary/5 grid grid-cols-2 gap-6 relative z-10">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <Compass className="h-3 w-3 text-primary" /> Geolocation (Weather Data Source)
+                          </span>
+                          <span className="font-bold text-sm">
+                            {selectedParkDetail.latitude ? `${selectedParkDetail.latitude.toFixed(6)}, ${selectedParkDetail.longitude?.toFixed(6)}` : "Coordinates Not Set"}
+                          </span>
                         </div>
                       </div>
                       {(selectedParkDetail.greenFlagStatus === 'Awarded' || selectedParkDetail.greenflag) && (
