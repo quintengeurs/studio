@@ -29,7 +29,10 @@ import {
   MapPin, 
   Check,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Zap,
+  Bot,
+  Clock
 } from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
@@ -423,6 +426,33 @@ export default function SmartTaskingPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Autonomous Engine Info Section */}
+        <div className="mb-8 p-6 rounded-3xl bg-gradient-to-br from-primary/10 via-background to-accent/5 border-2 border-primary/20 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Zap className="h-32 w-32 text-primary rotate-12" />
+          </div>
+          <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center">
+            <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
+               <Bot className="h-8 w-8 text-white" />
+            </div>
+            <div className="space-y-1 flex-1">
+              <h2 className="text-xl font-bold tracking-tight text-primary">Autonomous Evaluation Engine Active</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">
+                The Smart Engine now runs automatically every morning at 06:00 AM. It fetches live weather data for every park using its saved geolocation. 
+                Matches are sent to the <span className="font-bold text-orange-600 px-1.5 py-0.5 bg-orange-50 rounded border border-orange-100 italic">Automation Hub</span> in the Task Dashboard for manager approval.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="bg-white border-primary/20 text-primary font-bold px-3 py-1">
+                <Cloud className="h-3 w-3 mr-1.5" /> Live Weather
+              </Badge>
+              <Badge variant="outline" className="bg-white border-primary/20 text-primary font-bold px-3 py-1">
+                <Clock className="h-3 w-3 mr-1.5" /> Daily 06:00
+              </Badge>
+            </div>
+          </div>
         </div>
 
         <Tabs defaultValue="sensor" className="w-full">
