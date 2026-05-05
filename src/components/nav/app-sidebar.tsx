@@ -129,12 +129,14 @@ export function AppSidebar() {
               {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
+                    asChild
                     isActive={pathname === item.href}
                     tooltip={item.title}
-                    onClick={() => router.push(item.href)}
                   >
-                    <item.icon />
-                    <span>{item.title}</span>
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
