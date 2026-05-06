@@ -147,7 +147,7 @@ export default function SmartTaskingPage() {
   const [successMsg, setSuccessMsg] = useState("");
 
   // Sensor Form State (Redesigned)
-  const [selectedDepot, setSelectedDepot] = useState<string | null>(null);
+  const [selectedDepots, setSelectedDepots] = useState<string[]>([]);
   const [selectedParks, setSelectedParks] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   
@@ -157,9 +157,9 @@ export default function SmartTaskingPage() {
 
   const depots = useMemo(() => registryConfig?.teams || [], [registryConfig?.teams]);
   const filteredParks = useMemo(() => {
-    if (!selectedDepot) return [];
-    return allParks.filter(p => p.depot === selectedDepot);
-  }, [allParks, selectedDepot]);
+    if (selectedDepots.length === 0) return [];
+    return allParks.filter(p => p.depot && selectedDepots.includes(p.depot));
+  }, [allParks, selectedDepots]);
 
   // Rule Builder State
   const [isBuildingRule, setIsBuildingRule] = useState(false);
@@ -490,41 +490,52 @@ export default function SmartTaskingPage() {
 
               <div className="space-y-10">
                 {/* Step 1: Depot Selection */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
-                    <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px]">1</span>
-                    Select Depot Hub
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
+                      <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px]">1</span>
+                      Select Depot Hubs
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-[10px] uppercase font-bold tracking-widest h-6 px-2"
+                      onClick={() => setSelectedDepots(selectedDepots.length === depots.length ? [] : [...depots])}
+                    >
+                      {selectedDepots.length === depots.length ? "Deselect All" : "Select All"}
+                    </Button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {depots.map(depot => (
                       <button
-                        key={depot.name}
+                        key={depot}
+                        type="button"
                         onClick={() => {
-                          setSelectedDepot(depot.name);
-                          setSelectedParks([]);
+                          setSelectedDepots(prev => 
+                            prev.includes(depot) ? prev.filter(d => d !== depot) : [...prev, depot]
+                          );
                         }}
                         className={cn(
-                          "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group",
-                          selectedDepot === depot.name 
+                          "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group relative",
+                          selectedDepots.includes(depot) 
                             ? "border-primary bg-primary/5 shadow-md shadow-primary/10" 
                             : "border-muted hover:border-primary/20 bg-background"
                         )}
                       >
                         <div className={cn(
                           "h-10 w-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
-                          selectedDepot === depot.name ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          selectedDepots.includes(depot) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                         )}>
                           <Building2 className="h-5 w-5" />
                         </div>
-                        <span className="text-xs font-bold text-center leading-tight">{depot.name}</span>
-                        {selectedDepot === depot.name && <Check className="h-3 w-3 text-primary absolute top-2 right-2" />}
+                        <span className="text-xs font-bold text-center leading-tight">{depot}</span>
+                        {selectedDepots.includes(depot) && <Check className="h-3 w-3 text-primary absolute top-2 right-2" />}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Step 2: Park Selection */}
-                {selectedDepot && (
+                {selectedDepots.length > 0 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
