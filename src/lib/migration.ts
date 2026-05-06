@@ -73,24 +73,41 @@ export async function migrateToMultiTenancy(db: Firestore) {
   const collectionsToMigrate = [
     "tasks", "issues", "requests", "assets", 
     "parks_details", "depots_details", "machinery", 
-    "smart_rules", "action_logs", "info_items"
+    "smart_rules", "info_items"
   ];
   
   for (const collName of collectionsToMigrate) {
-    const snap = await getDocs(collection(db, collName));
-    const collBatch = writeBatch(db);
-    let collCount = 0;
-    
-    snap.forEach((d) => {
-      if (!d.data().orgId) {
-        collBatch.update(d.ref, { orgId: DEFAULT_ORG_ID });
-        collCount++;
+    try {
+      console.log(`Migrating collection: ${collName}...`);
+      const snap = await getDocs(collection(db, collName));
+      
+      let collBatch = writeBatch(db);
+      let collCount = 0;
+      let totalInColl = 0;
+      
+      for (const d of snap.docs) {
+        if (!d.data().orgId) {
+          collBatch.update(d.ref, { orgId: DEFAULT_ORG_ID });
+          collCount++;
+          totalInColl++;
+          
+          // Firestore batch limit is 500. We commit at 400 for safety.
+          if (collCount >= 400) {
+            await collBatch.commit();
+            collBatch = writeBatch(db);
+            collCount = 0;
+          }
+        }
       }
-    });
-    
-    if (collCount > 0) {
-      await collBatch.commit();
-      console.log(`Updated ${collCount} documents in ${collName} with orgId: ${DEFAULT_ORG_ID}`);
+      
+      if (collCount > 0) {
+        await collBatch.commit();
+      }
+      
+      console.log(`Successfully updated ${totalInColl} documents in ${collName}.`);
+    } catch (err) {
+      console.error(`Failed to migrate collection ${collName}:`, err);
+      throw err; // Re-throw to stop the migration and show error to user
     }
   }
 

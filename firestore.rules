@@ -85,6 +85,24 @@ service cloud.firestore {
       allow create, update, delete: if isAuth() && (request.resource.data.orgId == getUserData().orgId || isMaster());
     }
 
+    // Rules for depots_details
+    match /depots_details/{depotId} {
+      allow read: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster());
+      allow create, update, delete: if isAuth() && (request.resource.data.orgId == getUserData().orgId || isMaster());
+    }
+
+    // Rules for machinery
+    match /machinery/{machineId} {
+      allow read: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster());
+      allow create, update, delete: if isAuth() && (request.resource.data.orgId == getUserData().orgId || isMaster());
+    }
+
+    // Rules for smart_rules
+    match /smart_rules/{ruleId} {
+      allow read: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster());
+      allow create, update, delete: if isAuth() && (request.resource.data.orgId == getUserData().orgId || isMaster());
+    }
+
     // Public Volunteering Portal
     match /volunteers/{volunteerId} {
       allow create: if true;
@@ -103,7 +121,7 @@ service cloud.firestore {
       allow update, delete: if false; // Logs are immutable
     }
 
-    // Catch-all rule
+    // Catch-all rule for System Master
     match /{document=**} {
       allow read, write: if isMaster();
     }
