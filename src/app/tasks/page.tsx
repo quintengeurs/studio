@@ -84,19 +84,32 @@ export default function TasksPage() {
 
   const [taskLimit, setTaskLimit] = useState(25);
   const tasksQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "tasks"), where("status", "!=", "Completed"), limit(taskLimit)) : null, 
-  [db, taskLimit]);
+    (db && profile?.orgId) ? query(
+      collection(db, "tasks"), 
+      where("orgId", "==", profile.orgId),
+      where("status", "!=", "Completed"), 
+      limit(taskLimit)
+    ) : null, 
+  [db, taskLimit, profile?.orgId]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
 
-  const [archivedLimit, setArchivedLimit] = useState(25);
   const archivedTasksQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "tasks"), where("status", "==", "Completed"), limit(archivedLimit)) : null, 
-  [db, archivedLimit]);
+    (db && profile?.orgId) ? query(
+      collection(db, "tasks"), 
+      where("orgId", "==", profile.orgId),
+      where("status", "==", "Completed"), 
+      limit(archivedLimit)
+    ) : null, 
+  [db, archivedLimit, profile?.orgId]);
   const { data: archivedTasks = [], loading: archivedTasksLoading } = useCollection<Task>(archivedTasksQuery as any);
 
   const assetsQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "assets"), limit(500)) : null, 
-  [db]);
+    (db && profile?.orgId) ? query(
+      collection(db, "assets"), 
+      where("orgId", "==", profile.orgId),
+      limit(500)
+    ) : null, 
+  [db, profile?.orgId]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
@@ -296,6 +309,18 @@ export default function TasksPage() {
   }, [users, targetDepot, showAllStaff, assignSearch]);
   
   const [isGroupAssign, setIsGroupAssign] = useState(false);
+  
+  // Global safety hook to prevent UI lockups from Radix Dialogs
+  useEffect(() => {
+    const anyModalOpen = isTaskDialogOpen || isAssignDialogOpen || isDetailDialogOpen;
+    if (!anyModalOpen) {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+      // Clean up Radix-specific attributes that might be locking the UI
+      document.body.removeAttribute('data-radix-scroll-lock');
+    }
+  }, [isTaskDialogOpen, isAssignDialogOpen, isDetailDialogOpen]);
+
   const [groupRole, setGroupRole] = useState<Role>("Keeper");
   const [groupPark, setGroupPark] = useState("");
   const [newTask, setNewTask] = useState({
@@ -336,9 +361,10 @@ export default function TasksPage() {
   };
 
   const handleCreateTask = async () => {
-    if (!db || isSubmitting) return;
+    if (!db || isSubmitting || !profile?.orgId) return;
     setIsSubmitting(true);
     const taskData = {
+        orgId: profile.orgId,
         title: newTask.title,
         objective: newTask.objective,
         park: newTask.park,

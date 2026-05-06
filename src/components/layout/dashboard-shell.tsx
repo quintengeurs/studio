@@ -32,13 +32,16 @@ export function DashboardShell({ children, title, description, actions, isPublic
     }
   }, [user, loading, router, isPublic]);
 
+  const forceUnlock = () => {
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+    document.body.removeAttribute('data-radix-scroll-lock');
+  };
+
   // Global reset to prevent stuck modals/pointer-events on navigation
   useEffect(() => {
     const cleanup = () => {
-      document.body.style.pointerEvents = 'auto';
-      document.body.style.overflow = 'auto';
-      // Clean up Radix-specific attributes that might be locking the UI
-      document.body.removeAttribute('data-radix-scroll-lock');
+      forceUnlock();
     };
     
     cleanup();
@@ -63,12 +66,22 @@ export function DashboardShell({ children, title, description, actions, isPublic
 
   return (
     <div className="flex min-h-screen bg-background w-full overflow-x-hidden">
-      {showNav && !isMobile && <AppSidebar />}
+      {showNav && !isMobile && (
+        <div className="flex shrink-0" style={{ pointerEvents: 'auto' }} onClick={forceUnlock}>
+          <AppSidebar />
+        </div>
+      )}
       <SidebarInset className={`flex flex-col ${showNav ? 'pb-20 md:pb-0' : ''} w-full min-w-0`}>
         {showNav && isMobile ? (
-          <MobileTopHeader />
+          <div style={{ pointerEvents: 'auto' }} onClick={forceUnlock}>
+            <MobileTopHeader />
+          </div>
         ) : !hideHeader ? (
-          <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-6 border-b bg-card sticky top-0 z-30">
+          <header 
+            className="flex h-16 shrink-0 items-center justify-between gap-2 px-6 border-b bg-card sticky top-0 z-30"
+            style={{ pointerEvents: 'auto' }}
+            onClick={forceUnlock}
+          >
             <div className="flex items-center gap-2">
               {showNav && (
                 <>
@@ -102,7 +115,11 @@ export function DashboardShell({ children, title, description, actions, isPublic
           </div>
         </main>
         
-        {showNav && isMobile && <MobileBottomNav />}
+        {showNav && isMobile && (
+          <div style={{ pointerEvents: 'auto' }} onClick={forceUnlock}>
+            <MobileBottomNav />
+          </div>
+        )}
       </SidebarInset>
     </div>
   );

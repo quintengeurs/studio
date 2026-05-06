@@ -34,7 +34,8 @@ import {
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarSeparator
+  SidebarSeparator,
+  useSidebar
 } from "@/components/ui/sidebar";
 import { useState, useMemo } from "react";
 import { useAuth, useUser } from "@/firebase";
@@ -69,6 +70,7 @@ export function AppSidebar() {
   const auth = useAuth();
   const { user } = useUser();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
+  const { setOpenMobile, isMobile } = useSidebar();
 
   const { profile: currentUserProfile, organization, permissions, isAdmin, isMaster } = useUserContext();
 
@@ -142,7 +144,10 @@ export function AppSidebar() {
                     tooltip="Platform Management"
                     className="text-primary hover:text-primary font-bold"
                   >
-                    <Link href="/platform">
+                    <Link href="/platform" onClick={() => {
+                      if (isMobile) setOpenMobile(false);
+                      document.body.style.pointerEvents = 'auto';
+                    }}>
                       <ShieldCheck className="h-4 w-4" />
                       <span>SaaS Control Hub</span>
                     </Link>
@@ -163,7 +168,10 @@ export function AppSidebar() {
                     isActive={pathname === item.href}
                     tooltip={item.title}
                   >
-                    <Link href={item.href}>
+                    <Link href={item.href} onClick={() => {
+                      if (isMobile) setOpenMobile(false);
+                      document.body.style.pointerEvents = 'auto';
+                    }}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
