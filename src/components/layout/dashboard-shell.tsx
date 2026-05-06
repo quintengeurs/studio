@@ -32,6 +32,21 @@ export function DashboardShell({ children, title, description, actions, isPublic
     }
   }, [user, loading, router, isPublic]);
 
+  // Global reset to prevent stuck modals/pointer-events on navigation
+  useEffect(() => {
+    const cleanup = () => {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+      // Clean up Radix-specific attributes that might be locking the UI
+      document.body.removeAttribute('data-radix-scroll-lock');
+    };
+    
+    cleanup();
+    // Also run on a short delay to catch late-closing modals
+    const timer = setTimeout(cleanup, 100);
+    return () => clearTimeout(timer);
+  }, [title]); // Trigger on every page title change (navigation)
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
