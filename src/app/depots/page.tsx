@@ -62,10 +62,22 @@ export default function DepotsPage() {
   const { allUsers, allParks, registryConfig, configLoading } = useDataContext();
   
   // Depot details remain page-specific as they are large and mostly for management
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "depots_details"), limit(100)) : null, [db]);
+  const detailsQuery = useMemoFirebase(() => 
+    (db && profile?.orgId) ? query(
+      collection(db, "depots_details"), 
+      where("orgId", "==", profile.orgId),
+      limit(100)
+    ) : null, 
+  [db, profile?.orgId]);
   const { data: allDetails = [] } = useCollection<DepotDetail>(detailsQuery as any);
 
-  const machineryQuery = useMemoFirebase(() => db ? query(collection(db, "machinery"), limit(500)) : null, [db]);
+  const machineryQuery = useMemoFirebase(() => 
+    (db && profile?.orgId) ? query(
+      collection(db, "machinery"), 
+      where("orgId", "==", profile.orgId),
+      limit(500)
+    ) : null, 
+  [db, profile?.orgId]);
   const { data: allMachinery = [] } = useCollection<Machinery>(machineryQuery as any);
 
   const [selectedDepotName, setSelectedDepotName] = useState<string | null>(null);
@@ -152,7 +164,8 @@ export default function DepotsPage() {
       await setDoc(doc(db, "depots_details", selectedDepotName), {
         ...editForm,
         name: selectedDepotName,
-        id: selectedDepotName
+        id: selectedDepotName,
+        orgId: profile?.orgId || "hackney-council"
       }, { merge: true });
       toast({ title: "Depot Updated", description: `${selectedDepotName} information saved.` });
       setIsEditing(false);
@@ -196,7 +209,8 @@ export default function DepotsPage() {
       await setDoc(doc(db, "depots_details", selectedDepotName), { 
         updates: updatedList,
         name: selectedDepotName,
-        id: selectedDepotName
+        id: selectedDepotName,
+        orgId: profile?.orgId || "hackney-council"
       }, { merge: true });
       setIsUpdateModalOpen(false);
       toast({ title: "Update Saved" });
@@ -220,7 +234,8 @@ export default function DepotsPage() {
         lastServicedHours: Number(editingMachine.lastServicedHours || 0),
         serviceInterval: Number(editingMachine.serviceInterval || 50),
         status: editingMachine.status || 'Operational',
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        orgId: profile?.orgId || "hackney-council"
       }, { merge: true });
       setIsMachineryModalOpen(false);
       setEditingMachine(null);

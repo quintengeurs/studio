@@ -117,10 +117,7 @@ export default function TasksPage() {
   [db, profile?.orgId]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
-  const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
-  
-  const registry = localRegistry || contextRegistry;
+  const registry = contextRegistry;
   
   const parks = useMemo(() => {
     const list = [...(registry?.parks || []), ...allDetails.map(p => p.name)];
@@ -314,6 +311,7 @@ export default function TasksPage() {
   
   // Global safety hook to prevent UI lockups from Radix Dialogs
   useEffect(() => {
+    // Force reset on mount and whenever modals change
     const anyModalOpen = isTaskDialogOpen || isAssignDialogOpen || isDetailDialogOpen;
     if (!anyModalOpen) {
       document.body.style.pointerEvents = 'auto';
@@ -328,6 +326,12 @@ export default function TasksPage() {
       document.body.removeAttribute('data-radix-scroll-lock');
     };
   }, [isTaskDialogOpen, isAssignDialogOpen, isDetailDialogOpen]);
+
+  // Aggressive force-reset on mount
+  useEffect(() => {
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+  }, []);
 
   const [groupRole, setGroupRole] = useState<Role>("Keeper");
   const [groupPark, setGroupPark] = useState("");

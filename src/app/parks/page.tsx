@@ -46,14 +46,15 @@ import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate, P
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserContext } from "@/context/UserContext";
+import { useDataContext } from "@/context/DataContext";
 
 export default function ParksPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const isMobile = useIsMobile();
 
-  const registryConfigRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
-  const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryConfigRef as any);
+  const { profile: currentUserData, isAdmin: contextIsAdmin, currentUserRoles: contextRoles, loading: contextLoading } = useUserContext();
+  const { registryConfig, configLoading } = useDataContext();
 
   const parks = useMemo(() => registryConfig?.parks ? [...registryConfig.parks].sort() : [], [registryConfig?.parks]);
 
@@ -62,8 +63,6 @@ export default function ParksPage() {
   const [configNewPark, setConfigNewPark] = useState("");
   const [configParks, setConfigParks] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { profile: currentUserData, isAdmin: contextIsAdmin, currentUserRoles: contextRoles, loading: contextLoading } = useUserContext();
   
   const usersQuery = useMemoFirebase(() => 
     (db && currentUserData?.orgId) ? query(
@@ -83,7 +82,9 @@ export default function ParksPage() {
   [db, currentUserData?.orgId]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
 
-  const parkPermsRef = useMemo(() => db ? doc(db, "settings", "park_permissions") : null, [db]);
+  const parkPermsRef = useMemo(() => 
+    (db && currentUserData?.orgId) ? doc(db, "settings", currentUserData.orgId, "config", "park_permissions") : null, 
+  [db, currentUserData?.orgId]);
   const { data: parkPermsConfig } = useDoc<ParkPermissionsConfig>(parkPermsRef as any);
 
   const [selectedParkName, setSelectedParkName] = useState<string | null>(null);
@@ -252,7 +253,10 @@ export default function ParksPage() {
             updatedList = [...updatedList, newUpdate];
         }
 
-        await setDoc(doc(db, "parks_details", parkId), { updates: updatedList }, { merge: true });
+        await setDoc(doc(db, "parks_details", parkId), { 
+          updates: updatedList,
+          orgId: currentUserData?.orgId || "hackney-council"
+        }, { merge: true });
         toast({ title: "Update Saved", description: `Added entry to ${selectedParkName}.` });
         setIsUpdateModalOpen(false);
       } catch (e) {
@@ -423,7 +427,8 @@ export default function ParksPage() {
       await setDoc(doc(db, "parks_details", parkId), {
         ...editForm,
         name: selectedParkName,
-        id: parkId
+        id: parkId,
+        orgId: currentUserData?.orgId || "hackney-council"
       }, { merge: true });
 
       toast({ title: "Park Updated", description: `${selectedParkName} information has been saved successfully.` });

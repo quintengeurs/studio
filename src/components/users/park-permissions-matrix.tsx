@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { useFirestore } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useUserContext } from "@/context/UserContext";
 import { 
   Role, 
   ParkPermissionsConfig, 
@@ -34,11 +35,14 @@ import { cn } from "@/lib/utils";
 export function ParkPermissionsMatrix() {
   const { toast } = useToast();
   const db = useFirestore();
+  const { profile } = useUserContext();
   const [config, setConfig] = useState<ParkPermissionsConfig | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const orgId = profile?.orgId || "hackney-council";
 
   // All roles including 'Volunteer'
   const allRoles: Role[] = [
@@ -53,9 +57,9 @@ export function ParkPermissionsMatrix() {
 
   useEffect(() => {
     async function loadConfig() {
-      if (!db) return;
+      if (!db || !orgId) return;
       try {
-        const docRef = doc(db, "settings", "park_permissions");
+        const docRef = doc(db, "settings", orgId, "config", "park_permissions");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setConfig(docSnap.data() as ParkPermissionsConfig);
@@ -69,7 +73,7 @@ export function ParkPermissionsMatrix() {
       }
     }
     loadConfig();
-  }, [db]);
+  }, [db, orgId]);
 
   const togglePermission = (role: Role, sectionKey: string, type: 'view' | 'edit') => {
     if (!config) return;
@@ -95,10 +99,10 @@ export function ParkPermissionsMatrix() {
   };
 
   const handleSave = async () => {
-    if (!db || !config || isSubmitting) return;
+    if (!db || !config || isSubmitting || !orgId) return;
     setIsSubmitting(true);
     try {
-      await setDoc(doc(db, "settings", "park_permissions"), config);
+      await setDoc(doc(db, "settings", orgId, "config", "park_permissions"), config);
       toast({ title: "Permissions Saved", description: `Access rules updated successfully.` });
     } catch (error) {
       toast({ title: "Error", description: "Failed to save permissions.", variant: "destructive" });

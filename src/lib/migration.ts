@@ -70,7 +70,11 @@ export async function migrateToMultiTenancy(db: Firestore) {
   }
   
   // 4. Link existing data records to the default organization
-  const collectionsToMigrate = ["tasks", "issues", "requests"];
+  const collectionsToMigrate = [
+    "tasks", "issues", "requests", "assets", 
+    "parks_details", "depots_details", "machinery", 
+    "smart_rules", "action_logs", "info_items"
+  ];
   
   for (const collName of collectionsToMigrate) {
     const snap = await getDocs(collection(db, collName));

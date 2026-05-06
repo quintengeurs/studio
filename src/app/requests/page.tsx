@@ -45,13 +45,14 @@ export default function RequestsManagementPage() {
   const [managerNote, setManagerNote] = useState("");
 
   const requestsQuery = useMemoFirebase(() => {
-    if (!db || !canViewRequests) return null;
+    if (!db || !canViewRequests || !profile?.orgId) return null;
     return query(
       collection(db, "requests"),
+      where("orgId", "==", profile.orgId),
       where("status", "!=", "Archived"),
       limit(200)
     );
-  }, [db, canViewRequests]);
+  }, [db, canViewRequests, profile?.orgId]);
 
   const { data: requests = [], loading } = useCollection<MaterialRequest>(requestsQuery as any);
 
@@ -81,7 +82,10 @@ export default function RequestsManagementPage() {
       };
       if (note) updateData.managerNote = note;
 
-      await updateDoc(doc(db, "requests", id), updateData);
+      await updateDoc(doc(db, "requests", id), {
+        ...updateData,
+        orgId: profile?.orgId || "hackney-council"
+      });
       
       if (newStatus === 'Available') {
         toast({ 

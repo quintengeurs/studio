@@ -121,16 +121,26 @@ const ALL_ROLES: Role[] = [
 ];
 
 export default function SmartTaskingPage() {
-  const { permissions } = useUserContext();
+  const { profile, permissions } = useUserContext();
   const { allParks, registryConfig } = useDataContext();
   const { user } = useUser();
   const db = useFirestore();
 
   // Rules Data
-  const rulesQuery = useMemoFirebase(() => db ? query(collection(db, "smart_rules")) : null, [db]);
+  const rulesQuery = useMemoFirebase(() => 
+    (db && profile?.orgId) ? query(
+      collection(db, "smart_rules"), 
+      where("orgId", "==", profile.orgId)
+    ) : null, 
+  [db, profile?.orgId]);
   const { data: rules = [] } = useCollection<SmartRule>(rulesQuery as any);
 
-  const machineryQuery = useMemoFirebase(() => db ? query(collection(db, "machinery")) : null, [db]);
+  const machineryQuery = useMemoFirebase(() => 
+    (db && profile?.orgId) ? query(
+      collection(db, "machinery"), 
+      where("orgId", "==", profile.orgId)
+    ) : null, 
+  [db, profile?.orgId]);
   const { data: allMachinery = [] } = useCollection<Machinery>(machineryQuery as any);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -200,6 +210,7 @@ export default function SmartTaskingPage() {
           tags: selectedTags,
           loggedBy: user?.email || "Unknown",
           createdAt: new Date().toISOString(),
+          orgId: profile?.orgId || "hackney-council"
         };
 
         const tasks = simulateConditions(condition, rules, allMachinery);
@@ -228,6 +239,7 @@ export default function SmartTaskingPage() {
           tags: selectedTags,
           loggedBy: user?.email || "Unknown",
           createdAt: new Date().toISOString(),
+          orgId: profile?.orgId || "hackney-council"
         };
         await evaluateAndApplyConditions(condition, user as any, rules, allMachinery);
       }
@@ -275,13 +287,15 @@ export default function SmartTaskingPage() {
         const ruleRef = doc(db, "smart_rules", editingRuleId);
         await updateDoc(ruleRef, {
           ...newRule,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          orgId: profile?.orgId || "hackney-council"
         } as any);
         setSuccessMsg("Rule updated successfully!");
       } else {
         await addDoc(collection(db, "smart_rules"), {
           ...newRule,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          orgId: profile?.orgId || "hackney-council"
         });
         setSuccessMsg("New logic rule created!");
       }
@@ -484,26 +498,26 @@ export default function SmartTaskingPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {depots.map(depot => (
                       <button
-                        key={depot}
+                        key={depot.name}
                         onClick={() => {
-                          setSelectedDepot(depot);
+                          setSelectedDepot(depot.name);
                           setSelectedParks([]);
                         }}
                         className={cn(
                           "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group",
-                          selectedDepot === depot 
+                          selectedDepot === depot.name 
                             ? "border-primary bg-primary/5 shadow-md shadow-primary/10" 
                             : "border-muted hover:border-primary/20 bg-background"
                         )}
                       >
                         <div className={cn(
                           "h-10 w-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
-                          selectedDepot === depot ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          selectedDepot === depot.name ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                         )}>
                           <Building2 className="h-5 w-5" />
                         </div>
-                        <span className="text-xs font-bold text-center leading-tight">{depot}</span>
-                        {selectedDepot === depot && <Check className="h-3 w-3 text-primary absolute top-2 right-2" />}
+                        <span className="text-xs font-bold text-center leading-tight">{depot.name}</span>
+                        {selectedDepot === depot.name && <Check className="h-3 w-3 text-primary absolute top-2 right-2" />}
                       </button>
                     ))}
                   </div>

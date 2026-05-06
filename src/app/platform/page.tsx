@@ -98,10 +98,18 @@ export default function PlatformAdmin() {
         };
         await setDoc(doc(db, "organizations", orgId), orgData);
         
+        // 1. Copy registry config
         const templateRef = doc(db, "settings", "hackney-council");
         const templateSnap = await getDoc(templateRef);
         if (templateSnap.exists()) {
             await setDoc(doc(db, "settings", orgId), templateSnap.data());
+        }
+
+        // 2. Copy park permissions
+        const permsRef = doc(db, "settings", "hackney-council", "config", "park_permissions");
+        const permsSnap = await getDoc(permsRef);
+        if (permsSnap.exists()) {
+            await setDoc(doc(db, "settings", orgId, "config", "park_permissions"), permsSnap.data());
         }
 
         toast({ title: "Organization Created", description: `${newOrgForm.name} provisioned.` });
@@ -127,6 +135,9 @@ export default function PlatformAdmin() {
       
     try {
       await updateDoc(doc(db, "organizations", org.id), { activeFeatures: newFeatures });
+      
+      // Update local state for immediate feedback
+      setEditingOrg({ ...org, activeFeatures: newFeatures });
       
       // Log this action
       const user = (db as any).auth?.currentUser;

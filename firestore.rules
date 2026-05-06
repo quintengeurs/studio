@@ -43,8 +43,12 @@ service cloud.firestore {
 
     // Rules for settings/registry
     match /settings/{orgId} {
-      allow read: if isAuth() && (getUserData().orgId == orgId || isMaster());
-      allow write: if isAuth() && (getUserData().orgId == orgId || isMaster());
+      allow read, write: if isAuth() && (getUserData().orgId == orgId || isMaster());
+      
+      // Allow sub-documents (e.g. settings/hackney-council/config/park_permissions)
+      match /{allPaths=**} {
+        allow read, write: if isAuth() && (getUserData().orgId == orgId || isMaster());
+      }
     }
 
     // Rules for tasks
