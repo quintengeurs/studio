@@ -35,7 +35,7 @@ import {
   Clock
 } from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 

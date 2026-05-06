@@ -52,7 +52,9 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
   const db = useFirestore();
   const { user } = useUser();
   const { profile } = useUserContext();
-  const { allParks } = useDataContext();
+  const { allParks, registryConfig } = useDataContext();
+
+  const hasParksModule = registryConfig?.modules?.parks === true;
 
   const activeParks = useMemo(() => {
     return allParks.filter(p => p.status === 'Active').map(p => p.name).sort();
@@ -146,17 +148,27 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
 
             <div className="grid sm:grid-cols-2 gap-5">
               <div className="grid gap-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Location</Label>
-                <Select value={watchPark} onValueChange={(val) => setValue("park", val, { shouldValidate: true })}>
-                  <SelectTrigger className="h-12 bg-muted/20 border-orange-100 focus:ring-orange-500">
-                    <SelectValue placeholder="Select Park" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeParks.map(p => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {hasParksModule ? "Location" : "Meeting Point"}
+                </Label>
+                {hasParksModule ? (
+                  <Select value={watchPark} onValueChange={(val) => setValue("park", val, { shouldValidate: true })}>
+                    <SelectTrigger className="h-12 bg-muted/20 border-orange-100 focus:ring-orange-500">
+                      <SelectValue placeholder="Select Park" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeParks.map(p => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input 
+                    {...register("park")} 
+                    placeholder="e.g., Town Hall Entrance" 
+                    className="h-12 bg-muted/20 border-orange-100 focus-visible:ring-orange-500"
+                  />
+                )}
                 {errors.park && <p className="text-[10px] font-bold text-destructive">{errors.park.message}</p>}
               </div>
 
