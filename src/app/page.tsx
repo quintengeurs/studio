@@ -173,7 +173,6 @@ export default function Dashboard() {
   }, [rawMyRequests, isManagement, isAdmin, userEffectiveName]);
 
   // Optimized: Use context for summaries if management, or personalized queries if operative
-  const { allIssues, allParks } = useDataContext();
   const userDepots = useMemo(() => {
     const list = [...(profile?.depots || []), profile?.depot].filter(Boolean) as string[];
     return Array.from(new Set(list));
