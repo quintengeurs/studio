@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
   Building, 
@@ -12,9 +13,12 @@ import {
   Clock, 
   Settings,
   ShieldCheck,
+  LayoutGrid,
+  Edit2,
+  ExternalLink,
   ChevronRight,
   Search,
-  LayoutGrid
+  X
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +51,9 @@ export default function PlatformAdmin() {
   const [isAddOrgOpen, setIsAddOrgOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const router = useRouter();
 
   const [newOrgForm, setNewOrgForm] = useState({
     name: "",
@@ -216,9 +223,20 @@ export default function PlatformAdmin() {
                                     </h4>
                                     <code className="text-[10px] text-muted-foreground">{org.slug}</code>
                                 </div>
-                                <Button variant="ghost" size="icon" onClick={() => setImpersonatedOrgId(org.id)} title="View As This Org">
-                                    <ChevronRight className="h-5 w-5" />
-                                </Button>
+                                <div className="flex gap-1">
+                                    <Button variant="ghost" size="icon" onClick={() => {
+                                        setEditingOrg(org);
+                                        setIsEditOpen(true);
+                                    }} title="Edit Access">
+                                        <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={() => {
+                                        setImpersonatedOrgId(org.id);
+                                        router.push("/");
+                                    }} title="View As This Org">
+                                        <ChevronRight className="h-5 w-5" />
+                                    </Button>
+                                </div>
                             </div>
                             <div className="p-4 space-y-4">
                                 <div className="space-y-2">
@@ -230,11 +248,17 @@ export default function PlatformAdmin() {
                                     </div>
                                 </div>
                                 <div className="pt-4 border-t flex justify-between items-center">
-                                    <div className="text-[10px] text-muted-foreground">
-                                        ID: {org.id}
-                                    </div>
-                                    <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => setImpersonatedOrgId(org.id)}>
-                                        Manage Content
+                                    <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => {
+                                        setEditingOrg(org);
+                                        setIsEditOpen(true);
+                                    }}>
+                                        Edit Access
+                                    </Button>
+                                    <Button size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => {
+                                        setImpersonatedOrgId(org.id);
+                                        router.push("/");
+                                    }}>
+                                        Manage Content <ExternalLink className="ml-1 h-3 w-3" />
                                     </Button>
                                 </div>
                             </div>
@@ -286,11 +310,51 @@ export default function PlatformAdmin() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {/* Edit Org Dialog */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Edit2 className="h-5 w-5 text-primary" /> Edit Organization: {editingOrg?.name}
+                    </DialogTitle>
+                    <DialogDescription>Modify feature entitlements and organization settings.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                    <div className="space-y-4">
+                        <Label className="text-[11px] font-bold uppercase tracking-widest text-primary">Feature Entitlements</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map'] as FeatureKey[]).map(feature => {
+                                const isEnabled = editingOrg?.activeFeatures.includes(feature);
+                                return (
+                                    <div key={feature} className="flex items-center justify-between p-2 rounded-lg border bg-background text-xs">
+                                        <span className="capitalize">{feature.replace('_', ' ')}</span>
+                                        <Switch 
+                                            checked={isEnabled}
+                                            onCheckedChange={() => editingOrg && toggleFeature(editingOrg, feature)}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="pt-6 border-t">
+                        <Button variant="destructive" className="w-full font-bold" onClick={() => {
+                            if (confirm(`Are you sure you want to delete ${editingOrg?.name}? This action is permanent.`)) {
+                                toast({ title: "Delete Requested", description: "This feature is coming soon." });
+                            }
+                        }}>
+                            Archive Organization
+                        </Button>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={() => setIsEditOpen(false)}>Done</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </DashboardShell>
   );
 }
 
-// Helper icons missing from imports
-function X(props: any) {
-    return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-}
