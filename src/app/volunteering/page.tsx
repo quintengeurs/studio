@@ -981,6 +981,11 @@ export default function VolunteeringPage() {
             </div>
           </DialogContent>
         </Dialog>
+        <VolunteerTaskModal
+          open={isCreateTaskModalOpen}
+          onOpenChange={setIsCreateTaskModalOpen}
+          onSuccess={() => handleRefreshData()}
+        />
       </DashboardShell>
     );
   }
