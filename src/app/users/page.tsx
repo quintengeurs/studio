@@ -848,7 +848,6 @@ export default function UserManagement() {
           </Card>
         </TabsContent>
 
-        </TabsContent>
       </Tabs>
 
       {/* Configuration Dialog */}
