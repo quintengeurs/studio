@@ -41,6 +41,7 @@ import { useUserContext } from "@/context/UserContext";
 import { useToast } from "@/hooks/use-toast";
 import { Organization, FeatureKey } from "@/lib/types";
 import { logAction } from "@/lib/audit";
+import { migrateToMultiTenancy } from "@/lib/migration";
 
 export default function PlatformAdmin() {
   const { toast } = useToast();
