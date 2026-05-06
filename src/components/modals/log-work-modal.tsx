@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, ChangeEvent } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import { 
   Dialog, 
@@ -21,10 +21,23 @@ import { Badge } from "@/components/ui/badge";
 import { useFirestore, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, doc } from "firebase/firestore";
 import { compressImage } from "@/lib/image-compress";
-import { User, RegistryConfig } from "@/lib/types";
+import { RegistryConfig } from "@/lib/types";
 import { format } from "date-fns";
 import { useDataContext } from "@/context/DataContext";
 import { useUserContext } from "@/context/UserContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const formSchema = z.object({
+  title: z.string().min(3, "Please provide a descriptive title").max(100),
+  park: z.string().min(1, "Location is required"),
+  note: z.string().optional(),
+  imageUrl: z.string().optional(),
+  selectedColleagues: z.array(z.string()).default([])
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 interface LogWorkModalProps {
   open: boolean;
@@ -35,7 +48,6 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { profile } = useUserContext();
   const { allUsers, allParks, registryConfig: contextRegistry } = useDataContext();
@@ -44,13 +56,27 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
   const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
   const registry = localRegistry || contextRegistry;
 
-  const [formData, setFormData] = useState({
-    title: "",
-    park: "",
-    note: "",
-    imageUrl: "",
-    selectedColleagues: [] as string[]
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      park: "",
+      note: "",
+      imageUrl: "",
+      selectedColleagues: []
+    }
   });
+
+  const watchPark = watch("park");
+  const watchImageUrl = watch("imageUrl");
+  const watchColleagues = watch("selectedColleagues");
 
   const userDepots = useMemo(() => {
     const list = [...(profile?.depots || []), profile?.depot].filter(Boolean) as string[];
@@ -79,7 +105,7 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
     if (file) {
       try {
         const compressed = await compressImage(file, 800, 800, 0.7);
-        setFormData(prev => ({ ...prev, imageUrl: compressed }));
+        setValue("imageUrl", compressed, { shouldValidate: true });
       } catch (err) {
         toast({ title: "Upload Failed", variant: "destructive" });
       }
@@ -87,45 +113,47 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
   };
 
   const toggleColleague = (name: string) => {
-    setFormData(prev => ({
-      ...prev,
-      selectedColleagues: prev.selectedColleagues.includes(name)
-        ? prev.selectedColleagues.filter(n => n !== name)
-        : [...prev.selectedColleagues, name]
-    }));
+    const newSelected = watchColleagues.includes(name)
+      ? watchColleagues.filter(n => n !== name)
+      : [...watchColleagues, name];
+    setValue("selectedColleagues", newSelected, { shouldDirty: true });
   };
 
-  const handleSubmit = async () => {
-    if (!db || !user || isSubmitting) return;
-    setIsSubmitting(true);
+  const onSubmit = async (data: FormData) => {
+    if (!db || !user) return;
 
     try {
       await addDoc(collection(db, "tasks"), {
-        title: formData.title,
-        objective: formData.note || "Ad-hoc work log",
-        park: formData.park,
+        title: data.title,
+        objective: data.note || "Ad-hoc work log",
+        park: data.park,
         assignedTo: profile?.name || user.displayName || user.email,
         dueDate: format(new Date(), 'yyyy-MM-dd'),
         status: 'Pending Approval',
-        completionNote: formData.note,
-        completionImageUrl: formData.imageUrl,
-        collaborators: formData.selectedColleagues,
+        completionNote: data.note,
+        completionImageUrl: data.imageUrl,
+        collaborators: data.selectedColleagues,
         isLog: true,
         createdAt: new Date().toISOString()
       });
 
       toast({ title: "Work Logged", description: "Successfully sent for approval." });
-      setFormData({ title: "", park: "", note: "", imageUrl: "", selectedColleagues: [] });
+      reset();
       onOpenChange(false);
     } catch (err) {
       toast({ title: "Error", description: "Failed to log work.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
+  // When modal closes without submitting, optionally reset. 
+  // Handled here via onOpenChange wrapper to keep it clean.
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) reset();
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl flex items-center gap-2">
@@ -134,24 +162,28 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
           <DialogDescription>Report ad-hoc maintenance or operational tasks.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">What did you do?</Label>
             <Input 
               placeholder="e.g. Mowed grass at the north entrance" 
-              value={formData.title}
-              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              {...register("title")}
+              className={errors.title ? "border-destructive focus-visible:ring-destructive" : ""}
             />
+            {errors.title && <p className="text-[10px] font-bold text-destructive">{errors.title.message}</p>}
           </div>
 
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location (Park)</Label>
-            <Select value={formData.park} onValueChange={v => setFormData(prev => ({ ...prev, park: v }))}>
-              <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
+            <Select value={watchPark} onValueChange={v => setValue("park", v, { shouldValidate: true })}>
+              <SelectTrigger className={errors.park ? "border-destructive" : ""}>
+                <SelectValue placeholder="Select Park" />
+              </SelectTrigger>
               <SelectContent>
                 {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
+            {errors.park && <p className="text-[10px] font-bold text-destructive">{errors.park.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -160,7 +192,7 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
               {colleagues.map(u => (
                 <Badge 
                   key={u.id}
-                  variant={formData.selectedColleagues.includes(u.name) ? "default" : "outline"}
+                  variant={watchColleagues.includes(u.name) ? "default" : "outline"}
                   className="cursor-pointer py-1 px-3"
                   onClick={() => toggleColleague(u.name)}
                 >
@@ -175,11 +207,12 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Proof (Photo)</Label>
               <div className="flex flex-col gap-3">
-                {formData.imageUrl ? (
+                {watchImageUrl ? (
                   <div className="relative aspect-video rounded-lg overflow-hidden border">
-                    <Image src={formData.imageUrl} alt="Proof" fill className="object-cover" />
+                    <Image src={watchImageUrl} alt="Proof" fill className="object-cover" />
                     <button 
-                      onClick={() => setFormData(prev => ({ ...prev, imageUrl: "" }))}
+                      type="button"
+                      onClick={() => setValue("imageUrl", "", { shouldDirty: true })}
                       className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
                     >
                       <X className="h-4 w-4" />
@@ -200,22 +233,21 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
               <Textarea 
                 placeholder="Any specific findings or notes?" 
                 className="h-full min-h-[120px]"
-                value={formData.note}
-                onChange={e => setFormData(prev => ({ ...prev, note: e.target.value }))}
+                {...register("note")}
               />
             </div>
           </div>
-        </div>
 
-        <DialogFooter className="pt-2">
-          <Button 
-            className="w-full font-bold h-12 uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
-            disabled={!formData.title || !formData.park || isSubmitting}
-            onClick={handleSubmit}
-          >
-            {isSubmitting ? "Logging..." : "Submit for Approval"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="pt-2">
+            <Button 
+              type="submit"
+              className="w-full font-bold h-12 uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Logging..." : "Submit for Approval"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

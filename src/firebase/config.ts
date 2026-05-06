@@ -26,6 +26,7 @@ try {
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
     ignoreUndefinedProperties: true,
+    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
   }, "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0");
   console.log(`[Firebase] Initialized NAMED Firestore Silo: ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0`);
 } catch (e: any) {

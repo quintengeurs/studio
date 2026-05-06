@@ -932,6 +932,13 @@ export default function TasksPage() {
                 ))}
               </div>
             )}
+            {tasks.length >= taskLimit && !tasksLoading && (
+              <div className="flex justify-center pt-6 pb-2">
+                <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setTaskLimit(p => p + 25)}>
+                  Load More Assignments
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="approvals">
@@ -1123,6 +1130,13 @@ export default function TasksPage() {
                 </TableBody>
               </Table>
             </Card>
+            {archivedTasks.length >= archivedLimit && !archivedTasksLoading && (
+              <div className="flex justify-center pt-6 pb-2">
+                <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setArchivedLimit(p => p + 25)}>
+                  Load More Archived Tasks
+                </Button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       ) : (
@@ -1175,14 +1189,14 @@ export default function TasksPage() {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {tasks.length >= taskLimit && !tasksLoading && (
-        <div className="flex justify-center pt-6 pb-2">
-          <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setTaskLimit(p => p + 25)}>
-            Load More Assignments
-          </Button>
+          
+          {tasks.length >= taskLimit && !tasksLoading && (
+            <div className="flex justify-center pt-6 pb-2">
+              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setTaskLimit(p => p + 25)}>
+                Load More Assignments
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
