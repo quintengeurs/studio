@@ -55,6 +55,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
 import { TaskDetailModal } from "@/components/modals/task-detail-modal";
 import { InfoItemModal } from "@/components/modals/info-item-modal";
+import { VolunteerTaskModal } from "@/components/modals/volunteer-task-modal";
 import { useDataContext } from "@/context/DataContext";
 
 export default function VolunteeringPage() {
@@ -76,6 +77,8 @@ export default function VolunteeringPage() {
 
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [editingTaskData, setEditingTaskData] = useState<any>(null);
+  const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
@@ -753,9 +756,18 @@ export default function VolunteeringPage() {
                   <Sparkles className="h-5 w-5" />
                   Active Volunteer Opportunities
                 </h3>
-                <Badge variant="outline" className="font-bold">
-                  {allVolunteerTasks.filter(t => t.status !== 'Completed').length} Active
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="font-bold">
+                    {allVolunteerTasks.filter(t => t.status !== 'Completed').length} Active
+                  </Badge>
+                  <Button 
+                    size="sm" 
+                    className="bg-orange-500 hover:bg-orange-600 font-bold gap-2"
+                    onClick={() => setIsCreateTaskModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" /> Add Opportunity
+                  </Button>
+                </div>
               </div>
 
               {allVolunteerTasks.filter(t => t.status !== 'Completed').length === 0 ? (
@@ -1561,6 +1573,12 @@ export default function VolunteeringPage() {
         open={isInfoModalOpen}
         onOpenChange={setIsInfoModalOpen}
         editItem={editingNewsItem}
+      />
+
+      <VolunteerTaskModal
+        open={isCreateTaskModalOpen}
+        onOpenChange={setIsCreateTaskModalOpen}
+        onSuccess={() => handleRefreshData()}
       />
     </DashboardShell>
   );
