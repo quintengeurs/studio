@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { compressImage } from "@/lib/image-compress";
 import {
   Dialog,
@@ -20,15 +20,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Camera, Package, X, Send } from "lucide-react";
 import { useFirestore, useUser } from "@/firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { RequestCategory } from "@/lib/types";
 import { useDataContext } from "@/context/DataContext";
 import { useUserContext } from "@/context/UserContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const formSchema = z.object({
+  category: z.enum(["Materials", "Tools", "Equipment", "PPE", "Other"]).default("Materials"),
+  description: z.string().min(5, "Please provide more details about your request").max(500),
+  depot: z.string().min(1, "Please select a collection depot"),
+  imageUrl: z.string().optional()
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 interface RequestModalProps {
   trigger?: React.ReactNode;
@@ -44,32 +54,46 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
   const { registryConfig, configLoading } = useDataContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    category: "Materials" as RequestCategory,
-    description: "",
-    depot: "",
-    imageUrl: "",
+  const depots = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      category: "Materials",
+      description: "",
+      depot: "",
+      imageUrl: ""
+    }
   });
 
-  const depots = useMemo(() => registryConfig?.teams ? [...registryConfig.teams].sort() : [], [registryConfig?.teams]);
+  const watchCategory = watch("category");
+  const watchDepot = watch("depot");
+  const watchImageUrl = watch("imageUrl");
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         const compressedDataUrl = await compressImage(file);
-        setFormData((prev) => ({ ...prev, imageUrl: compressedDataUrl }));
+        setValue("imageUrl", compressedDataUrl, { shouldValidate: true });
       } catch (error) {
         toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
       }
     }
   };
 
-  const handleSubmit = async () => {
+  const onSubmit = async (data: FormData) => {
     if (!db || !user) return;
 
     const requestData = {
-      ...formData,
+      ...data,
       orgId: profile?.orgId || "hackney-council",
       requestedBy: profile?.name || user.displayName || user.email || "Unknown Staff",
       status: "Open",
@@ -79,12 +103,7 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
     try {
       await addDoc(collection(db, "requests"), requestData);
       
-      setFormData({
-        category: "Materials",
-        description: "",
-        depot: "",
-        imageUrl: "",
-      });
+      reset();
       
       if (onOpenChange) {
         onOpenChange(false);
@@ -95,7 +114,6 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
         description: "Your request has been sent to the stores management team.",
       });
     } catch (error) {
-      console.error("Error adding document: ", error);
       toast({
         title: "Submission Failed",
         description: "There was an error submitting your request. Please try again.",
@@ -104,8 +122,13 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) reset();
+    if (onOpenChange) onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
@@ -117,12 +140,12 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
             Request tools, materials, or equipment from central stores.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label>Category</Label>
             <Select 
-              value={formData.category} 
-              onValueChange={(v: RequestCategory) => setFormData({ ...formData, category: v })}
+              value={watchCategory} 
+              onValueChange={(v: any) => setValue("category", v, { shouldValidate: true })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Category" />
@@ -139,10 +162,10 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
           <div className="grid gap-2">
             <Label htmlFor="depot">Collection Depot</Label>
             <Select 
-              value={formData.depot} 
-              onValueChange={(v) => setFormData({ ...formData, depot: v })}
+              value={watchDepot} 
+              onValueChange={(v) => setValue("depot", v, { shouldValidate: true })}
             >
-              <SelectTrigger id="depot">
+              <SelectTrigger id="depot" className={errors.depot ? "border-destructive" : ""}>
                 <SelectValue placeholder={configLoading ? "Loading Depots..." : "Select Collection Depot"} />
               </SelectTrigger>
               <SelectContent>
@@ -154,32 +177,36 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
                 )}
               </SelectContent>
             </Select>
+            {errors.depot && <p className="text-[10px] font-bold text-destructive">{errors.depot.message}</p>}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="desc">Request Details</Label>
             <Textarea 
               id="desc" 
               placeholder="Be specific about what you need and quantity..." 
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              {...register("description")}
+              className={errors.description ? "border-destructive focus-visible:ring-destructive" : ""}
             />
+            {errors.description && <p className="text-[10px] font-bold text-destructive">{errors.description.message}</p>}
           </div>
           <div className="grid gap-2">
             <Label>Reference Image (Optional)</Label>
-            {formData.imageUrl ? (
+            {watchImageUrl ? (
               <div className="relative aspect-video w-full rounded-md overflow-hidden border">
-                <Image src={formData.imageUrl} alt="Request Preview" fill className="object-cover" />
+                <Image src={watchImageUrl} alt="Request Preview" fill className="object-cover" />
                 <Button 
+                  type="button"
                   size="icon" 
                   variant="destructive" 
                   className="absolute top-2 right-2 h-7 w-7 rounded-full"
-                  onClick={() => setFormData({ ...formData, imageUrl: "" })}
+                  onClick={() => setValue("imageUrl", "", { shouldDirty: true })}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             ) : (
               <Button 
+                type="button"
                 variant="outline" 
                 className="w-full h-20 border-dashed border-2 flex flex-col gap-1"
                 onClick={() => fileInputRef.current?.click()}
@@ -196,16 +223,16 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
               onChange={handleImageUpload} 
             />
           </div>
-        </div>
-        <DialogFooter>
-          <Button 
-            className="w-full font-bold" 
-            onClick={handleSubmit}
-            disabled={!formData.description || !formData.depot}
-          >
-            <Send className="mr-2 h-4 w-4" /> Send Request
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button 
+              type="submit"
+              className="w-full font-bold mt-4" 
+              disabled={isSubmitting}
+            >
+              <Send className="mr-2 h-4 w-4" /> {isSubmitting ? "Sending..." : "Send Request"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

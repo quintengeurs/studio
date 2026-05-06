@@ -141,6 +141,10 @@ function IssuesContent() {
   const [filterPark, setFilterPark] = useState<string>("All");
   const [filterReporter, setFilterReporter] = useState<string>("All");
   const [filterAssignee, setFilterAssignee] = useState<string>("All");
+  const [limitUnassigned, setLimitUnassigned] = useState(25);
+  const [limitAssigned, setLimitAssigned] = useState(25);
+  const [limitResolved, setLimitResolved] = useState(25);
+  const [limitArchived, setLimitArchived] = useState(25);
 
   const reporters = useMemo(() => {
     const set = new Set<string>();
@@ -681,19 +685,47 @@ function IssuesContent() {
         </div>
 
         <TabsContent value="unassigned">
-          {renderIssueList(unassignedIssues, issuesLoading)}
+          {renderIssueList(unassignedIssues.slice(0, limitUnassigned), issuesLoading)}
+          {unassignedIssues.length > limitUnassigned && (
+            <div className="flex justify-center pt-6 pb-2">
+              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setLimitUnassigned(p => p + 25)}>
+                Load More Unassigned Issues
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="assigned">
-          {renderIssueList(assignedIssues, issuesLoading)}
+          {renderIssueList(assignedIssues.slice(0, limitAssigned), issuesLoading)}
+          {assignedIssues.length > limitAssigned && (
+            <div className="flex justify-center pt-6 pb-2">
+              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setLimitAssigned(p => p + 25)}>
+                Load More Assigned Issues
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="resolved">
-          {renderIssueList(resolvedIssues, false)}
+          {renderIssueList(resolvedIssues.slice(0, limitResolved), false)}
+          {resolvedIssues.length > limitResolved && (
+            <div className="flex justify-center pt-6 pb-2">
+              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setLimitResolved(p => p + 25)}>
+                Load More Resolved Issues
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="archived">
-          {renderIssueList(archivedIssues, false)}
+          {renderIssueList(archivedIssues.slice(0, limitArchived), false)}
+          {archivedIssues.length > limitArchived && (
+            <div className="flex justify-center pt-6 pb-2">
+              <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setLimitArchived(p => p + 25)}>
+                Load More Archived Issues
+              </Button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

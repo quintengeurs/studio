@@ -43,6 +43,8 @@ export default function RequestsManagementPage() {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [managerNote, setManagerNote] = useState("");
+  const [limitActive, setLimitActive] = useState(25);
+  const [limitCollected, setLimitCollected] = useState(25);
 
   const requestsQuery = useMemoFirebase(() => {
     if (!db || !canViewRequests || !profile?.orgId) return null;
@@ -236,7 +238,14 @@ export default function RequestsManagementPage() {
               </div>
             ) : (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {activeRequests.map(renderRequestCard)}
+                {activeRequests.slice(0, limitActive).map(renderRequestCard)}
+              </div>
+            )}
+            {activeRequests.length > limitActive && (
+              <div className="flex justify-center pt-6 pb-2">
+                <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setLimitActive(p => p + 25)}>
+                  Load More Active Requests
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -250,7 +259,14 @@ export default function RequestsManagementPage() {
               </div>
             ) : (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {collectedRequests.map(renderRequestCard)}
+                {collectedRequests.slice(0, limitCollected).map(renderRequestCard)}
+              </div>
+            )}
+            {collectedRequests.length > limitCollected && (
+              <div className="flex justify-center pt-6 pb-2">
+                <Button variant="outline" className="w-full md:w-auto px-8" onClick={() => setLimitCollected(p => p + 25)}>
+                  Load More Collected
+                </Button>
               </div>
             )}
           </TabsContent>

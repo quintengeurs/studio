@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { 
   Dialog, 
   DialogContent, 
@@ -20,11 +20,28 @@ import { useFirestore, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, doc } from "firebase/firestore";
 import { compressImage } from "@/lib/image-compress";
 import { useDataContext } from "@/context/DataContext";
-import { User, RegistryConfig, ParkDetail } from "@/lib/types";
-import { format } from "date-fns";
+import { RegistryConfig } from "@/lib/types";
 import Image from "next/image";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
+
+const formSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters").max(100),
+  description: z.string().optional(),
+  priority: z.enum(["Low", "Medium", "High", "Urgent"]).default("Medium"),
+  category: z.string().min(1, "Please select a category").default("General"),
+  park: z.string().min(1, "Location is required"),
+  imageUrl: z.string().optional(),
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number()
+  }).nullable().optional()
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 interface IssueModalProps {
   open: boolean;
@@ -40,9 +57,6 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const registry = localRegistry || contextRegistry;
 
   const parks = useMemo(() => {
@@ -50,22 +64,38 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
     return Array.from(new Set(list)).sort();
   }, [allParks, registry]);
 
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    priority: "Medium" as "Low" | "Medium" | "High" | "Urgent",
-    category: "General",
-    park: "",
-    imageUrl: "",
-    location: null as { latitude: number, longitude: number } | null
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      priority: "Medium",
+      category: "Maintenance",
+      park: "",
+      imageUrl: "",
+      location: null
+    }
   });
+
+  const watchPark = watch("park");
+  const watchCategory = watch("category");
+  const watchPriority = watch("priority");
+  const watchImageUrl = watch("imageUrl");
+  const watchLocation = watch("location");
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         const compressed = await compressImage(file, 800, 800, 0.7);
-        setFormData(prev => ({ ...prev, imageUrl: compressed }));
+        setValue("imageUrl", compressed, { shouldValidate: true });
       } catch (err) {
         toast({ title: "Upload Failed", variant: "destructive" });
       }
@@ -80,13 +110,10 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setFormData(prev => ({
-          ...prev,
-          location: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          }
-        }));
+        setValue("location", {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        }, { shouldValidate: true });
         toast({ title: "Location Captured" });
       },
       () => {
@@ -95,30 +122,32 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
     );
   };
 
-  const handleSubmit = async () => {
-    if (!db || !user || isSubmitting) return;
-    setIsSubmitting(true);
+  const onSubmit = async (data: FormData) => {
+    if (!db || !user) return;
 
     try {
       await addDoc(collection(db, "issues"), {
-        ...formData,
+        ...data,
         status: 'Open',
         reportedBy: user.displayName || user.email,
         createdAt: new Date().toISOString()
       });
 
       toast({ title: "Issue Raised", description: "Successfully created the issue report." });
-      setFormData({ title: "", description: "", priority: "Medium", category: "General", park: "", imageUrl: "", location: null });
+      reset();
       onOpenChange(false);
     } catch (err) {
       toast({ title: "Error", description: "Failed to create issue.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) reset();
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl flex items-center gap-2">
@@ -127,25 +156,31 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
           <DialogDescription>Report maintenance, safety hazards, or vandalism.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Location (Park)</Label>
-              <Select value={formData.park} onValueChange={v => setFormData(prev => ({ ...prev, park: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select Park" /></SelectTrigger>
+              <Select value={watchPark} onValueChange={v => setValue("park", v, { shouldValidate: true })}>
+                <SelectTrigger className={errors.park ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select Park" />
+                </SelectTrigger>
                 <SelectContent>
                   {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {errors.park && <p className="text-[10px] font-bold text-destructive">{errors.park.message}</p>}
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Category</Label>
-              <Select value={formData.category} onValueChange={v => setFormData(prev => ({ ...prev, category: v }))}>
-                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+              <Select value={watchCategory} onValueChange={v => setValue("category", v, { shouldValidate: true })}>
+                <SelectTrigger className={errors.category ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
                 <SelectContent>
                   {ISSUE_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {errors.category && <p className="text-[10px] font-bold text-destructive">{errors.category.message}</p>}
             </div>
           </div>
 
@@ -153,15 +188,18 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
             <Label className="text-xs font-bold uppercase text-muted-foreground">Short Title</Label>
             <Input 
               placeholder="e.g. Broken bench near pond" 
-              value={formData.title}
-              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              {...register("title")}
+              className={errors.title ? "border-destructive focus-visible:ring-destructive" : ""}
             />
+            {errors.title && <p className="text-[10px] font-bold text-destructive">{errors.title.message}</p>}
           </div>
 
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase text-muted-foreground">Priority</Label>
-            <Select value={formData.priority} onValueChange={(v: any) => setFormData(prev => ({ ...prev, priority: v }))}>
-              <SelectTrigger><SelectValue placeholder="Priority" /></SelectTrigger>
+            <Select value={watchPriority} onValueChange={(v: any) => setValue("priority", v, { shouldValidate: true })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Low">Low</SelectItem>
                 <SelectItem value="Medium">Medium</SelectItem>
@@ -175,8 +213,7 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
             <Label className="text-xs font-bold uppercase text-muted-foreground">Details</Label>
             <Textarea 
               placeholder="Describe the issue in detail..." 
-              value={formData.description}
-              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              {...register("description")}
             />
           </div>
 
@@ -184,11 +221,12 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase text-muted-foreground">Photo</Label>
               <div className="flex flex-col gap-2">
-                {formData.imageUrl ? (
+                {watchImageUrl ? (
                   <div className="relative aspect-square rounded-lg overflow-hidden border">
-                    <Image src={formData.imageUrl} alt="Issue" fill className="object-cover" />
+                    <Image src={watchImageUrl} alt="Issue" fill className="object-cover" />
                     <button 
-                      onClick={() => setFormData(prev => ({ ...prev, imageUrl: "" }))}
+                      type="button"
+                      onClick={() => setValue("imageUrl", "", { shouldDirty: true })}
                       className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white hover:bg-black/70"
                     >
                       <X className="h-4 w-4" />
@@ -212,27 +250,27 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
                 onClick={handleGetLocation}
                 type="button"
               >
-                <MapPin className={formData.location ? "text-primary" : "text-muted-foreground"} size={16} />
-                <span className="text-xs">{formData.location ? "Location Linked" : "Capture Location"}</span>
+                <MapPin className={watchLocation ? "text-primary" : "text-muted-foreground"} size={16} />
+                <span className="text-xs">{watchLocation ? "Location Linked" : "Capture Location"}</span>
               </Button>
-              {formData.location && (
+              {watchLocation && (
                 <p className="text-[9px] text-muted-foreground text-center">
-                  {formData.location.latitude.toFixed(5)}, {formData.location.longitude.toFixed(5)}
+                  {watchLocation.latitude.toFixed(5)}, {watchLocation.longitude.toFixed(5)}
                 </p>
               )}
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button 
-            className="w-full font-bold h-12 uppercase tracking-widest"
-            disabled={!formData.title || !formData.park || isSubmitting}
-            onClick={handleSubmit}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Report"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button 
+              type="submit"
+              className="w-full font-bold h-12 uppercase tracking-widest"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
