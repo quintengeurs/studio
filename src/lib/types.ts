@@ -53,8 +53,29 @@ export interface AccessPermissions {
   viewMap: boolean;
 }
 
+export type FeatureKey = 'dashboard' | 'assets' | 'parks' | 'depots' | 'inspections' | 'issues' | 'requests' | 'tasks' | 'users' | 'volunteering' | 'smart_tasking' | 'info_corner' | 'map';
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string; // URL friendly name e.g. "hackney-council"
+  activeFeatures: FeatureKey[];
+  branding?: {
+    logoUrl?: string;
+    primaryColor?: string;
+    accentColor?: string;
+  };
+  settings?: {
+    defaultTimezone?: string;
+    allowPublicVolunteers?: boolean;
+    requireTaskApproval?: boolean;
+  };
+  createdAt: string;
+}
+
 export interface User {
   id: string;
+  orgId?: string; // Link to organization
   name: string;
   email: string;
   roles: Role[];

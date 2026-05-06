@@ -277,3 +277,28 @@ export function getEffectivePermissions(
   return defaults;
 }
 
+/**
+ * Overrides user permissions based on the active features enabled for their organization.
+ * This ensures that if a module is disabled at the SaaS level, no user (even admins) can access it.
+ */
+export function applyFeatureGating(permissions: AccessPermissions, activeFeatures: string[] | undefined): AccessPermissions {
+  if (!activeFeatures) return permissions;
+
+  return {
+    ...permissions,
+    viewDashboard: permissions.viewDashboard && activeFeatures.includes('dashboard'),
+    viewAssets: permissions.viewAssets && activeFeatures.includes('assets'),
+    viewParks: permissions.viewParks && activeFeatures.includes('parks'),
+    viewDepots: permissions.viewDepots && activeFeatures.includes('depots'),
+    viewInspections: permissions.viewInspections && activeFeatures.includes('inspections'),
+    viewIssues: permissions.viewIssues && activeFeatures.includes('issues'),
+    viewStaffRequests: permissions.viewStaffRequests && activeFeatures.includes('requests'),
+    viewAllTasks: permissions.viewAllTasks && activeFeatures.includes('tasks'),
+    viewUsers: permissions.viewUsers && activeFeatures.includes('users'),
+    viewVolunteering: permissions.viewVolunteering && activeFeatures.includes('volunteering'),
+    viewSmartTasking: permissions.viewSmartTasking && activeFeatures.includes('smart_tasking'),
+    viewInfoCorner: permissions.viewInfoCorner && activeFeatures.includes('info_corner'),
+    viewMap: permissions.viewMap && activeFeatures.includes('map'),
+  };
+}
+

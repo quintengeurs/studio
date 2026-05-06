@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 import { doc, collection, query, where, updateDoc } from 'firebase/firestore';
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { User, AccessPermissions, MANAGEMENT_ROLES } from '@/lib/types';
+import { User, Organization, AccessPermissions, MANAGEMENT_ROLES } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { getDefaultPermissionsForUser, getEffectivePermissions } from '@/lib/permissions';
+import { getDefaultPermissionsForUser, getEffectivePermissions, applyFeatureGating } from '@/lib/permissions';
 
 interface UserContextType {
   profile: User | null;
+  organization: Organization | null;
   permissions: AccessPermissions;
   loading: boolean;
   isAdmin: boolean;
@@ -40,11 +41,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const { data: profileByEmail, loading: loadingEmailId } = useDoc<User>(profileByEmailRef as any);
 
   const profile = profileByEmail || profileByUid || null;
-  const loading = authLoading || (loadingUid && loadingEmailId);
+  
+  // 3. Organization Fetching
+  const orgRef = useMemo(() => 
+    db && profile?.orgId ? doc(db, "organizations", profile.orgId) : null, 
+  [db, profile?.orgId]);
+  const { data: organization, loading: loadingOrg } = useDoc<Organization>(orgRef as any);
 
-  const permissions = useMemo(() => 
-    getEffectivePermissions(profile, isMobile, user?.email), 
-  [profile, isMobile, user?.email]);
+  const loading = authLoading || (loadingUid && loadingEmailId) || (!!profile?.orgId && loadingOrg);
+
+  const permissions = useMemo(() => {
+    const base = getEffectivePermissions(profile, isMobile, user?.email);
+    return applyFeatureGating(base, organization?.activeFeatures);
+  }, [profile, isMobile, user?.email, organization?.activeFeatures]);
 
   const currentUserRoles = useMemo(() => {
     const rolesSet = new Set<string>();
@@ -102,6 +111,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const value = {
     profile,
+    organization: organization || null,
     permissions,
     loading,
     isAdmin,
