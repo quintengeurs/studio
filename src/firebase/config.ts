@@ -35,4 +35,8 @@ try {
 
 const auth = getAuth(app);
 
+export function initializeFirebase() {
+  return { app, db, auth };
+}
+
 export { app, db, auth, firebaseConfig };

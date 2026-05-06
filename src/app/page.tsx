@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -55,24 +55,33 @@ export default function Dashboard() {
   const [assetModalOpen, setAssetModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const userDisplayName = user?.displayName || user?.email || "";
+  const { profile, isAdmin, isManagement, currentUserRoles, permissions } = useUserContext();
+  const { allUsers, allIssues, allParks } = useDataContext();
   const { toast } = useToast();
-  const { allUsers } = useDataContext();
 
-  const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
+  useEffect(() => {
+    // Safety cleanup for navigation locks
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+  }, []);
+
+  const userDisplayName = user?.displayName || user?.email || "";
+
+  const registryRef = useMemo(() => (db && profile?.orgId) ? doc(db, "settings", profile.orgId) : null, [db, profile?.orgId]);
   const { data: registryConfig } = useDoc<RegistryConfig>(registryRef as any);
 
   const handleCollectItem = async (id: string) => {
     if (!db) return;
     try {
-      await updateDoc(doc(db, "requests", id), { status: "Collected" });
+      await updateDoc(doc(db, "requests", id), { 
+        status: "Collected",
+        orgId: profile?.orgId || "hackney-council"
+      });
       toast({ title: "Item Collected", description: "Your request has been marked as collected." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to mark as collected.", variant: "destructive" });
     }
   };
-
-  const { profile, isAdmin, isManagement, currentUserRoles, permissions } = useUserContext();
   
   const isOperative = profile?.role && (OPERATIVE_ROLES as any).includes(profile.role);
 
@@ -104,32 +113,52 @@ export default function Dashboard() {
 
   // Personalized Queries
   const myTasksQuery = useMemoFirebase(() => {
-    if (!db || identities.length === 0) return null;
-    return query(collection(db, "tasks"), where("assignedTo", "in", identities));
-  }, [db, identities]);
+    if (!db || identities.length === 0 || !profile?.orgId) return null;
+    return query(
+      collection(db, "tasks"), 
+      where("orgId", "==", profile.orgId),
+      where("assignedTo", "in", identities)
+    );
+  }, [db, identities, profile?.orgId]);
 
   const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
 
   const myIssuesQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !profile?.orgId) return null;
     // Fetch all unresolved issues; we filter client-side for personal users
     // to handle multiple possible identity values (name vs email vs displayName)
-    return query(collection(db, "issues"), where("status", "!=", "Resolved"), limit(50));
-  }, [db]);
+    return query(
+      collection(db, "issues"), 
+      where("orgId", "==", profile.orgId),
+      where("status", "!=", "Resolved"), 
+      limit(50)
+    );
+  }, [db, profile?.orgId]);
 
   const { data: myIssues = [], loading: issuesLoading } = useCollection<Issue>(myIssuesQuery as any);
 
   const myRequestsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !profile?.orgId) return null;
     // Notifications should only be for those who raised it or updated it as manager
     // We use a broader query and filter client-side if needed, but for now we'll restrict the fetch
     if (isManagement) {
       // Managers see everything they are involved in
-      return query(collection(db, "requests"), where("status", "!=", "Collected"), limit(30));
+      return query(
+        collection(db, "requests"), 
+        where("orgId", "==", profile.orgId),
+        where("status", "!=", "Collected"), 
+        limit(30)
+      );
     }
-    if (userEffectiveName) return query(collection(db, "requests"), where("requestedBy", "==", userEffectiveName), where("status", "!=", "Collected"), limit(10));
+    if (userEffectiveName) return query(
+      collection(db, "requests"), 
+      where("orgId", "==", profile.orgId),
+      where("requestedBy", "==", userEffectiveName), 
+      where("status", "!=", "Collected"), 
+      limit(10)
+    );
     return null;
-  }, [db, userEffectiveName, isManagement]);
+  }, [db, userEffectiveName, isManagement, profile?.orgId]);
 
   const { data: rawMyRequests = [], loading: requestsLoading } = useCollection<any>(myRequestsQuery);
 
@@ -347,7 +376,7 @@ export default function Dashboard() {
           />
 
           {/* Notifications: Ready for Collection */}
-          {readyRequests.length > 0 && (
+          {readyRequests.length > 0 && permissions.viewStaffRequests && (
             <Card className="border-l-4 border-l-green-500 shadow-md bg-green-50/50 dark:bg-green-950/20 max-h-60 overflow-y-auto">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-headline flex items-center gap-2 text-green-700 dark:text-green-400">
@@ -438,7 +467,7 @@ export default function Dashboard() {
             </div>
           </Button>
         )}
-        {!isContractor && (
+        {(!isContractor && permissions.viewStaffRequests) && (
           <Button 
             variant="outline" 
             className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
@@ -549,7 +578,7 @@ export default function Dashboard() {
           </Card>
         </Link>
         
-        {!isContractor && (
+        {(!isContractor && permissions.viewStaffRequests) && (
           <>
             <Link href="/requests" className="block">
               <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">

@@ -99,8 +99,9 @@ export function AppSidebar() {
   }, [permissions]);
 
   const showNewRequest = useMemo(() => {
-    return !profileRoles.includes('Contractor');
-  }, [profileRoles]);
+    const hasFeature = organization?.activeFeatures?.includes('requests');
+    return !profileRoles.includes('Contractor') && hasFeature;
+  }, [profileRoles, organization]);
 
   const handleLogout = async () => {
     await signOut(auth);

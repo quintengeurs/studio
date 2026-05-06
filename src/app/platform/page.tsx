@@ -40,12 +40,12 @@ import { collection, query, orderBy, doc, setDoc, getDoc, updateDoc } from "fire
 import { useUserContext } from "@/context/UserContext";
 import { useToast } from "@/hooks/use-toast";
 import { Organization, FeatureKey } from "@/lib/types";
-import { migrateToMultiTenancy } from "@/lib/migration";
+import { logAction } from "@/lib/audit";
 
 export default function PlatformAdmin() {
   const { toast } = useToast();
   const db = useFirestore();
-  const { isMaster, setImpersonatedOrgId, organization: currentOrg } = useUserContext();
+  const { isMaster, loading, setImpersonatedOrgId, organization: currentOrg } = useUserContext();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddOrgOpen, setIsAddOrgOpen] = useState(false);
@@ -54,6 +54,12 @@ export default function PlatformAdmin() {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    // Safety cleanup for navigation locks
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+  }, []);
 
   const [newOrgForm, setNewOrgForm] = useState({
     name: "",
@@ -72,6 +78,11 @@ export default function PlatformAdmin() {
         org.slug.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [allOrgs, searchTerm]);
+
+  const currentEditingOrg = useMemo(() => {
+    if (!editingOrg) return null;
+    return allOrgs.find(o => o.id === editingOrg.id) || editingOrg;
+  }, [allOrgs, editingOrg]);
 
   const handleCreateOrg = async () => {
     if (!db || !newOrgForm.name || !newOrgForm.slug || !isMaster) return;
@@ -116,6 +127,18 @@ export default function PlatformAdmin() {
       
     try {
       await updateDoc(doc(db, "organizations", org.id), { activeFeatures: newFeatures });
+      
+      // Log this action
+      const user = (db as any).auth?.currentUser;
+      await logAction(
+        db, 
+        user?.uid || "system", 
+        "System Master", 
+        org.id, 
+        "TOGGLE_FEATURE", 
+        { feature, enabled: !isEnabled }
+      );
+
       toast({ title: "Feature Updated", description: `${feature} updated for ${org.name}.` });
     } catch (error) {
       toast({ title: "Update Failed", variant: "destructive" });
@@ -134,6 +157,17 @@ export default function PlatformAdmin() {
       setIsMigrating(false);
     }
   };
+
+  if (loading) {
+    return (
+        <DashboardShell title="Platform Administration">
+            <div className="flex flex-col items-center justify-center h-96">
+                <Clock className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 font-bold text-muted-foreground">Authenticating System Master...</p>
+            </div>
+        </DashboardShell>
+    );
+  }
 
   if (!isMaster) {
     return (
@@ -231,7 +265,9 @@ export default function PlatformAdmin() {
                                         <Edit2 className="h-4 w-4" />
                                     </Button>
                                     <Button variant="ghost" size="icon" onClick={() => {
+                                        console.log("Impersonating organization:", org.id);
                                         setImpersonatedOrgId(org.id);
+                                        toast({ title: "Switched View", description: `Now viewing as ${org.name}` });
                                         router.push("/");
                                     }} title="View As This Org">
                                         <ChevronRight className="h-5 w-5" />
@@ -248,14 +284,16 @@ export default function PlatformAdmin() {
                                     </div>
                                 </div>
                                 <div className="pt-4 border-t flex justify-between items-center">
-                                    <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => {
+                                    <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => {
                                         setEditingOrg(org);
                                         setIsEditOpen(true);
                                     }}>
                                         Edit Access
                                     </Button>
                                     <Button size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => {
+                                        console.log("Entering organization:", org.id);
                                         setImpersonatedOrgId(org.id);
+                                        toast({ title: "Entering Organization", description: `Accessing content for ${org.name}` });
                                         router.push("/");
                                     }}>
                                         Manage Content <ExternalLink className="ml-1 h-3 w-3" />
@@ -316,7 +354,7 @@ export default function PlatformAdmin() {
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Edit2 className="h-5 w-5 text-primary" /> Edit Organization: {editingOrg?.name}
+                        <Edit2 className="h-5 w-5 text-primary" /> Edit Organization: {currentEditingOrg?.name}
                     </DialogTitle>
                     <DialogDescription>Modify feature entitlements and organization settings.</DialogDescription>
                 </DialogHeader>
@@ -325,13 +363,13 @@ export default function PlatformAdmin() {
                         <Label className="text-[11px] font-bold uppercase tracking-widest text-primary">Feature Entitlements</Label>
                         <div className="grid grid-cols-2 gap-3">
                             {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map'] as FeatureKey[]).map(feature => {
-                                const isEnabled = editingOrg?.activeFeatures.includes(feature);
+                                const isEnabled = currentEditingOrg?.activeFeatures.includes(feature);
                                 return (
                                     <div key={feature} className="flex items-center justify-between p-2 rounded-lg border bg-background text-xs">
                                         <span className="capitalize">{feature.replace('_', ' ')}</span>
                                         <Switch 
                                             checked={isEnabled}
-                                            onCheckedChange={() => editingOrg && toggleFeature(editingOrg, feature)}
+                                            onCheckedChange={() => currentEditingOrg && toggleFeature(currentEditingOrg, feature)}
                                         />
                                     </div>
                                 );
@@ -341,7 +379,7 @@ export default function PlatformAdmin() {
 
                     <div className="pt-6 border-t">
                         <Button variant="destructive" className="w-full font-bold" onClick={() => {
-                            if (confirm(`Are you sure you want to delete ${editingOrg?.name}? This action is permanent.`)) {
+                            if (confirm(`Are you sure you want to delete ${currentEditingOrg?.name}? This action is permanent.`)) {
                                 toast({ title: "Delete Requested", description: "This feature is coming soon." });
                             }
                         }}>

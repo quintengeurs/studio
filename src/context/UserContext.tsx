@@ -26,7 +26,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const isMobile = useIsMobile();
-  const [impersonatedOrgId, setImpersonatedOrgId] = React.useState<string | null>(null);
+  const [impersonatedOrgId, setImpersonatedOrgIdState] = React.useState<string | null>(null);
+
+  // Sync with localStorage on mount
+  React.useEffect(() => {
+    const saved = localStorage.getItem('impersonatedOrgId');
+    if (saved) setImpersonatedOrgIdState(saved);
+  }, []);
+
+  const setImpersonatedOrgId = (id: string | null) => {
+    setImpersonatedOrgIdState(id);
+    if (id) localStorage.setItem('impersonatedOrgId', id);
+    else localStorage.removeItem('impersonatedOrgId');
+  };
 
   const emailId = useMemo(() => 
     user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", 
@@ -53,7 +65,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [db, effectiveOrgId]);
   const { data: organization, loading: loadingOrg } = useDoc<Organization>(orgRef as any);
 
-  const loading = authLoading || (loadingUid && loadingEmailId) || (!!profile?.orgId && loadingOrg);
+  const loading = authLoading || (loadingUid && loadingEmailId) || (!!effectiveOrgId && loadingOrg);
 
   const permissions = useMemo(() => {
     const base = getEffectivePermissions(profile, isMobile, user?.email);

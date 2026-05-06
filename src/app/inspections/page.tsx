@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -128,6 +128,15 @@ export default function InspectionsPage() {
   const db = useFirestore();
   const { user } = useUser();
   
+  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
+  const { allUsers, allParks } = useDataContext();
+
+  useEffect(() => {
+    // Safety cleanup for navigation locks
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+  }, []);
+
   const assetsQuery = useMemoFirebase(() => 
     db ? query(collection(db, "assets"), limit(500)) : null, 
   [db]);
@@ -137,10 +146,9 @@ export default function InspectionsPage() {
   const inspectionsQuery = useMemoFirebase(() => 
     db ? query(collection(db, "inspections"), limit(inspectionLimit)) : null, 
   [db, inspectionLimit]);
-  const { data: inspections = [], loading } = useCollection<Inspection>(inspectionsQuery as any);
+  const { data: inspections = [], loading: inspectionsLoading } = useCollection<Inspection>(inspectionsQuery as any);
 
-  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers, allParks } = useDataContext();
+  const loading = inspectionsLoading; // Used by the UI
   const canManage = permissions.scheduleInspection;
   const isOperational = !permissions.scheduleInspection;
 

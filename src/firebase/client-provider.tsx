@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useEffect } from 'react';
-import { initializeFirebase } from './index';
+import { initializeFirebase } from './config';
 import { FirebaseProvider } from './provider';
 import { collection, getDocs } from 'firebase/firestore';
 

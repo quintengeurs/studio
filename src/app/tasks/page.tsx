@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,7 +82,12 @@ export default function TasksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const volunteerImageRef = useRef<HTMLInputElement>(null);
 
+  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
+  const { allUsers: users, allParks: allDetails, allIssues, registryConfig: contextRegistry } = useDataContext();
+
   const [taskLimit, setTaskLimit] = useState(25);
+  const [archivedLimit, setArchivedLimit] = useState(25);
+
   const tasksQuery = useMemoFirebase(() => 
     (db && profile?.orgId) ? query(
       collection(db, "tasks"), 
@@ -114,9 +119,6 @@ export default function TasksPage() {
 
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
-
-  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers: users, allParks: allDetails, allIssues, registryConfig: contextRegistry } = useDataContext();
   
   const registry = localRegistry || contextRegistry;
   
@@ -316,9 +318,15 @@ export default function TasksPage() {
     if (!anyModalOpen) {
       document.body.style.pointerEvents = 'auto';
       document.body.style.overflow = 'auto';
-      // Clean up Radix-specific attributes that might be locking the UI
       document.body.removeAttribute('data-radix-scroll-lock');
     }
+    
+    // Cleanup on unmount to ensure navigation isn't blocked
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+      document.body.removeAttribute('data-radix-scroll-lock');
+    };
   }, [isTaskDialogOpen, isAssignDialogOpen, isDetailDialogOpen]);
 
   const [groupRole, setGroupRole] = useState<Role>("Keeper");

@@ -65,10 +65,22 @@ export default function ParksPage() {
 
   const { profile: currentUserData, isAdmin: contextIsAdmin, currentUserRoles: contextRoles, loading: contextLoading } = useUserContext();
   
-  const usersQuery = useMemoFirebase(() => db ? query(collection(db, "users"), where("isArchived", "==", false)) : null, [db]);
+  const usersQuery = useMemoFirebase(() => 
+    (db && currentUserData?.orgId) ? query(
+      collection(db, "users"), 
+      where("orgId", "==", currentUserData.orgId),
+      where("isArchived", "==", false)
+    ) : null, 
+  [db, currentUserData?.orgId]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   
-  const detailsQuery = useMemoFirebase(() => db ? query(collection(db, "parks_details"), limit(500)) : null, [db]);
+  const detailsQuery = useMemoFirebase(() => 
+    (db && currentUserData?.orgId) ? query(
+      collection(db, "parks_details"), 
+      where("orgId", "==", currentUserData.orgId),
+      limit(500)
+    ) : null, 
+  [db, currentUserData?.orgId]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
 
   const parkPermsRef = useMemo(() => db ? doc(db, "settings", "park_permissions") : null, [db]);
@@ -334,7 +346,7 @@ export default function ParksPage() {
       setConfigParks(current => current.filter(p => p !== value));
     }
 
-    const registryRef = doc(db, "settings", "registry");
+    const registryRef = doc(db, "settings", currentUserData?.orgId || "registry");
     const updatePayload = {
       [field]: operation === 'add' ? arrayUnion(value) : arrayRemove(value)
     };

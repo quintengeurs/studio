@@ -101,6 +101,7 @@ export interface User {
 
 export interface Asset {
   id: string;
+  orgId?: string;
   name: string;
   type: string;
   park: string;
@@ -117,6 +118,7 @@ export interface Asset {
 
 export interface Issue {
   id: string;
+  orgId?: string;
   title: string;
   description: string;
   status: 'Open' | 'In Progress' | 'Pending Approval' | 'Resolved';
@@ -140,6 +142,7 @@ export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthl
 
 export interface Task {
   id: string;
+  orgId?: string;
   title: string;
   objective: string;
   status: 'Todo' | 'Doing' | 'Pending Approval' | 'Completed';
@@ -188,6 +191,7 @@ export interface InspectionTemplate {
 
 export interface Inspection {
   id: string;
+  orgId?: string;
   assetId: string;
   assetName: string;
   park: string;
@@ -222,6 +226,7 @@ export type RequestCategory = 'Materials' | 'Tools' | 'Equipment' | 'PPE' | 'Oth
 
 export interface MaterialRequest {
   id: string;
+  orgId?: string;
   category: RequestCategory;
   description: string;
   depot: string;
@@ -248,6 +253,7 @@ export interface ParkUpdate {
 
 export interface ParkDetail {
   id: string;
+  orgId?: string;
   name: string;
   latitude?: number;
   longitude?: number;
@@ -285,6 +291,7 @@ export interface DepotUpdate {
 
 export interface Machinery {
   id: string;
+  orgId?: string;
   name: string;
   type: string;
   depotId: string;
@@ -314,6 +321,7 @@ export type InfoItemType = 'Document' | 'Information' | 'CTA';
 
 export interface InfoItem {
   id: string;
+  orgId?: string;
   type: InfoItemType;
   title: string;
   content: string;
@@ -330,6 +338,7 @@ export interface InfoItem {
 
 export interface DailyCondition {
   id?: string;
+  orgId?: string;
   parkId: string;
   date: string; // ISO string
   temperature?: number; // Celsius (Optional)
@@ -352,6 +361,7 @@ export interface RuleCondition {
 
 export interface SmartRule {
   id?: string;
+  orgId?: string;
   name: string;
   category?: 'Operational' | 'Biodiversity' | 'ESG' | 'Volunteer';
   isActive: boolean;

@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { RequestCategory } from "@/lib/types";
 import { useDataContext } from "@/context/DataContext";
+import { useUserContext } from "@/context/UserContext";
 
 interface RequestModalProps {
   trigger?: React.ReactNode;
@@ -39,6 +40,7 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
+  const { profile } = useUserContext();
   const { registryConfig, configLoading } = useDataContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,7 +70,8 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
 
     const requestData = {
       ...formData,
-      requestedBy: user.displayName || user.email || "Unknown Staff",
+      orgId: profile?.orgId || "hackney-council",
+      requestedBy: profile?.name || user.displayName || user.email || "Unknown Staff",
       status: "Open",
       createdAt: new Date().toISOString(),
     };

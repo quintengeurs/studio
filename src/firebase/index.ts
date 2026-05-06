@@ -1,6 +1,6 @@
 'use client';
 
-import { app, db, auth } from './config';
+
 import { FirebaseError } from 'firebase/app';
 
 /**
@@ -11,9 +11,7 @@ export interface FirebaseErrorExtended extends FirebaseError {
   requestResourceData?: unknown;
 }
 
-export function initializeFirebase() {
-  return { app, db, auth };
-}
+export * from './config';
 
 export * from './provider';
 export * from './client-provider';

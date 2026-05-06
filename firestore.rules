@@ -11,7 +11,8 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : {"orgId": "none"};
     }
 
     function belongsToOrg(orgId) {
@@ -19,16 +20,19 @@ service cloud.firestore {
     }
 
     function matchOrgId(data) {
-      return isAuth() && (data.orgId == getUserData().orgId || isMaster());
+      return isAuth() && (
+        isMaster() || 
+        (data.orgId != null && data.orgId == getUserData().orgId) || 
+        // Fallback: If document has no orgId, allow access for the primary 'hackney-council' tenant admins
+        (!('orgId' in data) && getUserData().orgId == 'hackney-council')
+      );
     }
 
     // Rules for user management
     match /users/{userId} {
-      // Users can read their own profile, or admins of the same org can read/write.
-      // For simplicity during onboarding, allow read if org matches.
-      allow read: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster() || request.auth.uid == userId);
-      allow create: if true; // Allow registration
-      allow update, delete: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster() || request.auth.uid == userId);
+      allow read: if isAuth() && (isMaster() || request.auth.uid == userId || resource.data.orgId == getUserData().orgId);
+      allow create: if true; 
+      allow update, delete: if isAuth() && (isMaster() || request.auth.uid == userId || resource.data.orgId == getUserData().orgId);
     }
 
     // Rules for organizations
@@ -68,7 +72,7 @@ service cloud.firestore {
     match /requests/{requestId} {
       allow read: if isAuth() && matchOrgId(resource.data);
       allow create: if isAuth() && matchOrgId(request.resource.data);
-      allow update, delete: if isAuth() && matchOrgId(resource.data);
+      allow update, delete: if isAuth() && (isMaster() || matchOrgId(resource.data));
     }
 
     // Rules for parks_details
@@ -77,15 +81,22 @@ service cloud.firestore {
       allow create, update, delete: if isAuth() && (request.resource.data.orgId == getUserData().orgId || isMaster());
     }
 
-    // Public Volunteering Portal (Needs specific exceptions)
+    // Public Volunteering Portal
     match /volunteers/{volunteerId} {
       allow create: if true;
       allow read, update, delete: if isAuth(); 
     }
 
     match /info_items/{itemId} {
-      allow read: if isAuth(); // We might want to filter this by orgId later
+      allow read: if isAuth();
       allow create, update, delete: if isAuth() && matchOrgId(resource.data);
+    }
+
+    // Rules for action_logs
+    match /action_logs/{logId} {
+      allow read: if isAuth() && (isMaster() || resource.data.orgId == getUserData().orgId);
+      allow create: if isAuth(); 
+      allow update, delete: if false; // Logs are immutable
     }
 
     // Catch-all rule

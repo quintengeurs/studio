@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { compressImage } from "@/lib/image-compress";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,12 @@ function IssuesContent() {
   const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
   const { allUsers: users, allParks: allDetails, allIssues, loading: issuesLoading } = useDataContext();
   const isOperative = !permissions.assignTask;
+
+  useEffect(() => {
+    // Safety cleanup for navigation locks
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+  }, []);
 
   // Derive the three subsets from the single allIssues collection (avoids Firestore composite index requirement)
   const issues = useMemo(() => allIssues.filter(i => i.status !== 'Resolved'), [allIssues]);

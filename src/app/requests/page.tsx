@@ -36,7 +36,7 @@ export default function RequestsManagementPage() {
   const { user } = useUser();
   const router = useRouter();
 
-  const { permissions, loading: userLoading } = useUserContext();
+  const { profile, permissions, loading: userLoading } = useUserContext();
   const { allUsers } = useDataContext();
   const canViewRequests = permissions.viewStaffRequests;
 
@@ -56,6 +56,12 @@ export default function RequestsManagementPage() {
   const { data: requests = [], loading } = useCollection<MaterialRequest>(requestsQuery as any);
 
   useEffect(() => {
+    // Safety cleanup for navigation locks
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+  }, []);
+
+  useEffect(() => {
     if (!loading && !userLoading && !canViewRequests && allUsers.length > 0) {
       router.push("/");
     }
@@ -71,7 +77,7 @@ export default function RequestsManagementPage() {
       const updateData: any = { 
         status: newStatus,
         updatedBy: profile?.name || user?.displayName || user?.email || "Manager",
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       if (note) updateData.managerNote = note;
 

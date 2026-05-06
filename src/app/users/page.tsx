@@ -119,6 +119,12 @@ export default function UserManagement() {
   const { profile, isAdmin } = useUserContext();
   const { allUsers: users, allParks: allDetails, registryConfig, configLoading } = useDataContext();
 
+  useEffect(() => {
+    // Safety cleanup for navigation locks
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'auto';
+  }, []);
+
   const teams = useMemo(() => 
     registryConfig?.teams ? [...registryConfig.teams].sort() : [], 
   [registryConfig?.teams]);
@@ -148,6 +154,7 @@ export default function UserManagement() {
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
   const [isDeleteUserConfirmOpen, setIsDeleteUserConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   const handleRunMigration = async () => {
     if (!db || isMigrating) return;
@@ -847,7 +854,6 @@ export default function UserManagement() {
             </div>
           </Card>
         </TabsContent>
-
       </Tabs>
 
       {/* Configuration Dialog */}

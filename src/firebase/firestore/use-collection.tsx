@@ -5,7 +5,8 @@ import {
   Query, 
   onSnapshot, 
   DocumentData, 
-  QuerySnapshot 
+  QuerySnapshot,
+  getDocs
 } from 'firebase/firestore';
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
@@ -34,7 +35,6 @@ export function useCollection<T = DocumentData>(
     setLoading(true);
 
     if (options.fetchOnce) {
-      const { getDocs } = require('firebase/firestore');
       getDocs(currentQuery)
         .then((snapshot: any) => {
           const items = snapshot.docs.map((doc: any) => ({
