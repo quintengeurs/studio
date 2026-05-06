@@ -40,7 +40,11 @@ import {
   Monitor,
   Eye,
   Lock,
-  Circle
+  Circle,
+  Building,
+  Zap,
+  Globe,
+  Database
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -103,6 +107,8 @@ import { useDataContext } from "@/context/DataContext";
 import { getDefaultPermissionsForUser, getDefaultMobilePermissionsForUser } from "@/lib/permissions";
 import { AccessPermissions } from "@/lib/types";
 import { ParkPermissionsMatrix } from "@/components/users/park-permissions-matrix";
+import { migrateToMultiTenancy } from "@/lib/migration";
+import { Organization, FeatureKey } from "@/lib/types";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -142,6 +148,39 @@ export default function UserManagement() {
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
   const [isDeleteUserConfirmOpen, setIsDeleteUserConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // SaaS Management State
+  const orgsQuery = useMemoFirebase(() => db ? query(collection(db, "organizations")) : null, [db]);
+  const { data: allOrgs = [], loading: orgsLoading } = useCollection<Organization>(orgsQuery as any);
+  const [isMigrating, setIsMigrating] = useState(false);
+
+  const handleRunMigration = async () => {
+    if (!db || isMigrating) return;
+    setIsMigrating(true);
+    try {
+      await migrateToMultiTenancy(db);
+      toast({ title: "Migration Successful", description: "All users have been linked to the default organization." });
+    } catch (error) {
+      toast({ title: "Migration Failed", description: "See console for details.", variant: "destructive" });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  const toggleFeature = async (org: Organization, feature: FeatureKey) => {
+    if (!db) return;
+    const isEnabled = org.activeFeatures.includes(feature);
+    const newFeatures = isEnabled 
+      ? org.activeFeatures.filter(f => f !== feature) 
+      : [...org.activeFeatures, feature];
+      
+    try {
+      await updateDoc(doc(db, "organizations", org.id), { activeFeatures: newFeatures });
+      toast({ title: "Feature Updated", description: `${feature} has been ${isEnabled ? 'disabled' : 'enabled'} for ${org.name}.` });
+    } catch (error) {
+      toast({ title: "Update Failed", description: "Permission denied.", variant: "destructive" });
+    }
+  };
 
   // Synchronize training selections whenever the active user profile changes
   useEffect(() => {
@@ -557,6 +596,7 @@ export default function UserManagement() {
           <TabsTrigger value="registry" className="font-bold">User Registry</TabsTrigger>
           <TabsTrigger value="park_info" className="font-bold">Park Info</TabsTrigger>
           <TabsTrigger value="archived" className="font-bold">Archived Staff</TabsTrigger>
+          {isAdmin && <TabsTrigger value="saas" className="font-bold text-primary">SaaS Management</TabsTrigger>}
         </TabsList>
         <TabsContent value="registry" className="mt-0 space-y-0">
           <div className="grid gap-6 md:grid-cols-4 mb-8">
@@ -827,6 +867,94 @@ export default function UserManagement() {
               </Table>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="saas" className="mt-0 pt-2">
+          <div className="grid gap-6">
+            <Card className="p-6 border-2 border-primary/20 bg-primary/5">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold text-primary flex items-center gap-2">
+                    <Database className="h-5 w-5" /> Multi-Tenancy Migration
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-2xl">
+                    Ensure all existing users are linked to the default "Hackney Council" organization. 
+                    This is required for the new feature gating system to function correctly.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleRunMigration} 
+                  disabled={isMigrating}
+                  className="font-bold shadow-lg shadow-primary/20"
+                >
+                  {isMigrating ? (
+                    <> <RotateCcw className="mr-2 h-4 w-4 animate-spin" /> Migrating... </>
+                  ) : (
+                    <> <Zap className="mr-2 h-4 w-4" /> Run Org Migration </>
+                  )}
+                </Button>
+              </div>
+            </Card>
+
+            <div className="grid gap-6">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Building className="h-5 w-5" /> Active Organizations
+              </h3>
+              
+              {orgsLoading ? (
+                <div className="flex justify-center py-10"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+              ) : allOrgs.length === 0 ? (
+                <Card className="p-10 text-center border-dashed border-2 opacity-50">
+                  <Globe className="h-10 w-10 mx-auto mb-4" />
+                  <p className="font-bold text-muted-foreground">No organizations found. Run migration to create default.</p>
+                </Card>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {allOrgs.map(org => (
+                    <Card key={org.id} className="overflow-hidden border-2">
+                      <div className="p-4 bg-muted/30 border-b flex justify-between items-center">
+                        <div>
+                          <h4 className="font-bold text-primary">{org.name}</h4>
+                          <code className="text-[10px] text-muted-foreground">{org.id}</code>
+                        </div>
+                        <Badge variant="secondary" className="font-bold uppercase tracking-widest text-[10px]">
+                          {org.slug}
+                        </Badge>
+                      </div>
+                      <div className="p-4 space-y-4">
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Module Entitlements</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map'] as FeatureKey[]).map(feature => {
+                              const isEnabled = org.activeFeatures.includes(feature);
+                              return (
+                                <div key={feature} className="flex items-center justify-between p-2 rounded-lg bg-background border text-xs">
+                                  <span className="capitalize">{feature.replace('_', ' ')}</span>
+                                  <Switch 
+                                    checked={isEnabled} 
+                                    onCheckedChange={() => toggleFeature(org, feature)}
+                                    className="scale-75 origin-right"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="pt-4 border-t flex justify-between items-center">
+                          <div className="text-[10px] text-muted-foreground">
+                            Created: {new Date(org.createdAt).toLocaleDateString()}
+                          </div>
+                          <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-widest">
+                            Edit Branding
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
