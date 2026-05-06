@@ -20,7 +20,9 @@ import {
   Building2,
   LayoutGrid,
   Megaphone,
-  BrainCircuit
+  BrainCircuit,
+  ShieldCheck,
+  Globe
 } from "lucide-react";
 import {
   Sidebar,
@@ -68,7 +70,7 @@ export function AppSidebar() {
   const { user } = useUser();
   const [isRequestOpen, setIsRequestOpen] = useState(false);
 
-  const { profile: currentUserProfile, permissions, isAdmin } = useUserContext();
+  const { profile: currentUserProfile, organization, permissions, isAdmin, isMaster } = useUserContext();
 
   const profileRoles = currentUserProfile?.roles || (currentUserProfile?.role ? [currentUserProfile.role] : []);
 
@@ -95,8 +97,6 @@ export function AppSidebar() {
   }, [permissions]);
 
   const showNewRequest = useMemo(() => {
-    // If they can't see the staff requests view at all, they likely shouldn't be posting new requests
-    // but typically standard officers CAN make requests. Let's allow everyone except purely contractors.
     return !profileRoles.includes('Contractor');
   }, [profileRoles]);
 
@@ -110,12 +110,20 @@ export function AppSidebar() {
       <Sidebar collapsible="icon">
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
-              <Leaf className="h-6 w-6" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0 overflow-hidden">
+              {organization?.branding?.logoUrl ? (
+                <img src={organization.branding.logoUrl} className="h-full w-full object-cover" alt="Logo" />
+              ) : (
+                <Leaf className="h-6 w-6" />
+              )}
             </div>
             <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
-              <span className="font-headline text-sm font-bold leading-tight text-primary truncate">Parks and Green Spaces</span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hackney</span>
+              <span className="font-headline text-sm font-bold leading-tight text-primary truncate">
+                {organization?.name || "Parks and Green Spaces"}
+              </span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                {organization?.slug === 'hackney-council' ? 'Hackney Council' : (organization?.name || 'Authorized Access')}
+              </span>
             </div>
           </div>
         </SidebarHeader>
@@ -123,6 +131,28 @@ export function AppSidebar() {
         <SidebarSeparator />
         
         <SidebarContent>
+          {isMaster && (
+            <SidebarGroup>
+              <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden text-primary font-bold uppercase tracking-widest text-[10px]">Platform Admin</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton 
+                    asChild
+                    isActive={pathname === "/platform"}
+                    tooltip="Platform Management"
+                    className="text-primary hover:text-primary font-bold"
+                  >
+                    <Link href="/platform">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>SaaS Control Hub</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+              <SidebarSeparator className="mt-4" />
+            </SidebarGroup>
+          )}
+
           <SidebarGroup>
             <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Management</SidebarGroupLabel>
             <SidebarMenu>

@@ -15,6 +15,8 @@ interface UserContextType {
   isAdmin: boolean;
   isMaster: boolean;
   isManagement: boolean;
+  isImpersonating: boolean;
+  setImpersonatedOrgId: (id: string | null) => void;
   currentUserRoles: string[];
 }
 
@@ -24,6 +26,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const isMobile = useIsMobile();
+  const [impersonatedOrgId, setImpersonatedOrgId] = React.useState<string | null>(null);
 
   const emailId = useMemo(() => 
     user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", 
@@ -44,9 +47,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const profile = profileByEmail || profileByUid || null;
   
   // 3. Organization Fetching
+  const effectiveOrgId = impersonatedOrgId || profile?.orgId;
   const orgRef = useMemo(() => 
-    db && profile?.orgId ? doc(db, "organizations", profile.orgId) : null, 
-  [db, profile?.orgId]);
+    db && effectiveOrgId ? doc(db, "organizations", effectiveOrgId) : null, 
+  [db, effectiveOrgId]);
   const { data: organization, loading: loadingOrg } = useDoc<Organization>(orgRef as any);
 
   const loading = authLoading || (loadingUid && loadingEmailId) || (!!profile?.orgId && loadingOrg);
@@ -122,6 +126,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     isAdmin,
     isMaster,
     isManagement,
+    isImpersonating: !!impersonatedOrgId,
+    setImpersonatedOrgId,
     currentUserRoles
   };
 

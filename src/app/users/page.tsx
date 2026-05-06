@@ -116,7 +116,7 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  const { profile, isAdmin, isMaster } = useUserContext();
+  const { profile, isAdmin } = useUserContext();
   const { allUsers: users, allParks: allDetails, registryConfig, configLoading } = useDataContext();
 
   const teams = useMemo(() => 
@@ -149,66 +149,6 @@ export default function UserManagement() {
   const [isDeleteUserConfirmOpen, setIsDeleteUserConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // SaaS Management State
-  const orgsQuery = useMemoFirebase(() => 
-    (db && isMaster) ? query(collection(db, "organizations"), orderBy("name", "asc")) : null, 
-  [db, isMaster]);
-  const { data: allOrgs = [], loading: orgsLoading } = useCollection<Organization>(orgsQuery as any);
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Organization Creation State
-  const [isAddOrgOpen, setIsAddOrgOpen] = useState(false);
-  const [newOrgForm, setNewOrgForm] = useState({
-    name: "",
-    slug: "",
-    features: ['dashboard', 'assets', 'parks', 'issues', 'tasks', 'users'] as FeatureKey[]
-  });
-
-  const handleCreateOrg = async () => {
-    if (!db || !newOrgForm.name || !newOrgForm.slug || !isMaster) return;
-    setIsSubmitting(true);
-    try {
-        const orgId = newOrgForm.slug.toLowerCase().replace(/\s+/g, '-');
-        
-        // 1. Create Organization Doc
-        const orgData: Organization = {
-            id: orgId,
-            name: newOrgForm.name,
-            slug: newOrgForm.slug.toLowerCase(),
-            activeFeatures: newOrgForm.features,
-            createdAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, "organizations", orgId), orgData);
-        
-        // 2. Initialize Registry Settings (Clone from Hackney as template)
-        const templateRef = doc(db, "settings", "hackney-council");
-        const templateSnap = await getDoc(templateRef);
-        if (templateSnap.exists()) {
-            await setDoc(doc(db, "settings", orgId), templateSnap.data());
-        } else {
-            // Basic fallback if no template
-            await setDoc(doc(db, "settings", orgId), {
-                teams: ["Management", "Grounds", "Maintenance"],
-                parks: [],
-                trainingOptions: ["First Aid", "H&S", "Machinery"]
-            });
-        }
-
-        toast({ title: "Organization Created", description: `${newOrgForm.name} has been provisioned successfully.` });
-        setIsAddOrgOpen(false);
-        setNewOrgForm({
-            name: "",
-            slug: "",
-            features: ['dashboard', 'assets', 'parks', 'issues', 'tasks', 'users']
-        });
-    } catch (error) {
-        toast({ title: "Error", description: "Failed to create organization.", variant: "destructive" });
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-
   const handleRunMigration = async () => {
     if (!db || isMigrating) return;
     setIsMigrating(true);
@@ -219,21 +159,6 @@ export default function UserManagement() {
       toast({ title: "Migration Failed", description: "See console for details.", variant: "destructive" });
     } finally {
       setIsMigrating(false);
-    }
-  };
-
-  const toggleFeature = async (org: Organization, feature: FeatureKey) => {
-    if (!db) return;
-    const isEnabled = org.activeFeatures.includes(feature);
-    const newFeatures = isEnabled 
-      ? org.activeFeatures.filter(f => f !== feature) 
-      : [...org.activeFeatures, feature];
-      
-    try {
-      await updateDoc(doc(db, "organizations", org.id), { activeFeatures: newFeatures });
-      toast({ title: "Feature Updated", description: `${feature} has been ${isEnabled ? 'disabled' : 'enabled'} for ${org.name}.` });
-    } catch (error) {
-      toast({ title: "Update Failed", description: "Permission denied.", variant: "destructive" });
     }
   };
 
@@ -651,7 +576,6 @@ export default function UserManagement() {
           <TabsTrigger value="registry" className="font-bold">User Registry</TabsTrigger>
           <TabsTrigger value="park_info" className="font-bold">Park Info</TabsTrigger>
           <TabsTrigger value="archived" className="font-bold">Archived Staff</TabsTrigger>
-          {isMaster && <TabsTrigger value="saas" className="font-bold text-primary flex items-center gap-2"><Globe className="h-3 w-3" /> SaaS Management</TabsTrigger>}
         </TabsList>
         <TabsContent value="registry" className="mt-0 space-y-0">
           <div className="grid gap-6 md:grid-cols-4 mb-8">
@@ -924,97 +848,6 @@ export default function UserManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="saas" className="mt-0 pt-2">
-          <div className="grid gap-6">
-            <Card className="p-6 border-2 border-primary/20 bg-primary/5">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-xl font-bold text-primary flex items-center gap-2">
-                    <Database className="h-5 w-5" /> Multi-Tenancy Migration
-                  </h3>
-                  <p className="text-sm text-muted-foreground max-w-2xl">
-                    Ensure all existing users are linked to the default "Hackney Council" organization. 
-                    This is required for the new feature gating system to function correctly.
-                  </p>
-                </div>
-                <Button 
-                  onClick={handleRunMigration} 
-                  disabled={isMigrating}
-                  className="font-bold shadow-lg shadow-primary/20"
-                >
-                  {isMigrating ? (
-                    <> <RotateCcw className="mr-2 h-4 w-4 animate-spin" /> Migrating... </>
-                  ) : (
-                    <> <Zap className="mr-2 h-4 w-4" /> Run Org Migration </>
-                  )}
-                </Button>
-              </div>
-            </Card>
-
-            <div className="grid gap-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <Building className="h-5 w-5" /> Active Organizations
-                </h3>
-                <Button onClick={() => setIsAddOrgOpen(true)} className="font-bold">
-                  <Plus className="mr-2 h-4 w-4" /> Provision New Org
-                </Button>
-              </div>
-              
-              {orgsLoading ? (
-                <div className="flex justify-center py-10"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
-              ) : allOrgs.length === 0 ? (
-                <Card className="p-10 text-center border-dashed border-2 opacity-50">
-                  <Globe className="h-10 w-10 mx-auto mb-4" />
-                  <p className="font-bold text-muted-foreground">No organizations found. Run migration to create default.</p>
-                </Card>
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2">
-                  {allOrgs.map(org => (
-                    <Card key={org.id} className="overflow-hidden border-2">
-                      <div className="p-4 bg-muted/30 border-b flex justify-between items-center">
-                        <div>
-                          <h4 className="font-bold text-primary">{org.name}</h4>
-                          <code className="text-[10px] text-muted-foreground">{org.id}</code>
-                        </div>
-                        <Badge variant="secondary" className="font-bold uppercase tracking-widest text-[10px]">
-                          {org.slug}
-                        </Badge>
-                      </div>
-                      <div className="p-4 space-y-4">
-                        <div className="space-y-3">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Module Entitlements</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map'] as FeatureKey[]).map(feature => {
-                              const isEnabled = org.activeFeatures.includes(feature);
-                              return (
-                                <div key={feature} className="flex items-center justify-between p-2 rounded-lg bg-background border text-xs">
-                                  <span className="capitalize">{feature.replace('_', ' ')}</span>
-                                  <Switch 
-                                    checked={isEnabled} 
-                                    onCheckedChange={() => toggleFeature(org, feature)}
-                                    className="scale-75 origin-right"
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <div className="pt-4 border-t flex justify-between items-center">
-                          <div className="text-[10px] text-muted-foreground">
-                            Created: {new Date(org.createdAt).toLocaleDateString()}
-                          </div>
-                          <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-widest">
-                            Edit Branding
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         </TabsContent>
       </Tabs>
 
@@ -1994,65 +1827,6 @@ export default function UserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {/* Add Organization Dialog */}
-      <Dialog open={isAddOrgOpen} onOpenChange={setIsAddOrgOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5 text-primary" /> Provision New Organization
-            </DialogTitle>
-            <DialogDescription>
-              Create a new tenant on the platform. This will initialize a dedicated database partition and operational registry.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid gap-2">
-              <Label>Organization Name</Label>
-              <Input 
-                placeholder="e.g. Islington Council" 
-                value={newOrgForm.name}
-                onChange={e => setNewOrgForm({...newOrgForm, name: e.target.value})}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>URL Slug (ID)</Label>
-              <Input 
-                placeholder="e.g. islington-council" 
-                value={newOrgForm.slug}
-                onChange={e => setNewOrgForm({...newOrgForm, slug: e.target.value.toLowerCase().replace(/\s+/g, '-')})}
-              />
-              <p className="text-[10px] text-muted-foreground italic">This is used for data partitioning and URLs. Permanent once created.</p>
-            </div>
-            
-            <div className="space-y-3">
-              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Initial Entitlements</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map'] as FeatureKey[]).map(feature => (
-                  <div key={feature} className="flex items-center gap-2 p-2 rounded-lg border bg-muted/20 text-xs">
-                    <Checkbox 
-                      checked={newOrgForm.features.includes(feature)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setNewOrgForm({...newOrgForm, features: [...newOrgForm.features, feature]});
-                        } else {
-                          setNewOrgForm({...newOrgForm, features: newOrgForm.features.filter(f => f !== feature)});
-                        }
-                      }}
-                    />
-                    <span className="capitalize">{feature.replace('_', ' ')}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsAddOrgOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateOrg} disabled={!newOrgForm.name || !newOrgForm.slug || isSubmitting}>
-              {isSubmitting ? "Provisioning..." : "Create Organization"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DashboardShell>
   );
 }
