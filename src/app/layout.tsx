@@ -1,4 +1,8 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
+
+export const viewport: Viewport = {
+  themeColor: '#16a34a',
+};
 import './globals.css';
 import {SidebarProvider} from '@/components/ui/sidebar';
 import {Toaster} from '@/components/ui/toaster';
@@ -8,6 +12,7 @@ import { DesktopGuard } from '@/components/auth/desktop-guard';
 export const metadata: Metadata = {
   title: 'Parks and Green Spaces | Hackney Parks Management',
   description: 'Asset tracking, issue reporting, and task management for park operatives.',
+  manifest: '/manifest.json',
 };
 
 import { UserProvider } from '@/context/UserContext';
