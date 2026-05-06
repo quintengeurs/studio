@@ -182,3 +182,126 @@ async function processAllRules() {
     return { status: "error", message: err.message };
   }
 }
+
+/**
+ * Smart Tasking Engine - Dynamic Rules Evaluation
+ * Triggers automatically when conditions are logged from the frontend UI
+ */
+export const onConditionLogged = functions.firestore
+  .document("daily_conditions/{docId}")
+  .onCreate(async (snap, context) => {
+    const condition = snap.data();
+    if (!condition) return;
+
+    try {
+      // 1. Fetch all active dynamic rules
+      const rulesSnap = await db.collection("smart_rules")
+        .where("isActive", "==", true)
+        .where("orgId", "==", condition.orgId || "hackney-council")
+        .get();
+
+      if (rulesSnap.empty) {
+        console.log("No active dynamic rules found for org:", condition.orgId);
+        return;
+      }
+
+      const rules: any[] = [];
+      rulesSnap.forEach(doc => rules.push({ id: doc.id, ...doc.data() }));
+
+      // 2. Fetch all machinery (if machinery rules exist)
+      const allMachinery: any[] = [];
+      const hasMachineryRule = rules.some(r => 
+        r.conditions && r.conditions.some((c: any) => c.field === "machineryHours")
+      );
+
+      if (hasMachineryRule) {
+        const machSnap = await db.collection("machinery")
+          .where("orgId", "==", condition.orgId || "hackney-council")
+          .get();
+        machSnap.forEach(doc => allMachinery.push({ id: doc.id, ...doc.data() }));
+      }
+
+      // 3. Evaluate Engine Logic
+      const generatedTasks: any[] = [];
+      const park = condition.parkId;
+
+      for (const rule of rules) {
+        const evaluations = rule.conditions.map((c: any) => {
+          if (c.field === 'machineryHours') {
+            const machine = allMachinery.find(m => m.id === c.machineryId);
+            return machine ? evaluateSimpleCondition(machine.currentHours, c) : false;
+          }
+          return evaluateSimpleCondition(condition[c.field], c);
+        });
+        
+        let isMatch = false;
+        if (rule.conditionLogic === 'AND') {
+          isMatch = evaluations.length > 0 && evaluations.every((v: boolean) => v === true);
+        } else {
+          isMatch = evaluations.some((v: boolean) => v === true);
+        }
+
+        if (isMatch) {
+          for (const t of (rule.tasksToGenerate || [])) {
+            generatedTasks.push({
+              title: t.title,
+              objective: t.objective,
+              status: 'Todo',
+              dueDate: new Date().toISOString().split('T')[0],
+              assignedTo: t.assignedTo,
+              displayTime: t.displayTime || null,
+              park: park,
+              source: 'smart-engine',
+              isLog: false,
+              isArchived: false,
+              isVolunteerEligible: t.isVolunteerEligible || false,
+              orgId: condition.orgId || "hackney-council",
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      // 4. Create Tasks in batch securely
+      if (generatedTasks.length > 0) {
+        const batch = db.batch();
+        const tasksRef = db.collection("tasks");
+        
+        for (const task of generatedTasks) {
+          batch.set(tasksRef.doc(), task);
+        }
+        
+        await batch.commit();
+        console.log(`Generated ${generatedTasks.length} tasks from ${rules.length} dynamic rules on backend.`);
+      }
+
+    } catch (error) {
+      console.error("Error evaluating conditions in backend:", error);
+    }
+  });
+
+function evaluateSimpleCondition(conditionValue: any, ruleCondition: any): boolean {
+  const value = Number(ruleCondition.value);
+  const rawValue = ruleCondition.value;
+  
+  if (ruleCondition.operator === 'contains') {
+    if (Array.isArray(conditionValue)) {
+      return conditionValue.includes(rawValue);
+    }
+    if (typeof conditionValue === 'string') {
+      return conditionValue.includes(String(rawValue));
+    }
+    return false;
+  }
+
+  const numValue = Number(conditionValue);
+
+  switch (ruleCondition.operator) {
+    case '==': return numValue == value;
+    case '>': return numValue > value;
+    case '<': return numValue < value;
+    case '>=': return numValue >= value;
+    case '<=': return numValue <= value;
+    default: return false;
+  }
+}

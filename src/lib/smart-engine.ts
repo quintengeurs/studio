@@ -72,19 +72,16 @@ export function simulateConditions(condition: DailyCondition, rules: SmartRule[]
 
 export async function evaluateAndApplyConditions(condition: DailyCondition, user: User, rules: SmartRule[], allMachinery?: Machinery[]) {
   // 1. Save the daily condition
+  // The backend Cloud Function (onConditionLogged) will detect this new document,
+  // run the simulation engine on the secure server, and automatically generate the tasks.
   await addDoc(collection(db, 'daily_conditions'), {
     ...condition,
     createdAt: new Date().toISOString(),
     loggedBy: user.id || user.email || 'Unknown',
   });
 
-  // 2. Generate Tasks
+  // Calculate what was passed off to the server for UI feedback
   const generatedTasks = simulateConditions(condition, rules, allMachinery);
 
-  // 3. Create Tasks
-  for (const task of generatedTasks) {
-    await addDoc(collection(db, 'tasks'), task);
-  }
-
-  return `Logged successfully. Generated ${generatedTasks.length} smart tasks.`;
+  return `Logged successfully. The backend engine is generating ${generatedTasks.length} smart tasks.`;
 }
