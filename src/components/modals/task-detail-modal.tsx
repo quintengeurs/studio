@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useFirestore, useUser } from "@/firebase";
-import { updateDoc, doc, arrayUnion, increment } from "firebase/firestore";
+import { updateDoc, doc, arrayUnion, increment, collection, query, where, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Task, Issue, User } from "@/lib/types";
 
@@ -158,16 +158,27 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
 
       // Award Points to Volunteer Profile
       if (volunteerEmail && task.volunteerPoints) {
-        const vProfile = allUsers.find(u => u.email?.toLowerCase() === volunteerEmail.toLowerCase());
-        if (vProfile && vProfile.id) {
-          try {
-            await updateDoc(doc(db, "users", vProfile.id), {
+        try {
+          let vProfile = allUsers.find(u => u.email?.toLowerCase() === volunteerEmail.toLowerCase());
+          let vProfileId = vProfile?.id;
+
+          // Fallback: If not in local list (common for public view), query Firestore directly
+          if (!vProfileId) {
+            const q = query(collection(db, "users"), where("email", "==", volunteerEmail), limit(1));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              vProfileId = snap.docs[0].id;
+            }
+          }
+
+          if (vProfileId) {
+            await updateDoc(doc(db, "users", vProfileId), {
               totalPoints: increment(task.volunteerPoints),
               completedTasksCount: increment(1)
             });
-          } catch (profileErr) {
-            console.warn("Could not award points (likely permissions):", profileErr);
           }
+        } catch (profileErr) {
+          console.warn("Could not award points (likely permissions):", profileErr);
         }
       }
 
