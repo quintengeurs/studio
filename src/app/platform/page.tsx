@@ -162,8 +162,8 @@ export default function PlatformAdmin() {
     try {
       await migrateToMultiTenancy(db);
       toast({ title: "Migration Successful" });
-    } catch (error) {
-      toast({ title: "Migration Failed", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Migration Failed", description: error.message || "An unknown error occurred.", variant: "destructive" });
     } finally {
       setIsMigrating(false);
     }

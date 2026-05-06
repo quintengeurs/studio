@@ -86,7 +86,7 @@ export async function migrateToMultiTenancy(db: Firestore) {
       let totalInColl = 0;
       
       for (const d of snap.docs) {
-        if (!d.data().orgId) {
+        if (!d.data()?.orgId) {
           collBatch.update(d.ref, { orgId: DEFAULT_ORG_ID });
           collCount++;
           totalInColl++;
