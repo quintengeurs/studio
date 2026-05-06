@@ -101,7 +101,7 @@ import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebas
 import { firebaseConfig } from "@/firebase/config";
 import { initializeApp, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
+import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDoc, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
 import { getDefaultPermissionsForUser, getDefaultMobilePermissionsForUser } from "@/lib/permissions";
@@ -116,7 +116,7 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  const { profile, isAdmin } = useUserContext();
+  const { profile, isAdmin, isMaster } = useUserContext();
   const { allUsers: users, allParks: allDetails, registryConfig, configLoading } = useDataContext();
 
   const teams = useMemo(() => 
