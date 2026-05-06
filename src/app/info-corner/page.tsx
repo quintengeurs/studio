@@ -25,7 +25,8 @@ import {
   UserCheck,
   Pencil,
   Mail,
-  Home
+  Home,
+  Heart
 } from "lucide-react";
 import { useFirestore, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, updateDoc, doc, arrayUnion, arrayRemove } from "firebase/firestore";
