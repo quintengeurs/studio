@@ -490,6 +490,7 @@ export default function SmartTaskingPage() {
 
               <div className="space-y-10">
                 {/* Step 1: Depot Selection */}
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
                       <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px]">1</span>
