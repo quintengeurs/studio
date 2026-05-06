@@ -951,6 +951,7 @@ export default function UserManagement() {
               </div>
             </Card>
 
+            <div className="grid gap-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold flex items-center gap-2">
                   <Building className="h-5 w-5" /> Active Organizations
