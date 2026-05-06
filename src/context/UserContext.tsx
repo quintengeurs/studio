@@ -13,6 +13,7 @@ interface UserContextType {
   permissions: AccessPermissions;
   loading: boolean;
   isAdmin: boolean;
+  isMaster: boolean;
   isManagement: boolean;
   currentUserRoles: string[];
 }
@@ -63,11 +64,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return Array.from(rolesSet);
   }, [profile]);
 
+  const isMaster = useMemo(() => 
+    user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
+  [user?.email]);
+
   const isAdmin = useMemo(() => 
     currentUserRoles.includes('Admin') || 
-    user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' ||
+    isMaster ||
     user?.email?.toLowerCase() === 'quinten.geurs@hackney.gov.uk',
-  [currentUserRoles, user?.email]);
+  [currentUserRoles, user?.email, isMaster]);
 
   const isManagement = useMemo(() => 
     currentUserRoles.some(r => MANAGEMENT_ROLES.includes(r as any)) || isAdmin,
@@ -115,6 +120,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     permissions,
     loading,
     isAdmin,
+    isMaster,
     isManagement,
     currentUserRoles
   };

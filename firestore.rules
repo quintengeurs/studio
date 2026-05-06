@@ -6,66 +6,91 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isMaster() {
+      return isAuth() && request.auth.token.email == 'quinten.geurs@gmail.com';
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function belongsToOrg(orgId) {
+      return isAuth() && (getUserData().orgId == orgId || isMaster());
+    }
+
+    function matchOrgId(data) {
+      return isAuth() && (data.orgId == getUserData().orgId || isMaster());
+    }
+
     // Rules for user management
     match /users/{userId} {
-      // Allow anyone to read and create users.
-      allow read, create: if true;
-      // Only authenticated users can update or delete.
-      allow update, delete: if isAuth();
+      // Users can read their own profile, or admins of the same org can read/write.
+      // For simplicity during onboarding, allow read if org matches.
+      allow read: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster() || request.auth.uid == userId);
+      allow create: if true; // Allow registration
+      allow update, delete: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster() || request.auth.uid == userId);
     }
 
-    // Rules for registry configuration
-    match /settings/registry {
-      // Allow anyone to read and write to the registry configuration.
-      allow read, write: if true;
+    // Rules for organizations
+    match /organizations/{orgId} {
+      allow read: if isAuth() && (getUserData().orgId == orgId || isMaster());
+      allow write: if isMaster();
     }
 
-    // Rules for locations
-    match /locations/{locationId} {
-      allow read, write: if true;
+    // Rules for settings/registry
+    match /settings/{orgId} {
+      allow read: if isAuth() && (getUserData().orgId == orgId || isMaster());
+      allow write: if isAuth() && (getUserData().orgId == orgId || isMaster());
     }
 
     // Rules for tasks
     match /tasks/{taskId} {
-      allow read, write: if true;
+      allow read: if isAuth() && matchOrgId(resource.data);
+      allow create: if isAuth() && matchOrgId(request.resource.data);
+      allow update, delete: if isAuth() && matchOrgId(resource.data);
     }
 
     // Rules for issues
     match /issues/{issueId} {
-      allow read, write: if true;
+      allow read: if isAuth() && matchOrgId(resource.data);
+      allow create: if isAuth() && matchOrgId(request.resource.data);
+      allow update, delete: if isAuth() && matchOrgId(resource.data);
+    }
+
+    // Rules for assets
+    match /assets/{assetId} {
+      allow read: if isAuth() && matchOrgId(resource.data);
+      allow create: if isAuth() && matchOrgId(request.resource.data);
+      allow update, delete: if isAuth() && matchOrgId(resource.data);
     }
 
     // Rules for requests
     match /requests/{requestId} {
-      allow read, write: if true;
+      allow read: if isAuth() && matchOrgId(resource.data);
+      allow create: if isAuth() && matchOrgId(request.resource.data);
+      allow update, delete: if isAuth() && matchOrgId(resource.data);
     }
 
-    // Rules for public volunteering portal
+    // Rules for parks_details
+    match /parks_details/{parkId} {
+      allow read: if isAuth() && (resource.data.orgId == getUserData().orgId || isMaster());
+      allow create, update, delete: if isAuth() && (request.resource.data.orgId == getUserData().orgId || isMaster());
+    }
+
+    // Public Volunteering Portal (Needs specific exceptions)
     match /volunteers/{volunteerId} {
-      // Allow anyone to register (create)
       allow create: if true;
-      // Allow reading specific records by email (filtered query)
-      allow read: if true;
-      // Staff can update status
-      allow update, delete: if isAuth();
+      allow read, update, delete: if isAuth(); 
     }
 
     match /info_items/{itemId} {
-      // Allow anyone to read hub news
-      allow read: if true;
-      // Staff can manage
-      allow create, update, delete: if isAuth();
+      allow read: if isAuth(); // We might want to filter this by orgId later
+      allow create, update, delete: if isAuth() && matchOrgId(resource.data);
     }
 
-    match /parks_details/{parkId} {
-      // Allow anyone to read park names
-      allow read: if true;
-      allow write: if isAuth();
-    }
-
-    // Catch-all rule: by default, require authentication for all other documents.
+    // Catch-all rule
     match /{document=**} {
-      allow read, write: if isAuth();
+      allow read, write: if isMaster();
     }
   }
 }
