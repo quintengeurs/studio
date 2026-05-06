@@ -305,3 +305,50 @@ function evaluateSimpleCondition(conditionValue: any, ruleCondition: any): boole
     default: return false;
   }
 }
+
+/**
+ * Immutable Audit Trails
+ * Automatically tracks all changes to critical collections securely on the backend
+ */
+function buildAuditFunction(collectionName: string) {
+  return functions.firestore
+    .document(`${collectionName}/{docId}`)
+    .onWrite(async (change, context) => {
+      const docId = context.params.docId;
+      const after = change.after.exists ? change.after.data() : null;
+      const before = change.before.exists ? change.before.data() : null;
+
+      let action = "";
+      if (!before && after) action = `CREATED ${collectionName.toUpperCase()}`;
+      else if (before && !after) action = `DELETED ${collectionName.toUpperCase()}`;
+      else action = `UPDATED ${collectionName.toUpperCase()}`;
+
+      // Extract user info if available from the document metadata
+      let userStr = "System / Unknown";
+      if (after?.updatedBy) userStr = after.updatedBy;
+      else if (after?.completedBy) userStr = after.completedBy;
+      else if (after?.reportedBy) userStr = after.reportedBy;
+      else if (after?.requestedBy) userStr = after.requestedBy;
+      else if (before?.updatedBy) userStr = before.updatedBy;
+
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        action,
+        collection: collectionName,
+        documentId: docId,
+        userName: userStr,
+        orgId: after?.orgId || before?.orgId || "hackney-council",
+        details: {
+          previousState: before ? JSON.stringify(before).substring(0, 500) : null,
+          newState: after ? JSON.stringify(after).substring(0, 500) : null
+        }
+      };
+
+      await db.collection("action_logs").add(logEntry);
+    });
+}
+
+export const auditTasks = buildAuditFunction("tasks");
+export const auditIssues = buildAuditFunction("issues");
+export const auditRequests = buildAuditFunction("requests");
+export const auditUsers = buildAuditFunction("users");

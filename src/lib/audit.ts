@@ -10,16 +10,7 @@ export async function logAction(
   action: string, 
   details: any
 ) {
-  try {
-    await addDoc(collection(db, "action_logs"), {
-      userId,
-      userName,
-      orgId,
-      action,
-      details,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error("Failed to log action:", error);
-  }
+  // Client-side logging has been DISABLED.
+  // Immutable Audit Trails are now handled exclusively by Firebase Cloud Functions.
+  return;
 }
