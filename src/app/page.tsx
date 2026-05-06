@@ -265,14 +265,14 @@ export default function Dashboard() {
                   onClick={() => setIssueModalOpen(true)}
                 >
                   <AlertTriangle className="h-6 w-6 text-destructive" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Raise Issue</span>
+                  <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Raise Issue</span>
                 </Button>
                 
                 {permissions.viewMyTasks && (
                   <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
                     <Link href="/my-tasks">
                       <ListTodo className="h-6 w-6 text-primary" />
-                      <span className="text-xs font-bold uppercase tracking-wider">My Tasks</span>
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">My Tasks</span>
                     </Link>
                   </Button>
                 )}
@@ -288,7 +288,7 @@ export default function Dashboard() {
                     <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
                       <Link href="/inspections">
                         <ClipboardCheck className="h-6 w-6 text-green-600" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Inspections</span>
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Inspections</span>
                       </Link>
                     </Button>
                   )}
@@ -298,7 +298,7 @@ export default function Dashboard() {
                     onClick={() => setLogWorkModalOpen(true)}
                   >
                     <ClipboardList className="h-6 w-6 text-accent-foreground" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Log Ad-Hoc Work</span>
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Log Ad-Hoc Work</span>
                   </Button>
                 </div>
               </div>
@@ -315,7 +315,7 @@ export default function Dashboard() {
                     onClick={() => setTrainingModalOpen(true)}
                   >
                     <Users className="h-6 w-4 text-orange-500" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Add Training</span>
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Add Training</span>
                   </Button>
                   <Button 
                     variant="outline" 
@@ -323,7 +323,7 @@ export default function Dashboard() {
                     onClick={() => setAssetModalOpen(true)}
                   >
                     <PlusCircle className="h-6 w-6 text-green-600" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Add Asset</span>
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Add Asset</span>
                   </Button>
                  </div>
               </div>
@@ -338,7 +338,7 @@ export default function Dashboard() {
                     <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
                       <Link href="/tasks">
                         <ListTodo className="h-6 w-6 text-primary" />
-                        <span className="text-xs font-bold uppercase tracking-wider">All Tasks</span>
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">All Tasks</span>
                       </Link>
                     </Button>
                   )}
@@ -346,7 +346,7 @@ export default function Dashboard() {
                     <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative overflow-visible">
                       <Link href="/issues?tab=unassigned">
                         <AlertTriangle className="h-6 w-6 text-destructive" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Unassigned Issues</span>
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Unassigned Issues</span>
                         {unassignedCount > 0 && (
                           <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-lg animate-bounce">
                             {unassignedCount}
