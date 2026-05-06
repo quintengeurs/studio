@@ -28,6 +28,8 @@ import { useUserContext } from "@/context/UserContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { cn } from "@/lib/utils";
+import { Camera } from "lucide-react";
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(100),
@@ -37,6 +39,7 @@ const formSchema = z.object({
   maxVolunteers: z.coerce.number().min(1, "Must allow at least 1 volunteer").max(100),
   volunteerPoints: z.coerce.number().min(1, "Must award at least 1 point").max(1000),
   rewardDescription: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -51,13 +54,13 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const { profile } = useUserContext();
   const { allParks, registryConfig } = useDataContext();
+  const { organization, profile } = useUserContext();
 
-  const hasParksModule = registryConfig?.modules?.parks === true;
+  const hasParksModule = organization?.activeFeatures?.includes('parks');
 
   const activeParks = useMemo(() => {
-    return allParks.filter(p => p.status === 'Active').map(p => p.name).sort();
+    return allParks.filter(p => p.name).map(p => p.name).sort();
   }, [allParks]);
 
   const {
@@ -76,11 +79,26 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
       dueDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0], // Default 1 week
       maxVolunteers: 1,
       volunteerPoints: 10,
-      rewardDescription: ""
+      rewardDescription: "",
+      imageUrl: ""
     }
   });
 
   const watchPark = watch("park");
+  const watchImageUrl = watch("imageUrl");
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const { compressImage } = await import("@/lib/image-compress");
+        const compressedDataUrl = await compressImage(file, 1200, 800, 0.7);
+        setValue("imageUrl", compressedDataUrl, { shouldValidate: true });
+      } catch (error) {
+        toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
+      }
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     if (!db || !user) return;
@@ -96,6 +114,8 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
       isArchived: false,
       createdAt: new Date().toISOString(),
       updatedBy: profile?.name || user.displayName || user.email || "Staff",
+      // Map imageUrl to volunteerImageUrl for the volunteer hub
+      volunteerImageUrl: data.imageUrl || ""
     };
 
     try {
@@ -136,14 +156,41 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
 
         <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-5">
           <div className="grid gap-5">
-            <div className="grid gap-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Opportunity Title</Label>
-              <Input 
-                {...register("title")} 
-                placeholder="e.g., Community Litter Pick, Bulb Planting..." 
-                className="h-12 bg-muted/20 border-orange-100 focus-visible:ring-orange-500"
-              />
-              {errors.title && <p className="text-[10px] font-bold text-destructive">{errors.title.message}</p>}
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Opportunity Title</Label>
+                <Input 
+                  {...register("title")} 
+                  placeholder="e.g., Community Litter Pick..." 
+                  className="h-12 bg-muted/20 border-orange-100 focus-visible:ring-orange-500"
+                />
+                {errors.title && <p className="text-[10px] font-bold text-destructive">{errors.title.message}</p>}
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Reference Image</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    id="opp-image"
+                    onChange={handleImageUpload}
+                  />
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "h-12 w-full border-dashed border-2 flex items-center justify-center gap-2",
+                      watchImageUrl ? "border-green-200 bg-green-50 text-green-600" : "border-orange-100 bg-muted/20 text-muted-foreground hover:bg-orange-50"
+                    )}
+                    onClick={() => document.getElementById('opp-image')?.click()}
+                  >
+                    <Camera className="h-4 w-4" />
+                    {watchImageUrl ? "Image Selected" : "Upload Photo"}
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-5">
