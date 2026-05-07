@@ -76,7 +76,12 @@ export default function VolunteeringPage() {
     if (org) setUrlOrgId(org);
   }, []);
 
-  const effectiveOrgId = profile?.orgId || urlOrgId || "hackney-council";
+  const effectiveOrgId = useMemo(() => {
+    // If logged in as staff, always use their orgId
+    if (user && profile?.orgId) return profile.orgId;
+    // If public or profile not yet loaded, use URL or default
+    return urlOrgId || "hackney-council";
+  }, [profile?.orgId, urlOrgId, user]);
   
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
@@ -128,7 +133,7 @@ export default function VolunteeringPage() {
               maxVolunteers: 2,
               rewardDescription: "Free Coffee",
               rewardCode: "COFFEE123",
-              orgId: "hackney-council",
+              orgId: effectiveOrgId, // Use current orgId
               createdAt: new Date().toISOString()
             });
           }
@@ -147,7 +152,7 @@ export default function VolunteeringPage() {
               isVolunteerVisible: true,
               isStaffVisible: false,
               createdBy: "System",
-              orgId: "hackney-council",
+              orgId: effectiveOrgId, // Use current orgId
               createdAt: new Date().toISOString(),
               isArchived: false,
               allowResponse: true
@@ -296,12 +301,13 @@ export default function VolunteeringPage() {
   const [hasPermissionError, setHasPermissionError] = useState(false);
   
   useEffect(() => {
-    // Load cache on mount
-    const saved = localStorage.getItem("volunteer_news_cache");
-    if (saved) {
-      try { setCachedNews(JSON.parse(saved)); } catch (e) {}
+    if (effectiveOrgId) {
+      const saved = localStorage.getItem(`volunteer_news_cache_${effectiveOrgId}`);
+      if (saved) {
+        try { setCachedNews(JSON.parse(saved)); } catch (e) {}
+      }
     }
-  }, []);
+  }, [effectiveOrgId]);
   useEffect(() => {
     // If useCollection fails, try a manual fetch as a fallback
     if (newsError && db) {
@@ -312,7 +318,11 @@ export default function VolunteeringPage() {
         try {
           const snapshot = await getDocs(collection(db, "info_items"));
           const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-          setFallbackNews(docs.filter((d: any) => d.isVolunteerVisible === true && !d.isArchived));
+          setFallbackNews(docs.filter((d: any) => 
+            d.isVolunteerVisible === true && 
+            !d.isArchived && 
+            d.orgId === effectiveOrgId // CRITICAL: Filter by orgId in fallback
+          ));
           setHasPermissionError(false); // Succeeded with fallback
         } catch (e: any) {
           console.error("News Fallback Failed:", e);
@@ -328,9 +338,21 @@ export default function VolunteeringPage() {
   }, [newsError, newsLoading, db]);
 
   const effectiveNews = useMemo(() => {
-    const baseItems = volunteerNews.length > 0 ? volunteerNews : (fallbackNews.length > 0 ? fallbackNews : cachedNews);
+    // Ensure all news sources match the current orgId
+    const baseItems = [
+      ...volunteerNews,
+      ...fallbackNews.filter(n => n.orgId === effectiveOrgId),
+      ...cachedNews.filter(n => n.orgId === effectiveOrgId)
+    ];
+
     const filtered = baseItems
-      .filter((d: any) => d.isArchived !== true && d.isVolunteerVisible === true)
+      .filter((d: any, index, self) => 
+        // Unique items only
+        self.findIndex(t => t.id === d.id) === index &&
+        d.isArchived !== true && 
+        d.isVolunteerVisible === true &&
+        d.orgId === effectiveOrgId // Final safety check
+      )
       .sort((a: any, b: any) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -338,8 +360,8 @@ export default function VolunteeringPage() {
       });
 
     // Update cache if we got fresh data
-    if ((volunteerNews.length > 0 || fallbackNews.length > 0) && filtered.length > 0) {
-      localStorage.setItem("volunteer_news_cache", JSON.stringify(filtered));
+    if ((volunteerNews.length > 0 || fallbackNews.length > 0) && filtered.length > 0 && effectiveOrgId) {
+      localStorage.setItem(`volunteer_news_cache_${effectiveOrgId}`, JSON.stringify(filtered));
     }
 
     return filtered;
@@ -392,7 +414,12 @@ export default function VolunteeringPage() {
       setIsCheckingPublicStatus(true);
       try {
         const { getDocs } = await import("firebase/firestore");
-        const q = query(collection(db, "users"), where("isVolunteer", "==", true), where("email", "==", volunteerEmail));
+        const q = query(
+            collection(db, "users"), 
+            where("isVolunteer", "==", true), 
+            where("email", "==", volunteerEmail),
+            where("orgId", "==", effectiveOrgId) // Match orgId
+        );
         const snapshot = await getDocs(q);
         const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setPublicVolunteerData(docs);
