@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { compressImage } from "@/lib/image-compress";
 import {
   Dialog,
@@ -32,6 +32,7 @@ import Image from "next/image";
 import { useFirestore, useUser } from "@/firebase";
 import { updateDoc, doc, arrayUnion, increment, collection, query, where, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useUserContext } from "@/context/UserContext";
 import { Task, Issue, User } from "@/lib/types";
 
 interface TaskDetailModalProps {
@@ -48,6 +49,7 @@ interface TaskDetailModalProps {
 export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks, volunteerEmail, onSuccess }: TaskDetailModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
+  const { profile: contextProfile, currentUserRoles } = useUserContext();
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,9 +60,48 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
     imageUrl: ""
   });
 
+  // Reset completion state when task or modal open state changes
+  useEffect(() => {
+    if (open) {
+      setCompletionData({ note: "", imageUrl: "" });
+      setSelectedColleagues([]);
+      setShowColleagueSelection(false);
+    }
+  }, [open, task?.id]);
+
   const currentUserProfile = useMemo(() => 
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
+
+  const isAuthorizedToComplete = useMemo(() => {
+    if (!task || !user || !currentUserProfile) return false;
+    
+    // Admins can always complete for testing/emergency
+    if (currentUserRoles.includes('Admin')) return true;
+
+    const userIdentities = [
+      currentUserProfile.name.toLowerCase(),
+      user.email?.toLowerCase(),
+      user.displayName?.toLowerCase()
+    ].filter(Boolean);
+
+    // Check if directly assigned
+    if (userIdentities.includes(task.assignedTo.toLowerCase())) return true;
+
+    // Check if in assigned group
+    if (task.assignedTo.startsWith('Group: ')) {
+      const match = task.assignedTo.match(/Group: (.*) @ (.*)/);
+      if (match) {
+        const [_, role, depot] = match;
+        const userDepots = currentUserProfile.depots || (currentUserProfile.depot ? [currentUserProfile.depot] : []);
+        if (currentUserRoles.includes(role as any) && userDepots.includes(depot)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }, [task, user, currentUserProfile, currentUserRoles]);
 
   const taskDepot = useMemo(() => {
     if (!task || !allParks) return null;
@@ -240,6 +281,15 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="pb-6 space-y-8">
+            {task.rejectionNote && (
+              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 animate-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center gap-2 text-destructive mb-1.5">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Task Rejected by Manager</span>
+                </div>
+                <p className="text-xs font-bold text-destructive/90 leading-relaxed italic">"{task.rejectionNote}"</p>
+              </div>
+            )}
             <div className="space-y-2 pt-2">
               <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Objective & Requirements</Label>
               <p className="text-sm leading-relaxed bg-muted/30 p-4 rounded-lg border italic font-medium">
@@ -355,7 +405,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
               <Button 
                 className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600' : 'bg-accent hover:bg-accent/90'}`} 
                 onClick={() => handleStatusUpdate('Doing')}
-                disabled={(task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) || isSubmitting}
+                disabled={(task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) || isSubmitting || (!task.isVolunteerEligible && !isAuthorizedToComplete)}
               >
                 {task.isVolunteerEligible 
                   ? (task.status === 'Doing' 

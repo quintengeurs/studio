@@ -164,12 +164,34 @@ export default function Dashboard() {
 
   const myRequests = useMemo(() => {
     if (isManagement || isAdmin) {
-      return rawMyRequests.filter(r => 
-        r.requestedBy === userEffectiveName || 
-        r.updatedBy === userEffectiveName
-      );
+      // Managers see everything they are involved in for the counters,
+      // but we filter the actual notifications/actions below
+      return rawMyRequests;
     }
     return rawMyRequests;
+  }, [rawMyRequests]);
+
+  const readyRequests = useMemo(() => {
+    // ONLY show "Ready for Collection" notifications to the person who requested it
+    return rawMyRequests.filter(r => 
+      (r.status === 'Available' || r.status === 'Ready') && 
+      r.requestedBy === userEffectiveName
+    );
+  }, [rawMyRequests, userEffectiveName]);
+
+  const pendingRequests = useMemo(() => {
+    // For managers, show requests they are involved in that aren't collected
+    if (isManagement || isAdmin) {
+        return rawMyRequests.filter(r => 
+          (r.status === 'Open' || r.status === 'In Progress' || r.status === 'Available') &&
+          (r.requestedBy === userEffectiveName || r.updatedBy === userEffectiveName)
+        );
+    }
+    // For operatives, just show their own pending ones
+    return rawMyRequests.filter(r => 
+      (r.status === 'Open' || r.status === 'In Progress' || r.status === 'Available') &&
+      r.requestedBy === userEffectiveName
+    );
   }, [rawMyRequests, isManagement, isAdmin, userEffectiveName]);
 
   // Optimized: Use context for summaries if management, or personalized queries if operative
@@ -211,9 +233,6 @@ export default function Dashboard() {
   
   // Tasks remain personal on dashboard unless in full page
   const activeMyTasks = myTasks.filter(t => t.status !== 'Completed');
-  
-  const readyRequests = myRequests.filter(r => r.status === 'Available' || r.status === 'Ready');
-  const pendingRequests = myRequests.filter(r => r.status === 'Open' || r.status === 'In Progress');
 
   const taskData = useMemo(() => {
     if (!myTasks || myTasks.length === 0) return [];

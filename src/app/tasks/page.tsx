@@ -38,7 +38,8 @@ import {
   Zap,
   Sparkles,
   Bot,
-  CheckCircle2
+  CheckCircle2,
+  X
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -510,6 +511,32 @@ export default function TasksPage() {
         toast({ title: "Task Approved", description: "Work verified and moved to archives." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to approve task.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectingTask, setRejectingTask] = useState<Task | null>(null);
+  const [rejectionNote, setRejectionNote] = useState("");
+
+  const handleRejectTask = async () => {
+    if (!db || !rejectingTask || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+        await updateDoc(doc(db, "tasks", rejectingTask.id), { 
+          status: 'Todo',
+          completionNote: "", // Clear old completion note
+          completionImageUrl: "", // Clear old proof
+          rejectionNote: rejectionNote,
+          updatedAt: new Date().toISOString()
+        });
+        toast({ title: "Task Rejected", description: "Operative has been notified with your feedback." });
+        setIsRejectDialogOpen(false);
+        setRejectingTask(null);
+        setRejectionNote("");
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to reject task.", variant: "destructive" });
     } finally {
         setIsSubmitting(false);
     }
@@ -998,8 +1025,11 @@ export default function TasksPage() {
                         </div>
                       </div>
                     </CardContent>
-                    <CardFooter className="p-0 mt-auto border-t">
-                      <Button variant="default" className="w-full rounded-none h-14 font-bold bg-primary hover:bg-primary/90 text-sm tracking-widest shadow-inner shadow-white/10" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}>
+                    <CardFooter className="p-0 mt-auto border-t flex divide-x">
+                      <Button variant="ghost" className="flex-1 rounded-none h-14 font-bold text-destructive hover:bg-destructive/5 text-sm tracking-widest" onClick={() => { setRejectingTask(task); setIsRejectDialogOpen(true); }} disabled={isSubmitting}>
+                        <X className="mr-2 h-5 w-5" /> {isSubmitting ? "Processing..." : "Reject"}
+                      </Button>
+                      <Button variant="default" className="flex-[2] rounded-none h-14 font-bold bg-primary hover:bg-primary/90 text-sm tracking-widest shadow-inner shadow-white/10" onClick={() => handleApproveTask(task.id)} disabled={isSubmitting}>
                         <ThumbsUp className="mr-2 h-5 w-5" /> {isSubmitting ? "Approving..." : "Approve & Archive"}
                       </Button>
                     </CardFooter>
@@ -1265,6 +1295,39 @@ export default function TasksPage() {
         allUsers={users}
         allParks={allDetails}
       />
+      {/* Rejection Modal */}
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" /> Reject Task Completion
+            </DialogTitle>
+            <DialogDescription>
+              Operative: <span className="font-bold text-foreground">{rejectingTask?.assignedTo}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase tracking-widest">Feedback Note</Label>
+              <Textarea 
+                placeholder="Explain why this work was rejected and what needs to be fixed..." 
+                value={rejectionNote}
+                onChange={(e) => setRejectionNote(e.target.value)}
+                className="min-h-[120px]"
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground italic">
+              The task will be moved back to "Todo" status and re-assigned to the operative.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRejectTask} disabled={!rejectionNote || isSubmitting}>
+              Confirm Rejection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardShell>
   );
 }
