@@ -255,16 +255,14 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
                 {errors.volunteerPoints && <p className="text-[10px] font-bold text-destructive">{errors.volunteerPoints.message}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dueDate">Submission Deadline</Label>
-                <Input id="dueDate" type="date" {...register("dueDate")} />
-                {errors.dueDate && <p className="text-xs text-destructive">{errors.dueDate.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxVolunteers">Max Volunteers</Label>
-                <Input id="maxVolunteers" type="number" {...register("maxVolunteers")} />
-                {errors.maxVolunteers && <p className="text-xs text-destructive">{errors.maxVolunteers.message}</p>}
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-orange-600">Max Volunteers</Label>
+                <Input 
+                  type="number"
+                  {...register("maxVolunteers")} 
+                  className="h-12 font-bold text-lg border-orange-200 focus-visible:ring-orange-500"
+                />
+                {errors.maxVolunteers && <p className="text-[10px] font-bold text-destructive">{errors.maxVolunteers.message}</p>}
               </div>
             </div>
 
