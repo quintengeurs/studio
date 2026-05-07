@@ -387,7 +387,6 @@ export default function InspectionsPage() {
                     orgId: profile.orgId
                 });
             }
-            }
         }
 
         const assetRef = doc(db, "assets", selectedInspection.assetId);
