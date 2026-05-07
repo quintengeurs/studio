@@ -104,6 +104,7 @@ export function AppSidebar() {
   }, [profileRoles, organization]);
 
   const handleLogout = async () => {
+    localStorage.removeItem('impersonatedOrgId');
     await signOut(auth);
     router.push("/login");
   };

@@ -59,20 +59,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const profile = profileByEmail || profileByUid || null;
   
-  // 3. Organization Fetching
-  const effectiveOrgId = impersonatedOrgId || profile?.orgId;
-  const orgRef = useMemo(() => 
-    db && effectiveOrgId ? doc(db, "organizations", effectiveOrgId) : null, 
-  [db, effectiveOrgId]);
-  const { data: organization, loading: loadingOrg } = useDoc<Organization>(orgRef as any);
-
-  const loading = authLoading || (loadingUid && loadingEmailId) || (!!effectiveOrgId && loadingOrg);
-
-  const permissions = useMemo(() => {
-    const base = getEffectivePermissions(profile, isMobile, user?.email);
-    return applyFeatureGating(base, organization?.activeFeatures);
-  }, [profile, isMobile, user?.email, organization?.activeFeatures]);
-
   const currentUserRoles = useMemo(() => {
     const rolesSet = new Set<string>();
     if (profile?.role) rolesSet.add(profile.role);
@@ -92,8 +78,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [currentUserRoles, user?.email, isMaster]);
 
   const isManagement = useMemo(() => 
-    currentUserRoles.some(r => MANAGEMENT_ROLES.includes(r as any)) || isAdmin,
+    currentUserRoles.some(r => [...MANAGEMENT_ROLES, 'Volunteering Coordinator'].includes(r as any)) || isAdmin,
   [currentUserRoles, isAdmin]);
+
+  // 3. Organization Fetching
+  const effectiveOrgId = (isAdmin && impersonatedOrgId) ? impersonatedOrgId : profile?.orgId;
+  const orgRef = useMemo(() => 
+    db && effectiveOrgId ? doc(db, "organizations", effectiveOrgId) : null, 
+  [db, effectiveOrgId]);
+  const { data: organization, loading: loadingOrg } = useDoc<Organization>(orgRef as any);
+
+  const loading = authLoading || (loadingUid && loadingEmailId) || (!!effectiveOrgId && loadingOrg);
+
+  const permissions = useMemo(() => {
+    const base = getEffectivePermissions(profile, isMobile, user?.email);
+    return applyFeatureGating(base, organization?.activeFeatures);
+  }, [profile, isMobile, user?.email, organization?.activeFeatures]);
 
   // Heartbeat / Presence System
   React.useEffect(() => {

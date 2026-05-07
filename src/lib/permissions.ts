@@ -62,7 +62,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
   const roles = Array.from(rolesSet);
   const isAdmin = roles.includes('Admin') || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || isSystemAdmin;
   const isContractor = roles.includes('Contractor') && roles.length === 1;
-  const isManagement = roles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager'].includes(r)) || isAdmin;
+  const isManagement = roles.some(r => ['Area Manager', 'Assistant Area Manager', 'Operations Manager', 'Head Gardener', 'Park Manager', 'Volunteering Coordinator'].includes(r)) || isAdmin;
   const canViewRequests = isAdmin || roles.includes('Area Manager') || roles.includes('Operations Manager');
 
   if (isAdmin) {

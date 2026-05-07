@@ -357,6 +357,7 @@ export default function UserManagement() {
         permissions: newUserDesktopPerms || undefined,
         mobilePermissions: newUserMobilePerms || undefined,
         allowDesktopView: newUserDesktopPerms ? Object.values(newUserDesktopPerms).some(v => v === true) : true,
+        orgId: profile?.orgId // Ensure new staff are linked to the current org
     };
 
     setIsUserSubmitting(true);
