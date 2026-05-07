@@ -44,8 +44,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUserContext } from "@/context/UserContext";
-import { RequestModal } from "@/components/modals/request-modal";
 import { User as UserType } from "@/lib/types";
+import dynamic from "next/dynamic";
+
+const RequestModal = dynamic(() => import("@/components/modals/request-modal").then(mod => mod.RequestModal), { 
+  ssr: false,
+  loading: () => null
+});
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },

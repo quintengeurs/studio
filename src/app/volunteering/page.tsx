@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,10 +55,11 @@ import {
     DialogFooter
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { VolunteerRegistrationModal } from "@/components/modals/volunteer-registration-modal";
-import { TaskDetailModal } from "@/components/modals/task-detail-modal";
-import { InfoItemModal } from "@/components/modals/info-item-modal";
-import { VolunteerTaskModal } from "@/components/modals/volunteer-task-modal";
+
+const VolunteerRegistrationModal = dynamic(() => import("@/components/modals/volunteer-registration-modal").then(mod => mod.VolunteerRegistrationModal), { ssr: false });
+const TaskDetailModal = dynamic(() => import("@/components/modals/task-detail-modal").then(mod => mod.TaskDetailModal), { ssr: false });
+const InfoItemModal = dynamic(() => import("@/components/modals/info-item-modal").then(mod => mod.InfoItemModal), { ssr: false });
+const VolunteerTaskModal = dynamic(() => import("@/components/modals/volunteer-task-modal").then(mod => mod.VolunteerTaskModal), { ssr: false });
 import { useDataContext } from "@/context/DataContext";
 
 export default function VolunteeringPage() {

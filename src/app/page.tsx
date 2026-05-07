@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -32,12 +33,13 @@ import { useUserContext } from "@/context/UserContext";
 import Link from "next/link";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
-import { RequestModal } from "@/components/modals/request-modal";
-import { LogWorkModal } from "@/components/modals/log-work-modal";
-import { TrainingUpdateModal } from "@/components/modals/training-update-modal";
-import { TaskDetailModal } from "@/components/modals/task-detail-modal";
-import { IssueModal } from "@/components/modals/issue-modal";
-import { AssetModal } from "@/components/modals/asset-modal";
+
+const RequestModal = dynamic(() => import("@/components/modals/request-modal").then(mod => mod.RequestModal), { ssr: false });
+const LogWorkModal = dynamic(() => import("@/components/modals/log-work-modal").then(mod => mod.LogWorkModal), { ssr: false });
+const TrainingUpdateModal = dynamic(() => import("@/components/modals/training-update-modal").then(mod => mod.TrainingUpdateModal), { ssr: false });
+const TaskDetailModal = dynamic(() => import("@/components/modals/task-detail-modal").then(mod => mod.TaskDetailModal), { ssr: false });
+const IssueModal = dynamic(() => import("@/components/modals/issue-modal").then(mod => mod.IssueModal), { ssr: false });
+const AssetModal = dynamic(() => import("@/components/modals/asset-modal").then(mod => mod.AssetModal), { ssr: false });
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format } from "date-fns";
