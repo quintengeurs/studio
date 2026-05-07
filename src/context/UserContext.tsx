@@ -29,19 +29,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const [impersonatedOrgId, setImpersonatedOrgIdState] = React.useState<string | null>(null);
 
-  // Sync with localStorage on mount
-  React.useEffect(() => {
-    const saved = localStorage.getItem('impersonatedOrgId');
-    if (saved) {
-      // If we already have a profile and we're not an admin, clear it immediately
-      if (profile && !isAdmin) {
-        localStorage.removeItem('impersonatedOrgId');
-        setImpersonatedOrgIdState(null);
-      } else {
-        setImpersonatedOrgIdState(saved);
-      }
-    }
-  }, [profile, isAdmin]);
 
   const setImpersonatedOrgId = (id: string | null) => {
     setImpersonatedOrgIdState(id);
@@ -88,6 +75,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const isManagement = useMemo(() => 
     currentUserRoles.some(r => [...MANAGEMENT_ROLES, 'Volunteering Coordinator'].includes(r as any)) || isAdmin,
   [currentUserRoles, isAdmin]);
+
+  // Sync with localStorage on mount (MUST be after profile and isAdmin are declared)
+  React.useEffect(() => {
+    const saved = localStorage.getItem('impersonatedOrgId');
+    if (saved) {
+      // If we already have a profile and we're not an admin, clear it immediately
+      if (profile && !isAdmin) {
+        localStorage.removeItem('impersonatedOrgId');
+        setImpersonatedOrgIdState(null);
+      } else {
+        setImpersonatedOrgIdState(saved);
+      }
+    }
+  }, [profile, isAdmin]);
 
   // 3. Organization Fetching
   const effectiveOrgId = useMemo(() => {
