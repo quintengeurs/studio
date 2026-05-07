@@ -22,11 +22,9 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const db = useFirestore();
   const { user } = useUser();
-  const { profile, isAdmin } = useUserContext();
-
+  const { profile, isAdmin, effectiveOrgId } = useUserContext();
   const canAccessRestricted = !!(user && (profile || isAdmin));
-
-  const orgId = profile?.orgId;
+  const orgId = effectiveOrgId;
 
   const usersQuery = useMemoFirebase(() => 
     (db && canAccessRestricted && orgId) ? query(collection(db, "users"), where("orgId", "==", orgId), orderBy("name", "asc")) : null, 

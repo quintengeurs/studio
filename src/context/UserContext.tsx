@@ -18,6 +18,7 @@ interface UserContextType {
   isImpersonating: boolean;
   setImpersonatedOrgId: (id: string | null) => void;
   currentUserRoles: string[];
+  effectiveOrgId: string | null;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -140,7 +141,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     isManagement,
     isImpersonating: !!impersonatedOrgId,
     setImpersonatedOrgId,
-    currentUserRoles
+    currentUserRoles,
+    effectiveOrgId: effectiveOrgId || null
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
