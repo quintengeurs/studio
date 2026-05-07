@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { 
@@ -33,7 +34,7 @@ import { collection, query, where, orderBy, updateDoc, doc, arrayUnion, arrayRem
 import { InfoItem, InfoItemType } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
-import { InfoItemModal } from "@/components/modals/info-item-modal";
+const InfoItemModal = dynamic(() => import("@/components/modals/info-item-modal").then(mod => mod.InfoItemModal), { ssr: false });
 import { useToast } from "@/hooks/use-toast";
 import { 
   Tooltip,

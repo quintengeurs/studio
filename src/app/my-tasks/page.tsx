@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Input } from "@/components/ui/input";
 import { compressImage } from "@/lib/image-compress";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TaskDetailModal } from "@/components/modals/task-detail-modal";
+const TaskDetailModal = dynamic(() => import("@/components/modals/task-detail-modal").then(mod => mod.TaskDetailModal), { ssr: false });
 import {
   Dialog,
   DialogContent,
