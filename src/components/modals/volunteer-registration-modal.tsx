@@ -25,13 +25,15 @@ interface VolunteerRegistrationModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: (email: string) => void;
   defaultEmail?: string;
+  orgId: string;
 }
 
 export function VolunteerRegistrationModal({ 
   open, 
   onOpenChange, 
   onSuccess,
-  defaultEmail = ""
+  defaultEmail = "",
+  orgId
 }: VolunteerRegistrationModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
@@ -53,7 +55,8 @@ export function VolunteerRegistrationModal({
         status: 'pending',
         isVolunteer: true, // Flag to distinguish from staff
         roles: ['Volunteer'],
-        depot: 'Community'
+        depot: 'Community',
+        orgId: orgId
       });
       
       localStorage.setItem("volunteerEmail", email.toLowerCase());

@@ -66,7 +66,16 @@ export default function VolunteeringPage() {
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
   
-  const orgId = profile?.orgId;
+  // Organization Resolution
+  const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const org = params.get('org');
+    if (org) setUrlOrgId(org);
+  }, []);
+
+  const effectiveOrgId = profile?.orgId || urlOrgId || "hackney-council";
   
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
@@ -164,6 +173,7 @@ export default function VolunteeringPage() {
       // Use a simpler query to avoid index requirements for public/volunteer users
       const q = query(
         collection(db, "tasks"), 
+        where("orgId", "==", effectiveOrgId),
         where("isVolunteerEligible", "==", true)
       );
       const snapshot = await getDocs(q);
@@ -195,6 +205,7 @@ export default function VolunteeringPage() {
       const { getDocs } = await import("firebase/firestore");
       const q = query(
         collection(db, "tasks"), 
+        where("orgId", "==", effectiveOrgId),
         where("completedByVolunteers", "array-contains", volunteerEmail),
         limit(50)
       );
@@ -216,35 +227,36 @@ export default function VolunteeringPage() {
 
   // Staff Management Data (Volunteer Log)
   const staffLogQuery = useMemoFirebase(() => 
-    (db && user && orgId) ? query(
+    (db && user && effectiveOrgId) ? query(
       collection(db, "tasks"), 
-      where("orgId", "==", orgId),
+      where("orgId", "==", effectiveOrgId),
       where("status", "==", "Completed"),
       where("isVolunteerEligible", "==", true),
       limit(100)
     ) : null, 
-  [db, user, orgId]);
+  [db, user, effectiveOrgId]);
   const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
 
   // Staff Task Management (Active Opportunities)
   const staffTasksQuery = useMemoFirebase(() => 
-    (db && user && orgId) ? query(
+    (db && user && effectiveOrgId) ? query(
       collection(db, "tasks"), 
-      where("orgId", "==", orgId),
+      where("orgId", "==", effectiveOrgId),
       where("isVolunteerEligible", "==", true),
       orderBy("dueDate", "asc"),
       limit(100)
     ) : null, 
-  [db, user, orgId]);
+  [db, user, effectiveOrgId]);
   const { data: allVolunteerTasks = [], loading: staffTasksLoading } = useCollection<Task>(staffTasksQuery as any);
 
   // Hub News
   const volunteerNewsQuery = useMemoFirebase(() => 
-    db ? query(
+    (db && effectiveOrgId) ? query(
       collection(db, "info_items"), 
+      where("orgId", "==", effectiveOrgId),
       where("isVolunteerVisible", "==", true)
     ) : null, 
-  [db]);
+  [db, effectiveOrgId]);
   const { data: volunteerNews = [], loading: newsLoading, error: newsError } = useCollection<any>(volunteerNewsQuery as any);
 
   const [cachedNews, setCachedNews] = useState<any[]>([]);
@@ -321,13 +333,13 @@ export default function VolunteeringPage() {
 
   // Volunteer Directory (Staff Only)
   const volunteersQuery = useMemoFirebase(() => 
-    (db && user && orgId) ? query(
+    (db && user && effectiveOrgId) ? query(
       collection(db, "users"), 
-      where("orgId", "==", orgId),
+      where("orgId", "==", effectiveOrgId),
       where("isVolunteer", "==", true), 
       orderBy("registeredAt", "desc")
     ) : null, 
-  [db, user, orgId]);
+  [db, user, effectiveOrgId]);
   const { data: allVolunteers = [], loading: volunteersLoading } = useCollection<any>(volunteersQuery as any);
 
   const currentVolunteerProfile = useMemo(() => 
@@ -1456,6 +1468,7 @@ export default function VolunteeringPage() {
         onOpenChange={setIsRegModalOpen} 
         onSuccess={handleRegisterSuccess}
         defaultEmail={user?.email || ""}
+        orgId={effectiveOrgId}
       />
 
       <TaskDetailModal
