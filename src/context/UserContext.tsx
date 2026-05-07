@@ -32,8 +32,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Sync with localStorage on mount
   React.useEffect(() => {
     const saved = localStorage.getItem('impersonatedOrgId');
-    if (saved) setImpersonatedOrgIdState(saved);
-  }, []);
+    if (saved) {
+      // If we already have a profile and we're not an admin, clear it immediately
+      if (profile && !isAdmin) {
+        localStorage.removeItem('impersonatedOrgId');
+        setImpersonatedOrgIdState(null);
+      } else {
+        setImpersonatedOrgIdState(saved);
+      }
+    }
+  }, [profile, isAdmin]);
 
   const setImpersonatedOrgId = (id: string | null) => {
     setImpersonatedOrgIdState(id);
@@ -82,7 +90,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [currentUserRoles, isAdmin]);
 
   // 3. Organization Fetching
-  const effectiveOrgId = (isAdmin && impersonatedOrgId) ? impersonatedOrgId : profile?.orgId;
+  const effectiveOrgId = useMemo(() => {
+    if (isAdmin && impersonatedOrgId) return impersonatedOrgId;
+    return profile?.orgId || null;
+  }, [isAdmin, impersonatedOrgId, profile?.orgId]);
   const orgRef = useMemo(() => 
     db && effectiveOrgId ? doc(db, "organizations", effectiveOrgId) : null, 
   [db, effectiveOrgId]);

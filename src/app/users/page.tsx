@@ -116,7 +116,7 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   
-  const { profile, isAdmin } = useUserContext();
+  const { profile, isAdmin, effectiveOrgId } = useUserContext();
   const { allUsers: users, allParks: allDetails, registryConfig, configLoading } = useDataContext();
 
   useEffect(() => {
@@ -357,7 +357,7 @@ export default function UserManagement() {
         permissions: newUserDesktopPerms || undefined,
         mobilePermissions: newUserMobilePerms || undefined,
         allowDesktopView: newUserDesktopPerms ? Object.values(newUserDesktopPerms).some(v => v === true) : true,
-        orgId: profile?.orgId // Ensure new staff are linked to the current org
+        orgId: effectiveOrgId // Use effectiveOrgId to ensure consistency with current context
     };
 
     setIsUserSubmitting(true);
@@ -400,6 +400,7 @@ export default function UserManagement() {
       roles: selectedUser.assignedRoles?.map(ar => ar.role) || selectedUser.roles || [],
       depots: Array.from(new Set(selectedUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
       depot: selectedUser.assignedRoles?.[0]?.depotIds?.[0] || "",
+      orgId: selectedUser.orgId || effectiveOrgId,
       permissions: editDesktopPerms || undefined,
       mobilePermissions: editMobilePerms || undefined,
       allowDesktopView: editDesktopPerms ? Object.values(editDesktopPerms).some(v => v === true) : true,

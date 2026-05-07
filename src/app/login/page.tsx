@@ -42,6 +42,8 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // Clear any stale impersonation from previous sessions/users
+      localStorage.removeItem('impersonatedOrgId');
       router.push("/");
     } catch (err: any) {
       console.error("Login Error:", err);
