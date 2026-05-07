@@ -27,17 +27,10 @@ import { useDataContext } from "@/context/DataContext";
 import { useUserContext } from "@/context/UserContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { logWorkSchema } from "@/lib/schemas";
+import { z } from "zod";
 
-const formSchema = z.object({
-  title: z.string().min(3, "Please provide a descriptive title").max(100),
-  park: z.string().min(1, "Location is required"),
-  note: z.string().optional(),
-  imageUrl: z.string().optional(),
-  selectedColleagues: z.array(z.string()).default([])
-});
-
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof logWorkSchema>;
 
 interface LogWorkModalProps {
   open: boolean;
@@ -64,7 +57,7 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
     reset,
     formState: { errors, isSubmitting }
   } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(logWorkSchema),
     defaultValues: {
       title: "",
       park: "",

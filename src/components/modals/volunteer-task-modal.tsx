@@ -27,24 +27,12 @@ import { useDataContext } from "@/context/DataContext";
 import { useUserContext } from "@/context/UserContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { volunteerTaskSchema } from "@/lib/schemas";
+import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { Camera } from "lucide-react";
 
-const formSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100),
-  objective: z.string().min(10, "Please provide a clear objective (min 10 chars)").max(500),
-  park: z.string().min(1, "Please select a location"),
-  dueDate: z.string().min(1, "Please select a deadline"),
-  startDate: z.string().min(1, "Please select a start date"),
-  endDate: z.string().min(1, "Please select an expiry date"),
-  maxVolunteers: z.coerce.number().min(1, "Must allow at least 1 volunteer").max(100),
-  volunteerPoints: z.coerce.number().min(1, "Must award at least 1 point").max(1000),
-  rewardDescription: z.string().optional(),
-  imageUrl: z.string().optional(),
-});
-
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof volunteerTaskSchema>;
 
 interface VolunteerTaskModalProps {
   open: boolean;
@@ -73,7 +61,7 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
     reset,
     formState: { errors, isSubmitting }
   } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(volunteerTaskSchema),
     defaultValues: {
       title: "",
       objective: "",

@@ -29,16 +29,10 @@ import { useDataContext } from "@/context/DataContext";
 import { useUserContext } from "@/context/UserContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { requestSchema } from "@/lib/schemas";
+import { z } from "zod";
 
-const formSchema = z.object({
-  category: z.enum(["Materials", "Tools", "Equipment", "PPE", "Other"]).default("Materials"),
-  description: z.string().min(5, "Please provide more details about your request").max(500),
-  depot: z.string().min(1, "Please select a collection depot"),
-  imageUrl: z.string().optional()
-});
-
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof requestSchema>;
 
 interface RequestModalProps {
   trigger?: React.ReactNode;
@@ -64,7 +58,7 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
     reset,
     formState: { errors, isSubmitting }
   } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(requestSchema),
     defaultValues: {
       category: "Materials",
       description: "",

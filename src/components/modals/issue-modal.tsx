@@ -24,24 +24,12 @@ import { RegistryConfig } from "@/lib/types";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { issueSchema } from "@/lib/schemas";
+import { z } from "zod";
 
 const ISSUE_CATEGORIES = ["Vandalism", "Maintenance", "Safety Hazard", "Litter/Waste", "Lighting", "Playground", "Wildlife", "Other"];
 
-const formSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100),
-  description: z.string().optional(),
-  priority: z.enum(["Low", "Medium", "High", "Urgent"]).default("Medium"),
-  category: z.string().min(1, "Please select a category").default("General"),
-  park: z.string().min(1, "Location is required"),
-  imageUrl: z.string().optional(),
-  location: z.object({
-    latitude: z.number(),
-    longitude: z.number()
-  }).nullable().optional()
-});
-
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof issueSchema>;
 
 interface IssueModalProps {
   open: boolean;
@@ -72,7 +60,7 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
     reset,
     formState: { errors, isSubmitting }
   } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(issueSchema),
     defaultValues: {
       title: "",
       description: "",
