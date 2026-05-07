@@ -11,7 +11,7 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   /* config options here */
   turbopack: {},
-  serverExternalPackages: ['zod', '@hookform/resolvers'],
+  serverExternalPackages: ['zod', '@hookform/resolvers', 'firebase', 'react-hook-form'],
   typescript: {
     ignoreBuildErrors: true,
   },
