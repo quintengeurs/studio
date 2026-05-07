@@ -76,23 +76,36 @@ export default function AssetRegister() {
   // Live Assets
   const [assetLimit, setAssetLimit] = useState(25);
   const assetsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "assets"), where("isArchived", "==", false), limit(assetLimit));
-  }, [db, assetLimit]);
+    if (!db || !profile?.orgId) return null;
+    return query(
+      collection(db, "assets"), 
+      where("orgId", "==", profile.orgId),
+      where("isArchived", "==", false), 
+      limit(assetLimit)
+    );
+  }, [db, assetLimit, profile?.orgId]);
   const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery as any);
 
   // Live All Inspections (for history)
   const inspectionsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "inspections"), limit(500));
-  }, [db]);
+    if (!db || !profile?.orgId) return null;
+    return query(
+      collection(db, "inspections"), 
+      where("orgId", "==", profile.orgId),
+      limit(500)
+    );
+  }, [db, profile?.orgId]);
   const { data: allInspections = [] } = useCollection<Inspection>(inspectionsQuery as any);
 
   // Live All Tasks (for history)
   const tasksQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "tasks"), limit(500));
-  }, [db]);
+    if (!db || !profile?.orgId) return null;
+    return query(
+      collection(db, "tasks"), 
+      where("orgId", "==", profile.orgId),
+      limit(500)
+    );
+  }, [db, profile?.orgId]);
   const { data: allTasks = [] } = useCollection<Task>(tasksQuery as any);
 
   const parks = useMemo(() => 
@@ -183,7 +196,8 @@ export default function AssetRegister() {
       expectedLifespan: newAsset.expectedLifespan,
       isArchived: false,
       lastInspected: 'Never',
-      gpsLocation: newAsset.gpsLocation
+      gpsLocation: newAsset.gpsLocation,
+      orgId: profile.orgId
     };
 
     try {
@@ -208,7 +222,8 @@ export default function AssetRegister() {
           dueDate: newAsset.inspectionStartDate,
           frequency: newAsset.inspectionFrequency,
           assetNotes: newAsset.inspectionNotes,
-          checklist: [...baseChecklist, ...customChecklist]
+          checklist: [...baseChecklist, ...customChecklist],
+          orgId: profile.orgId
         });
       }
       setIsAddDialogOpen(false);

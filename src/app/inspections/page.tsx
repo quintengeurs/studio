@@ -138,14 +138,14 @@ export default function InspectionsPage() {
   }, []);
 
   const assetsQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "assets"), limit(500)) : null, 
-  [db]);
+    (db && profile?.orgId) ? query(collection(db, "assets"), where("orgId", "==", profile.orgId), limit(500)) : null, 
+  [db, profile?.orgId]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
   const [inspectionLimit, setInspectionLimit] = useState(25);
   const inspectionsQuery = useMemoFirebase(() => 
-    db ? query(collection(db, "inspections"), limit(inspectionLimit)) : null, 
-  [db, inspectionLimit]);
+    (db && profile?.orgId) ? query(collection(db, "inspections"), where("orgId", "==", profile.orgId), limit(inspectionLimit)) : null, 
+  [db, inspectionLimit, profile?.orgId]);
   const { data: inspections = [], loading: inspectionsLoading } = useCollection<Inspection>(inspectionsQuery as any);
 
   const loading = inspectionsLoading; // Used by the UI
@@ -242,7 +242,8 @@ export default function InspectionsPage() {
             endDate: newInspection.endDate,
             daysOfWeek: newInspection.daysOfWeek,
             assetNotes: newInspection.assetNotes,
-            customChecks: newInspection.customChecks
+            customChecks: newInspection.customChecks,
+            orgId: profile.orgId
           })
         };
         await addDoc(collection(db, "inspections"), inspectionData);
@@ -382,8 +383,10 @@ export default function InspectionsPage() {
                         startDate: selectedInspection.startDate,
                         endDate: selectedInspection.endDate,
                         daysOfWeek: selectedInspection.daysOfWeek
-                    })
+                    }),
+                    orgId: profile.orgId
                 });
+            }
             }
         }
 

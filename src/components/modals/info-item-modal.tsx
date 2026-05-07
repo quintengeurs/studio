@@ -95,6 +95,7 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         createdBy: editItem ? editItem.createdBy : profile.name,
         createdAt: editItem ? editItem.createdAt : new Date().toISOString(),
         isArchived: false,
+        orgId: profile.orgId
       };
 
       if (editItem) {

@@ -62,9 +62,14 @@ export default function InfoCornerPage() {
   const [selectedItemForList, setSelectedItemForList] = useState<InfoItem | null>(null);
 
   const infoQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "info_items"), where("isArchived", "==", false), orderBy("createdAt", "desc"));
-  }, [db]);
+    if (!db || !profile?.orgId) return null;
+    return query(
+      collection(db, "info_items"), 
+      where("orgId", "==", profile.orgId),
+      where("isArchived", "==", false), 
+      orderBy("createdAt", "desc")
+    );
+  }, [db, profile?.orgId]);
 
   const { data: rawItems = [], loading } = useCollection<InfoItem>(infoQuery as any);
 
