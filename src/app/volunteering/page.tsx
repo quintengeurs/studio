@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useUserContext } from "@/context/UserContext";
 import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDocs } from "firebase/firestore";
 import { Task } from "@/lib/types";
 import { format } from "date-fns";
@@ -61,8 +62,11 @@ import { useDataContext } from "@/context/DataContext";
 export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
+  const { profile } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
+  
+  const orgId = profile?.orgId;
   
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
@@ -212,24 +216,26 @@ export default function VolunteeringPage() {
 
   // Staff Management Data (Volunteer Log)
   const staffLogQuery = useMemoFirebase(() => 
-    (db && user) ? query(
+    (db && user && orgId) ? query(
       collection(db, "tasks"), 
+      where("orgId", "==", orgId),
       where("status", "==", "Completed"),
       where("isVolunteerEligible", "==", true),
       limit(100)
     ) : null, 
-  [db, user]);
+  [db, user, orgId]);
   const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
 
   // Staff Task Management (Active Opportunities)
   const staffTasksQuery = useMemoFirebase(() => 
-    (db && user) ? query(
+    (db && user && orgId) ? query(
       collection(db, "tasks"), 
+      where("orgId", "==", orgId),
       where("isVolunteerEligible", "==", true),
       orderBy("dueDate", "asc"),
       limit(100)
     ) : null, 
-  [db, user]);
+  [db, user, orgId]);
   const { data: allVolunteerTasks = [], loading: staffTasksLoading } = useCollection<Task>(staffTasksQuery as any);
 
   // Hub News
@@ -315,8 +321,13 @@ export default function VolunteeringPage() {
 
   // Volunteer Directory (Staff Only)
   const volunteersQuery = useMemoFirebase(() => 
-    (db && user) ? query(collection(db, "users"), where("isVolunteer", "==", true), orderBy("registeredAt", "desc")) : null, 
-  [db, user]);
+    (db && user && orgId) ? query(
+      collection(db, "users"), 
+      where("orgId", "==", orgId),
+      where("isVolunteer", "==", true), 
+      orderBy("registeredAt", "desc")
+    ) : null, 
+  [db, user, orgId]);
   const { data: allVolunteers = [], loading: volunteersLoading } = useCollection<any>(volunteersQuery as any);
 
   const currentVolunteerProfile = useMemo(() => 
