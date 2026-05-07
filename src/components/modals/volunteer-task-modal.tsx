@@ -36,6 +36,8 @@ const formSchema = z.object({
   objective: z.string().min(10, "Please provide a clear objective (min 10 chars)").max(500),
   park: z.string().min(1, "Please select a location"),
   dueDate: z.string().min(1, "Please select a deadline"),
+  startDate: z.string().min(1, "Please select a start date"),
+  endDate: z.string().min(1, "Please select an expiry date"),
   maxVolunteers: z.coerce.number().min(1, "Must allow at least 1 volunteer").max(100),
   volunteerPoints: z.coerce.number().min(1, "Must award at least 1 point").max(1000),
   rewardDescription: z.string().optional(),
@@ -76,7 +78,9 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
       title: "",
       objective: "",
       park: "",
-      dueDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0], // Default 1 week
+      dueDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0],
       maxVolunteers: 1,
       volunteerPoints: 10,
       rewardDescription: "",
@@ -105,7 +109,7 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
 
     const taskData = {
       ...data,
-      orgId: profile?.orgId || "hackney-council",
+      orgId: profile?.orgId || organization?.id || "hackney-council",
       status: "Todo",
       assignedTo: "Volunteer Team",
       isVolunteerEligible: true,
@@ -251,14 +255,29 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
                 {errors.volunteerPoints && <p className="text-[10px] font-bold text-destructive">{errors.volunteerPoints.message}</p>}
               </div>
 
-              <div className="grid gap-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-orange-600">Max Volunteers</Label>
-                <Input 
-                  type="number"
-                  {...register("maxVolunteers")} 
-                  className="h-12 font-bold text-lg border-orange-200 focus-visible:ring-orange-500"
-                />
-                {errors.maxVolunteers && <p className="text-[10px] font-bold text-destructive">{errors.maxVolunteers.message}</p>}
+              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Submission Deadline</Label>
+                <Input id="dueDate" type="date" {...register("dueDate")} />
+                {errors.dueDate && <p className="text-xs text-destructive">{errors.dueDate.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maxVolunteers">Max Volunteers</Label>
+                <Input id="maxVolunteers" type="number" {...register("maxVolunteers")} />
+                {errors.maxVolunteers && <p className="text-xs text-destructive">{errors.maxVolunteers.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate" className="text-primary font-bold">Visibility Start Date</Label>
+                <Input id="startDate" type="date" {...register("startDate")} />
+                {errors.startDate && <p className="text-xs text-destructive">{errors.startDate.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate" className="text-primary font-bold">Archiving/Expiry Date</Label>
+                <Input id="endDate" type="date" {...register("endDate")} />
+                {errors.endDate && <p className="text-xs text-destructive">{errors.endDate.message}</p>}
               </div>
             </div>
             

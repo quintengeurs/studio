@@ -349,7 +349,9 @@ export default function TasksPage() {
     rewardDescription: "",
     rewardCode: "",
     maxVolunteers: 0,
-    volunteerPoints: 1
+    volunteerPoints: 1,
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: format(addDays(new Date(), 30), 'yyyy-MM-dd')
   });
 
   const handleVolunteerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -392,6 +394,8 @@ export default function TasksPage() {
         rewardCode: newTask.isVolunteerEligible ? newTask.rewardCode : null,
         maxVolunteers: (newTask.isVolunteerEligible && newTask.maxVolunteers > 0) ? newTask.maxVolunteers : null,
         volunteerPoints: newTask.isVolunteerEligible ? newTask.volunteerPoints : null,
+        startDate: newTask.isVolunteerEligible ? newTask.startDate : null,
+        endDate: newTask.isVolunteerEligible ? newTask.endDate : null,
         createdAt: new Date().toISOString()
     };
 
@@ -416,7 +420,9 @@ export default function TasksPage() {
             rewardDescription: "",
             rewardCode: "",
             maxVolunteers: 0,
-            volunteerPoints: 1
+            volunteerPoints: 1,
+            startDate: format(new Date(), 'yyyy-MM-dd'),
+            endDate: format(addDays(new Date(), 30), 'yyyy-MM-dd')
         });
         setIsGroupAssign(false);
     } catch (error) {
@@ -642,6 +648,27 @@ export default function TasksPage() {
                         />
                       </div>
                       <p className="text-[9px] text-orange-600/70 italic leading-tight">If set, volunteers will see this reward and code upon completing the task.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Visibility Start Date</Label>
+                        <Input 
+                          type="date"
+                          value={newTask.startDate}
+                          onChange={e => setNewTask({...newTask, startDate: e.target.value})}
+                          className="bg-white border-orange-200 text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Archiving/Expiry Date</Label>
+                        <Input 
+                          type="date"
+                          value={newTask.endDate}
+                          onChange={e => setNewTask({...newTask, endDate: e.target.value})}
+                          className="bg-white border-orange-200 text-xs h-9"
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">

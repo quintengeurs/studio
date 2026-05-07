@@ -29,7 +29,8 @@ import {
   Download,
   FileText,
   Mail,
-  Home
+  Home,
+  Archive
 } from "lucide-react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -127,6 +128,7 @@ export default function VolunteeringPage() {
               maxVolunteers: 2,
               rewardDescription: "Free Coffee",
               rewardCode: "COFFEE123",
+              orgId: "hackney-council",
               createdAt: new Date().toISOString()
             });
           }
@@ -145,6 +147,7 @@ export default function VolunteeringPage() {
               isVolunteerVisible: true,
               isStaffVisible: false,
               createdBy: "System",
+              orgId: "hackney-council",
               createdAt: new Date().toISOString(),
               isArchived: false,
               allowResponse: true
@@ -179,9 +182,21 @@ export default function VolunteeringPage() {
       const snapshot = await getDocs(q);
       const allEligible = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Task));
       
+      const today = new Date().toISOString().split('T')[0];
+
       // Filter status and limit in-memory for maximum reliability
       const activeTasks = allEligible
-        .filter(t => ["Todo", "Doing"].includes(t.status))
+        .filter(t => {
+          const isCorrectStatus = ["Todo", "Doing"].includes(t.status);
+          const isNotArchived = !t.isArchived;
+          
+          // Date checks
+          const start = t.startDate || t.createdAt?.split('T')[0] || "0000-00-00";
+          const end = t.endDate || t.dueDate || "9999-99-99";
+          const isCurrentlyActive = today >= start && today <= end;
+          
+          return isCorrectStatus && isNotArchived && isCurrentlyActive;
+        })
         .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
         .slice(0, 50);
         
@@ -218,7 +233,7 @@ export default function VolunteeringPage() {
 
   useEffect(() => {
     fetchTasks();
-  }, [db]);
+  }, [db, effectiveOrgId]);
 
   useEffect(() => {
     fetchMyWork();
@@ -237,17 +252,34 @@ export default function VolunteeringPage() {
   [db, user, effectiveOrgId]);
   const { data: logTasks = [], loading: logLoading } = useCollection<Task>(staffLogQuery as any);
 
-  // Staff Task Management (Active Opportunities)
   const staffTasksQuery = useMemoFirebase(() => 
     (db && user && effectiveOrgId) ? query(
       collection(db, "tasks"), 
       where("orgId", "==", effectiveOrgId),
       where("isVolunteerEligible", "==", true),
       orderBy("dueDate", "asc"),
-      limit(100)
+      limit(200)
     ) : null, 
   [db, user, effectiveOrgId]);
   const { data: allVolunteerTasks = [], loading: staffTasksLoading } = useCollection<Task>(staffTasksQuery as any);
+
+  const staffActiveTasks = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return allVolunteerTasks.filter(t => {
+      if (t.status === 'Completed') return false;
+      const end = t.endDate || t.dueDate || "9999-99-99";
+      return today <= end;
+    });
+  }, [allVolunteerTasks]);
+
+  const staffArchivedTasks = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return allVolunteerTasks.filter(t => {
+      if (t.status === 'Completed') return true;
+      const end = t.endDate || t.dueDate || "9999-99-99";
+      return today > end;
+    });
+  }, [allVolunteerTasks]);
 
   // Hub News
   const volunteerNewsQuery = useMemoFirebase(() => 
@@ -527,7 +559,9 @@ export default function VolunteeringPage() {
         rewardCode: editingTaskData.rewardCode || null,
         maxVolunteers: editingTaskData.maxVolunteers || null,
         volunteerPoints: editingTaskData.volunteerPoints || null,
-        volunteerImageUrl: editingTaskData.volunteerImageUrl || null
+        volunteerImageUrl: editingTaskData.volunteerImageUrl || null,
+        startDate: editingTaskData.startDate || null,
+        endDate: editingTaskData.endDate || null
       });
       toast({ title: "Task Updated", description: "The volunteer opportunity has been updated." });
       setIsEditTaskModalOpen(false);
@@ -777,66 +811,115 @@ export default function VolunteeringPage() {
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold flex items-center gap-2 text-orange-600">
                   <Sparkles className="h-5 w-5" />
-                  Active Volunteer Opportunities
+                  Volunteering Opportunities
                 </h3>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="font-bold">
-                    {allVolunteerTasks.filter(t => t.status !== 'Completed').length} Active
-                  </Badge>
-                  <Button 
-                    size="sm" 
-                    className="bg-orange-500 hover:bg-orange-600 font-bold gap-2"
-                    onClick={() => setIsCreateTaskModalOpen(true)}
-                  >
-                    <Plus className="h-4 w-4" /> Add Opportunity
-                  </Button>
-                </div>
+                <Button size="sm" className="bg-orange-500 hover:bg-orange-600 font-bold gap-2" onClick={() => setIsCreateTaskModalOpen(true)}>
+                  <Plus className="h-4 w-4" /> Add Opportunity
+                </Button>
               </div>
 
-              {allVolunteerTasks.filter(t => t.status !== 'Completed').length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
-                  <Sparkles className="h-12 w-12 mb-4 text-orange-500 opacity-20" />
-                  <p className="text-lg font-medium text-muted-foreground">No active volunteer tasks found.</p>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {allVolunteerTasks.filter(t => t.status !== 'Completed').map(task => (
-                    <Card key={task.id} className="p-4 flex items-center justify-between hover:bg-orange-50/30 transition-colors border-orange-500/10">
-                      <div className="flex items-center gap-4">
-                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                          task.status === 'Doing' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
-                        }`}>
-                          <Sparkles className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-foreground">{task.title}</p>
-                          <div className="flex items-center gap-3">
-                            <Badge variant="secondary" className={`text-[9px] uppercase font-bold tracking-widest border-none ${
-                              task.status === 'Doing' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
-                            }`}>
-                              {task.status}
-                            </Badge>
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park}</p>
+              <Tabs defaultValue="active" className="w-full">
+                <TabsList className="bg-orange-50/50 p-1 rounded-lg mb-4">
+                  <TabsTrigger value="active" className="text-[10px] font-bold uppercase data-[state=active]:bg-orange-500 data-[state=active]:text-white">Active ({staffActiveTasks.length})</TabsTrigger>
+                  <TabsTrigger value="archived" className="text-[10px] font-bold uppercase data-[state=active]:bg-orange-500 data-[state=active]:text-white">Archived ({staffArchivedTasks.length})</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="active">
+                  <div className="grid gap-4">
+                    {staffActiveTasks.length === 0 ? (
+                      <div className="py-12 text-center border-2 border-dashed rounded-3xl opacity-50">
+                        <p className="text-sm font-bold">No active opportunities found.</p>
+                      </div>
+                    ) : (
+                      staffActiveTasks.map(task => {
+                        const today = new Date().toISOString().split('T')[0];
+                        const start = task.startDate || task.createdAt?.split('T')[0] || "0000-00-00";
+                        const isScheduled = today < start;
+
+                        return (
+                          <Card key={task.id} className="p-4 flex items-center justify-between hover:bg-orange-50/30 transition-colors border-orange-500/10">
+                            <div className="flex items-center gap-4">
+                              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                                isScheduled ? 'bg-yellow-100 text-yellow-600' :
+                                task.status === 'Doing' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
+                              }`}>
+                                {isScheduled ? <Clock className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-bold text-foreground">{task.title}</p>
+                                  {isScheduled && <Badge className="bg-yellow-500 text-white text-[8px] uppercase">Scheduled: {start}</Badge>}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Badge variant="secondary" className={`text-[9px] uppercase font-bold tracking-widest border-none ${
+                                    task.status === 'Doing' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                                  }`}>
+                                    {task.status}
+                                  </Badge>
+                                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-muted-foreground hover:text-orange-600 hover:bg-orange-100/50"
+                                onClick={() => {
+                                  setEditingTaskData({...task});
+                                  setIsEditTaskModalOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" /> Edit
+                              </Button>
+                            </div>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="archived">
+                  <div className="grid gap-4">
+                    {staffArchivedTasks.length === 0 ? (
+                      <div className="py-12 text-center border-2 border-dashed rounded-3xl opacity-50">
+                        <p className="text-sm font-bold">No archived opportunities.</p>
+                      </div>
+                    ) : (
+                      staffArchivedTasks.map(task => (
+                        <Card key={task.id} className="p-4 flex items-center justify-between opacity-70 grayscale-[0.5] bg-muted/20 border-orange-500/5">
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-xl bg-muted text-muted-foreground flex items-center justify-center">
+                              <Archive className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-muted-foreground">{task.title}</p>
+                              <div className="flex items-center gap-3">
+                                <Badge variant="outline" className="text-[9px] uppercase font-bold tracking-widest">
+                                  {task.status === 'Completed' ? 'Completed' : 'Expired'}
+                                </Badge>
+                                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{task.park}</p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-muted-foreground hover:text-orange-600 hover:bg-orange-100/50"
-                          onClick={() => {
-                            setEditingTaskData({...task});
-                            setIsEditTaskModalOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4 mr-2" /> Edit Task
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-muted-foreground hover:text-orange-600"
+                            onClick={() => {
+                              setEditingTaskData({...task});
+                              setIsEditTaskModalOpen(true);
+                            }}
+                          >
+                            View
+                          </Button>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </TabsContent>
 
@@ -1525,11 +1608,32 @@ export default function VolunteeringPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Due Date</Label>
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Submission Deadline</Label>
                       <Input 
                         type="date" 
                         value={editingTaskData.dueDate ? editingTaskData.dueDate.split('T')[0] : ''} 
                         onChange={e => setEditingTaskData({...editingTaskData, dueDate: e.target.value})} 
+                        className="bg-white border-orange-200 h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Visibility Start Date</Label>
+                      <Input 
+                        type="date" 
+                        value={editingTaskData.startDate || ''} 
+                        onChange={e => setEditingTaskData({...editingTaskData, startDate: e.target.value})} 
+                        className="bg-white border-orange-200 h-9"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-orange-700">Archiving/Expiry Date</Label>
+                      <Input 
+                        type="date" 
+                        value={editingTaskData.endDate || ''} 
+                        onChange={e => setEditingTaskData({...editingTaskData, endDate: e.target.value})} 
                         className="bg-white border-orange-200 h-9"
                       />
                     </div>
