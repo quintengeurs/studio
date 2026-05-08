@@ -452,7 +452,7 @@ export default function InspectionsPage() {
               <DialogTitle className="font-headline">Schedule New Inspection</DialogTitle>
               <DialogDescription>Assign a condition check for a specific asset.</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="flex-1 p-6">
+            <div className="flex-1 overflow-y-auto p-6 min-h-0">
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
@@ -602,7 +602,7 @@ export default function InspectionsPage() {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
             <DialogFooter className="p-6 border-t bg-muted/50">
               <Button className="w-full" onClick={handleScheduleInspection} disabled={(!newInspection.assetId && selectedAssetIds.length === 0) || isSubmitting}>
                 {isSubmitting ? "Scheduling..." : "Complete Schedule"}
@@ -892,7 +892,7 @@ export default function InspectionsPage() {
             <DialogTitle className="font-headline">Edit Scheduled Inspection</DialogTitle>
             <DialogDescription>Modify the full regime for: {editingInspection?.assetName}</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 p-6">
+          <div className="flex-1 overflow-y-auto p-6 min-h-0">
             {editingInspection && (
               <div className="grid gap-6 py-4">
                 <div className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
@@ -1041,7 +1041,7 @@ export default function InspectionsPage() {
                 </div>
               </div>
             )}
-          </ScrollArea>
+          </div>
           <DialogFooter className="p-6 border-t bg-muted/50">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
             <Button className="font-bold px-8 shadow-lg shadow-primary/20" onClick={handleUpdateInspection} disabled={isSubmitting}>
