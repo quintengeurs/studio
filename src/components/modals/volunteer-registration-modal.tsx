@@ -77,10 +77,23 @@ export function VolunteerRegistrationModal({
       });
       onSuccess(email.toLowerCase());
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      let message = "Failed to register. Please try again.";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        message = "This email is already registered. Try logging in instead!";
+      } else if (error.code === 'auth/weak-password') {
+        message = "Password is too weak. Please use at least 6 characters.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        message = "Email/Password sign-in is not enabled in the Firebase Console.";
+      } else if (error.code === 'auth/invalid-email') {
+        message = "Please enter a valid email address.";
+      }
+
       toast({
         title: "Registration Error",
-        description: "Failed to register. Please try again.",
+        description: message,
         variant: "destructive",
       });
     } finally {
