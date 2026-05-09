@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/firebase";
+import { db } from "@/firebase/config";
+import { doc, getDoc } from "firebase/firestore";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Dialog, 
@@ -35,12 +37,34 @@ export default function LoginPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [viewMode, setViewMode] = useState<'selection' | 'staff-login'>('selection');
   const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
+  const [orgData, setOrgData] = useState<{ name: string; slug: string } | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const org = params.get('org');
     if (org) setUrlOrgId(org);
   }, []);
+
+  // Fetch org name from Firestore when we have a slug
+  useEffect(() => {
+    if (!urlOrgId) return;
+    const fetchOrg = async () => {
+      try {
+        // The org document ID matches the slug
+        const snap = await getDoc(doc(db, "organizations", urlOrgId));
+        if (snap.exists()) {
+          const data = snap.data() as { name: string; slug: string };
+          setOrgData(data);
+        }
+      } catch (e) {
+        console.warn("Could not fetch org data:", e);
+      }
+    };
+    fetchOrg();
+  }, [urlOrgId]);
+
+  const orgDisplayName = orgData?.name || "Hackney Parks";
+  const orgBranding = orgData?.name ? `${orgData.name} • Parks & Green Spaces` : "Hackney Council • Parks & Green Spaces Management";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,8 +127,8 @@ export default function LoginPage() {
                 <Leaf className="h-12 w-12" />
               </div>
             </div>
-            <h1 className="text-5xl font-headline font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Welcome to Hackney Parks</h1>
-            <p className="text-muted-foreground text-lg max-w-lg mx-auto">Select your portal to access the management system or join our community of volunteers.</p>
+            <h1 className="text-5xl font-headline font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Welcome to {orgDisplayName}</h1>
+            <p className="text-muted-foreground text-lg max-w-lg mx-auto">Select your portal to access the {orgData ? orgData.name : 'Hackney Parks'} management system or join our community of volunteers.</p>
           </div>
 
           <div className="grid gap-8 md:grid-cols-2 w-full">
@@ -152,7 +176,7 @@ export default function LoginPage() {
                 <div>
                   <CardTitle className="text-3xl font-bold">Volunteer Hub</CardTitle>
                   <CardDescription className="mt-2 text-base">
-                    Help us maintain our parks and green spaces. No login required.
+                    Help us maintain {orgData ? `${orgData.name}'s` : 'our'} parks and green spaces. No login required.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -177,7 +201,7 @@ export default function LoginPage() {
           <div className="text-center pt-16">
              <div className="h-px w-24 bg-border mx-auto mb-6" />
              <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold opacity-60">
-               Hackney Council • Parks & Green Spaces Management
+               {orgBranding}
              </p>
              {typeof window !== 'undefined' && window.location.search.includes('bypass=true') && (
                <Button 
