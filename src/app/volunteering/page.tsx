@@ -43,7 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { useUserContext } from "@/context/UserContext";
-import { collection, query, where, orderBy, limit, doc, updateDoc, arrayUnion, arrayRemove, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDocs, getDoc, collection, query, where, limit, orderBy, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { Task } from "@/lib/types";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -555,7 +555,32 @@ export default function VolunteeringPage() {
       await updateDoc(doc(db, "users", volunteerId), { status: 'rejected' });
       toast({ title: "Registration Rejected" });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to reject registration.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to approve volunteer.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteSubmission = async (taskId: string) => {
+    if (!db || !volunteerEmail) return;
+    if (!confirm("Are you sure you want to delete this submission? This will remove your proof and activity log for this task.")) return;
+    
+    setIsSubmitting(true);
+    try {
+      const taskRef = doc(db, "tasks", taskId);
+      await updateDoc(taskRef, {
+        doingByVolunteers: arrayRemove(volunteerEmail),
+        completedByVolunteers: arrayRemove(volunteerEmail),
+        redeemedByVolunteers: arrayRemove(volunteerEmail),
+        completionImageUrl: "",
+        completionNote: ""
+      });
+      
+      toast({ title: "Submission Deleted", description: "Your activity log and proof have been removed." });
+      handleRefreshData();
+    } catch (e) {
+      console.error("Failed to delete submission", e);
+      toast({ title: "Error", description: "Failed to delete submission.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -1190,6 +1215,9 @@ export default function VolunteeringPage() {
             <TabsTrigger value="news" data-tour="vol-tab-news" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Megaphone className="h-4 w-4 shrink-0" /> <span className="truncate">Hub News</span>
             </TabsTrigger>
+            <TabsTrigger value="manage" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+              <Archive className="h-4 w-4 shrink-0" /> <span className="truncate">Manage Log</span>
+            </TabsTrigger>
             <TabsTrigger value="profile" data-tour="vol-tab-profile" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Home className="h-4 w-4 shrink-0" /> <span className="truncate">My Profile</span>
             </TabsTrigger>
@@ -1504,6 +1532,58 @@ export default function VolunteeringPage() {
                     );
                   })
                 )}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="manage">
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Archive className="h-6 w-6 text-orange-500" />
+                <h3 className="text-2xl font-bold">Manage Submissions</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Here you can withdraw from tasks you are currently helping with, or delete past submissions to remove your proof from the log.
+              </p>
+
+              <div className="grid gap-4">
+                {[...myInProgressTasks, ...myCompletedTasks].length === 0 && (
+                  <div className="p-8 border-2 border-dashed rounded-3xl bg-muted/20 text-center">
+                    <p className="text-sm text-muted-foreground italic">You don't have any active or completed submissions to manage.</p>
+                  </div>
+                )}
+                
+                {[...myInProgressTasks, ...myCompletedTasks].map(task => {
+                  const isCompleted = task.completedByVolunteers?.includes(volunteerEmail || "");
+                  return (
+                    <div key={`manage-${task.id}`} className="flex items-center justify-between p-4 rounded-2xl bg-white border shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${isCompleted ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                          {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <p className="font-bold text-foreground">{task.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-[10px] uppercase font-bold">
+                              {isCompleted ? 'Completed' : 'In Progress'}
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">{task.park}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        className="font-bold gap-2 rounded-xl"
+                        onClick={() => handleDeleteSubmission(task.id)}
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {isCompleted ? "Delete Submission" : "Withdraw"}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </TabsContent>
