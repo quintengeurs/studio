@@ -40,7 +40,7 @@ export default function LoginPage() {
   const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
   const [orgData, setOrgData] = useState<{ name: string; slug: string } | null>(null);
 
-  const { profile, isManagement, loading: userLoading } = useUserContext();
+  const { profile, isManagement, effectiveOrgId, loading: userLoading } = useUserContext();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -54,6 +54,13 @@ export default function LoginPage() {
       router.push("/");
     }
   }, [profile, isManagement, userLoading, router]);
+
+  // Proactive Redirect: If already volunteer, go to Hub
+  useEffect(() => {
+    if (!userLoading && profile && !isManagement && (profile.roles?.includes('Volunteer') || profile.isVolunteer)) {
+      router.push(`/hub/${effectiveOrgId || 'hackney-council'}`);
+    }
+  }, [profile, isManagement, userLoading, router, effectiveOrgId]);
 
   // Fetch org name from Firestore when we have a slug
   useEffect(() => {

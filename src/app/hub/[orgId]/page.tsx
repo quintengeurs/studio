@@ -1139,11 +1139,16 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                 : "Join our team of dedicated volunteers. From biodiversity surveys to seasonal maintenance, your contribution helps keep our parks beautiful for everyone."
               }
             </p>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               {!volunteerEmail ? (
-                <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 font-bold" onClick={() => setIsRegModalOpen(true)}>
-                  Register as Volunteer
-                </Button>
+                <>
+                  <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 font-bold" onClick={() => setIsRegModalOpen(true)}>
+                    Register as Volunteer
+                  </Button>
+                  <Button size="lg" variant="ghost" className="text-white hover:bg-white/10 border border-white/30 font-bold" onClick={() => window.location.href = `/login?org=${effectiveOrgId}`}>
+                    Sign In
+                  </Button>
+                </>
               ) : (
                 <div className="flex items-center gap-3">
                   {effectiveStatus === 'pending' && (
