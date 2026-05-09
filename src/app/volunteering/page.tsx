@@ -67,24 +67,26 @@ import { useDataContext } from "@/context/DataContext";
 export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
-  const { profile } = useUserContext();
+  const { profile, isManagement, isMaster } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
   
   // Organization Resolution
-  const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const org = params.get('org');
-    if (org) setUrlOrgId(org);
-  }, []);
+  const [urlOrgId, setUrlOrgId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('org');
+    }
+    return null;
+  });
 
   const effectiveOrgId = useMemo(() => {
-    // If logged in as staff, always use their orgId
+    // If a specific org is requested via URL, respect it (allows staff to view public portals of other orgs)
+    if (urlOrgId) return urlOrgId;
+    // Otherwise, default to their logged-in org
     if (user && profile?.orgId) return profile.orgId;
-    // If public or profile not yet loaded, use URL or default
-    return urlOrgId || "hackney-council";
+    // Fallback to default
+    return "hackney-council";
   }, [profile?.orgId, urlOrgId, user]);
   
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
@@ -671,7 +673,9 @@ export default function VolunteeringPage() {
     return allPossible.find(t => t.id === selectedTaskId) || null;
   }, [tasks, logTasks, myCompletedTasks, selectedTaskId]);
 
-  if (user) {
+  const showStaffView = user && isManagement && (effectiveOrgId === profile?.orgId || isMaster);
+
+  if (showStaffView) {
     // Staff View: Volunteer Management
     return (
       <DashboardShell 
