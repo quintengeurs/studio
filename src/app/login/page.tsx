@@ -117,7 +117,7 @@ export default function LoginPage() {
       <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-      <div className="w-full max-w-[500px] relative z-10">
+      <div className="w-full max-w-[550px] relative z-10">
         <div className="text-center mb-8">
             <div className="flex justify-center mb-6">
                 <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20">
@@ -196,7 +196,7 @@ export default function LoginPage() {
 
                 <div className="w-full px-2">
                     <Link 
-                        href={urlOrgId ? `/hub/${urlOrgId}` : '/volunteering'}
+                        href={urlOrgId ? `/hub/${urlOrgId}` : '/hub/hackney-council'}
                         className="flex items-center justify-center w-full h-12 border-2 border-orange-500/20 hover:border-orange-500/50 hover:bg-orange-500/5 text-orange-600 font-bold group rounded-xl transition-all"
                     >
                         <Heart className="mr-2 h-5 w-5 text-orange-500 group-hover:scale-110 transition-transform" />
