@@ -116,7 +116,7 @@ export function AppSidebar() {
 
   return (
     <>
-      <Sidebar collapsible="icon">
+      <Sidebar id="app-sidebar" collapsible="icon">
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0 overflow-hidden">
@@ -175,10 +175,14 @@ export function AppSidebar() {
                     isActive={pathname === item.href}
                     tooltip={item.title}
                   >
-                    <Link href={item.href} onClick={() => {
-                      if (isMobile) setOpenMobile(false);
-                      document.body.style.pointerEvents = 'auto';
-                    }}>
+                    <Link 
+                      href={item.href} 
+                      data-tour={item.title === 'My Tasks' ? 'nav-my-tasks' : item.title === 'Info Corner' ? 'nav-info-corner' : undefined}
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                        document.body.style.pointerEvents = 'auto';
+                      }}
+                    >
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>

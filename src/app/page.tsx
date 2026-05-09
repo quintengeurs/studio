@@ -439,7 +439,7 @@ export default function Dashboard() {
       title="My Workspace" 
       description="Overview of your assigned tasks, issues, and requests"
     >
-      <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4" id="tour-quick-access">
         {/* Quick Access Groups for Desktop */}
         <div className="col-span-full mb-2">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -506,6 +506,7 @@ export default function Dashboard() {
             variant="outline" 
             className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
             onClick={() => setIssueModalOpen(true)}
+            data-tour="btn-raise-issue"
           >
             <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -548,7 +549,7 @@ export default function Dashboard() {
               </Button>
             )}
             {permissions.viewIssues && (
-              <Link href="/issues?tab=unassigned" className="block">
+              <Link href="/issues?tab=unassigned" className="block" data-tour="btn-unassigned-issues">
                 <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative group">
                   <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
                     <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -569,7 +570,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4" id="tour-stat-cards">
         {!isUserGroup && (
           <Link href="/tasks" className="block">
             <Card className="border-l-4 border-l-accent shadow-sm hover:shadow-md transition-all hover:bg-muted/30 cursor-pointer h-full">

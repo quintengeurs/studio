@@ -11,6 +11,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useUser } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import dynamic from "next/dynamic";
+
+const OnboardingTour = dynamic(
+  () => import("@/components/onboarding/OnboardingTour").then(m => m.OnboardingTour),
+  { ssr: false }
+);
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -25,6 +32,7 @@ export function DashboardShell({ children, title, description, actions, isPublic
   const isMobile = useIsMobile();
   const { user, loading } = useUser();
   const router = useRouter();
+  const { shouldShowTour, markTourComplete } = useOnboarding();
 
   useEffect(() => {
     if (!loading && !user && !isPublic) {
@@ -121,6 +129,9 @@ export function DashboardShell({ children, title, description, actions, isPublic
           </div>
         )}
       </SidebarInset>
+      {shouldShowTour && !!user && !isPublic && (
+        <OnboardingTour onComplete={markTourComplete} />
+      )}
     </div>
   );
 }

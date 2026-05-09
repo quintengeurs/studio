@@ -97,6 +97,7 @@ export interface User {
   completedTasksCount?: number;
   status?: string;
   registeredAt?: string;
+  hasCompletedOnboarding?: boolean;
 }
 
 export interface Asset {
