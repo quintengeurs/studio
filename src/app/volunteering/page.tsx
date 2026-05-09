@@ -31,7 +31,9 @@ import {
   FileText,
   Mail,
   Home,
-  Archive
+  Archive,
+  LogOut,
+  LogIn
 } from "lucide-react";
 import Image from "next/image";
 import { useVolunteerOnboarding } from "@/hooks/use-onboarding";
@@ -1168,7 +1170,48 @@ export default function VolunteeringPage() {
       <div className="space-y-8">
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 to-amber-400 p-8 text-white shadow-xl">
-          <div className="relative z-10 max-w-2xl">
+          <div className="absolute top-4 right-4 z-20 flex flex-col sm:flex-row items-end sm:items-center gap-2">
+            {user ? (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm text-[10px] sm:text-xs h-8"
+                onClick={async () => {
+                  const { getAuth, signOut } = await import("firebase/auth");
+                  await signOut(getAuth());
+                }}
+              >
+                <LogOut className="h-3 w-3 sm:mr-2" />
+                <span className="hidden sm:inline">Staff Sign Out</span>
+              </Button>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm text-[10px] sm:text-xs h-8"
+                onClick={() => window.location.href = `/login?org=${effectiveOrgId}`}
+              >
+                <LogIn className="h-3 w-3 sm:mr-2" />
+                <span className="hidden sm:inline">Staff Login</span>
+              </Button>
+            )}
+            
+            {volunteerEmail && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm text-[10px] sm:text-xs h-8"
+                onClick={() => {
+                  localStorage.removeItem("volunteerEmail");
+                  setVolunteerEmail(null);
+                }}
+              >
+                <LogOut className="h-3 w-3 sm:mr-2" />
+                <span className="hidden sm:inline">Sign Out Volunteer</span>
+              </Button>
+            )}
+          </div>
+          <div className="relative z-10 max-w-2xl mt-4 sm:mt-0">
             <Badge className="bg-white/20 text-white border-white/30 mb-4 backdrop-blur-sm">Community Hub</Badge>
             <h2 className="text-4xl font-bold mb-4">
               {volunteerEmail ? "Welcome Back, Volunteer!" : "Make a Difference in Your Local Park"}
