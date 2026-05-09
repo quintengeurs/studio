@@ -12,6 +12,7 @@ import { useUser } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useOnboarding } from "@/hooks/use-onboarding";
+import { useUserContext } from "@/context/UserContext";
 import dynamic from "next/dynamic";
 
 const OnboardingTour = dynamic(
@@ -75,7 +76,8 @@ export function DashboardShell({ children, title, description, actions, isPublic
     return null;
   }
 
-  const showNav = !!user;
+  const { isManagement } = useUserContext();
+  const showNav = !!user && !isPublic && isManagement;
 
   return (
     <div className="flex min-h-screen bg-background w-full overflow-x-hidden">
