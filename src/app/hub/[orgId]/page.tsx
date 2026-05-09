@@ -119,6 +119,14 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [editingTaskData, setEditingTaskData] = useState<any>(null);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+  
+  const [showStaffView, setShowStaffView] = useState(false);
+
+  // Auto-switch to staff view if user is management
+  useEffect(() => {
+    if (isManagement) setShowStaffView(true);
+    else setShowStaffView(false);
+  }, [isManagement]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");
