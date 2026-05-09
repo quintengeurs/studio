@@ -18,7 +18,10 @@ import {
   ExternalLink,
   ChevronRight,
   Search,
-  X
+  X,
+  Link,
+  Copy,
+  CheckCheck
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +57,9 @@ export default function PlatformAdmin() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editOrgName, setEditOrgName] = useState("");
+  const [editOrgSlug, setEditOrgSlug] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -155,6 +161,37 @@ export default function PlatformAdmin() {
     } catch (error) {
       toast({ title: "Update Failed", variant: "destructive" });
     }
+  };
+
+  const handleUpdateOrgDetails = async () => {
+    if (!db || !editingOrg || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const updates: any = {};
+      if (editOrgName && editOrgName !== editingOrg.name) updates.name = editOrgName;
+      if (editOrgSlug && editOrgSlug !== editingOrg.slug) updates.slug = editOrgSlug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      if (Object.keys(updates).length > 0) {
+        await updateDoc(doc(db, "organizations", editingOrg.id), updates);
+        toast({ title: "Organization Updated", description: "Details saved successfully." });
+      }
+      setIsEditOpen(false);
+    } catch (error) {
+      toast({ title: "Update Failed", description: "Could not save org details.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyUrl = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+    toast({ title: "Copied!", description: "URL copied to clipboard." });
+  };
+
+  const getBaseUrl = () => {
+    if (typeof window !== 'undefined') return window.location.origin;
+    return 'https://studio--studio-4537887383-23869.europe-west4.hosted.app';
   };
 
   const handleRunMigration = async () => {
@@ -272,6 +309,8 @@ export default function PlatformAdmin() {
                                 <div className="flex gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => {
                                         setEditingOrg(org);
+                                        setEditOrgName(org.name);
+                                        setEditOrgSlug(org.slug);
                                         setIsEditOpen(true);
                                     }} title="Edit Access">
                                         <Edit2 className="h-4 w-4" />
@@ -298,6 +337,8 @@ export default function PlatformAdmin() {
                                 <div className="pt-4 border-t flex justify-between items-center">
                                     <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold uppercase bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={() => {
                                         setEditingOrg(org);
+                                        setEditOrgName(org.name);
+                                        setEditOrgSlug(org.slug);
                                         setIsEditOpen(true);
                                     }}>
                                         Edit Access
@@ -363,14 +404,92 @@ export default function PlatformAdmin() {
 
         {/* Edit Org Dialog */}
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[540px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="p-6 pb-4 border-b">
                     <DialogTitle className="flex items-center gap-2">
                         <Edit2 className="h-5 w-5 text-primary" /> Edit Organization: {currentEditingOrg?.name}
                     </DialogTitle>
-                    <DialogDescription>Modify feature entitlements and organization settings.</DialogDescription>
+                    <DialogDescription>Modify feature entitlements, org details, and portal URLs.</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-6 py-4">
+                <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-6">
+
+                    {/* Org Details */}
+                    <div className="space-y-3">
+                        <Label className="text-[11px] font-bold uppercase tracking-widest text-primary">Organisation Details</Label>
+                        <div className="grid gap-3">
+                            <div className="grid gap-1.5">
+                                <Label className="text-xs font-bold opacity-60">Display Name</Label>
+                                <Input 
+                                    value={editOrgName} 
+                                    onChange={e => setEditOrgName(e.target.value)} 
+                                    placeholder="Organisation Name"
+                                    className="h-9"
+                                />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label className="text-xs font-bold opacity-60">URL Slug</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input 
+                                        value={editOrgSlug} 
+                                        onChange={e => setEditOrgSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))}
+                                        placeholder="url-slug" 
+                                        className="h-9 font-mono text-xs"
+                                    />
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="h-9 shrink-0 font-bold text-[10px] uppercase"
+                                        onClick={handleUpdateOrgDetails}
+                                        disabled={isSubmitting || (editOrgSlug === currentEditingOrg?.slug && editOrgName === currentEditingOrg?.name)}
+                                    >
+                                        Save
+                                    </Button>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">Only lowercase letters, numbers and hyphens. Changing this updates portal links.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Portal URLs */}
+                    <div className="space-y-3 p-4 rounded-xl bg-primary/5 border border-primary/10">
+                        <Label className="text-[11px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5"><Link className="h-3.5 w-3.5" /> Portal URLs</Label>
+                        <div className="space-y-2">
+                            <div className="grid gap-1">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Staff Login</span>
+                                <div className="flex items-center gap-2">
+                                    <code className="text-[10px] bg-background border rounded px-2 py-1.5 flex-1 truncate font-mono">
+                                        {getBaseUrl()}/login?org={editOrgSlug || currentEditingOrg?.slug}
+                                    </code>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleCopyUrl(`${getBaseUrl()}/login?org=${editOrgSlug || currentEditingOrg?.slug}`)}>
+                                        {isCopied ? <CheckCheck className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" asChild>
+                                        <a href={`${getBaseUrl()}/login?org=${editOrgSlug || currentEditingOrg?.slug}`} target="_blank" rel="noopener noreferrer">
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="grid gap-1">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Volunteer Portal</span>
+                                <div className="flex items-center gap-2">
+                                    <code className="text-[10px] bg-background border rounded px-2 py-1.5 flex-1 truncate font-mono">
+                                        {getBaseUrl()}/volunteering?org={editOrgSlug || currentEditingOrg?.slug}
+                                    </code>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleCopyUrl(`${getBaseUrl()}/volunteering?org=${editOrgSlug || currentEditingOrg?.slug}`)}>
+                                        {isCopied ? <CheckCheck className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" asChild>
+                                        <a href={`${getBaseUrl()}/volunteering?org=${editOrgSlug || currentEditingOrg?.slug}`} target="_blank" rel="noopener noreferrer">
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Feature Entitlements */}
                     <div className="space-y-4">
                         <Label className="text-[11px] font-bold uppercase tracking-widest text-primary">Feature Entitlements</Label>
                         <div className="grid grid-cols-2 gap-3">
@@ -389,7 +508,7 @@ export default function PlatformAdmin() {
                         </div>
                     </div>
 
-                    <div className="pt-6 border-t">
+                    <div className="pt-2 border-t">
                         <Button variant="destructive" className="w-full font-bold" onClick={() => {
                             if (confirm(`Are you sure you want to delete ${currentEditingOrg?.name}? This action is permanent.`)) {
                                 toast({ title: "Delete Requested", description: "This feature is coming soon." });
@@ -399,8 +518,11 @@ export default function PlatformAdmin() {
                         </Button>
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button onClick={() => setIsEditOpen(false)}>Done</Button>
+                <DialogFooter className="p-6 border-t bg-muted/30">
+                    <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                    <Button onClick={handleUpdateOrgDetails} disabled={isSubmitting || (editOrgSlug === currentEditingOrg?.slug && editOrgName === currentEditingOrg?.name)} className="font-bold px-8">
+                        {isSubmitting ? "Saving..." : "Save Details"}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

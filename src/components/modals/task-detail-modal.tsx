@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useFirestore, useUser } from "@/firebase";
-import { updateDoc, doc, arrayUnion, increment, collection, query, where, getDocs } from "firebase/firestore";
+import { updateDoc, doc, arrayUnion, increment, collection, query, where, getDocs, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useUserContext } from "@/context/UserContext";
 import { Task, Issue, User } from "@/lib/types";

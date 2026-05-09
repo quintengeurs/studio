@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,13 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [isResetting, setIsResetting] = useState(false);
   const [viewMode, setViewMode] = useState<'selection' | 'staff-login'>('selection');
+  const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const org = params.get('org');
+    if (org) setUrlOrgId(org);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +143,7 @@ export default function LoginPage() {
             {/* Volunteer Card */}
             <Card 
               className="border-2 hover:border-orange-500/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-2 overflow-hidden flex flex-col items-center text-center"
-              onClick={() => router.push('/volunteering')}
+              onClick={() => router.push(urlOrgId ? `/volunteering?org=${urlOrgId}` : '/volunteering')}
             >
               <CardHeader className="space-y-4 flex flex-col items-center pt-8">
                 <div className="h-16 w-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 transition-colors group-hover:bg-orange-500 group-hover:text-white">

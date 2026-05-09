@@ -1135,7 +1135,7 @@ export default function VolunteeringPage() {
     >
       <div className="space-y-8">
         {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 to-pink-500 p-8 text-white shadow-xl">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 to-amber-400 p-8 text-white shadow-xl">
           <div className="relative z-10 max-w-2xl">
             <Badge className="bg-white/20 text-white border-white/30 mb-4 backdrop-blur-sm">Community Hub</Badge>
             <h2 className="text-4xl font-bold mb-4">
@@ -1179,7 +1179,7 @@ export default function VolunteeringPage() {
             <TabsTrigger value="activity" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold relative text-xs sm:text-sm">
               <UserCheck className="h-4 w-4 shrink-0" /> <span className="truncate">My Activity</span>
               {(myInProgressTasks.length > 0 || contributionsWithRewards.length > 0) && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-500 text-[10px] text-white font-bold shadow-sm">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] text-white font-bold shadow-sm">
                   {myInProgressTasks.length + contributionsWithRewards.length}
                 </span>
               )}
@@ -1240,27 +1240,33 @@ export default function VolunteeringPage() {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
                         </div>
                       )}
-                      <CardHeader className="pb-4 relative">
-                        <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                           <Badge className={`${task.doingByVolunteers?.includes(volunteerEmail || "") ? 'bg-blue-500' : (task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) ? 'bg-muted text-muted-foreground' : 'bg-orange-500'} text-white shadow-lg`}>
-                             {task.doingByVolunteers?.includes(volunteerEmail || "") 
-                               ? 'In Progress' 
-                               : (task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) 
-                                 ? 'Role Full' 
-                                 : 'Open Opportunity'}
-                           </Badge>
-                           {(task.doingByVolunteers?.length || 0) > 0 || task.maxVolunteers ? (
-                             <Badge variant="secondary" className={`bg-white/90 ${task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers ? 'text-red-600 border-red-200' : 'text-orange-600 border-orange-200'} shadow-sm text-[9px] font-black`}>
-                               <Users className="h-3 w-3 mr-1" /> 
-                               {task.doingByVolunteers?.length || 0}{task.maxVolunteers ? `/${task.maxVolunteers}` : ''} ACTIVE
-                             </Badge>
-                           ) : null}
-                           {task.rewardDescription && (
-                             <Badge className="bg-pink-500 text-white shadow-md animate-pulse">🎁 Reward: {task.rewardDescription}</Badge>
-                           )}
+                      <CardHeader className="pb-4">
+                        {/* Status + capacity badges in a row — no absolute positioning to prevent title overlap */}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                          <Badge className={`${task.doingByVolunteers?.includes(volunteerEmail || "") ? 'bg-blue-500' : (task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) ? 'bg-muted text-muted-foreground' : 'bg-orange-500'} text-white shadow-sm text-[10px]`}>
+                            {task.doingByVolunteers?.includes(volunteerEmail || "") 
+                              ? 'In Progress' 
+                              : (task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) 
+                                ? 'Role Full' 
+                                : 'Open'}
+                          </Badge>
+                          {((task.doingByVolunteers?.length || 0) > 0 || task.maxVolunteers) && (
+                            <Badge variant="secondary" className={`${task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers ? 'bg-red-50 text-red-600 border-red-200' : 'bg-orange-50 text-orange-600 border-orange-200'} shadow-sm text-[9px] font-black border`}>
+                              <Users className="h-3 w-3 mr-1" /> 
+                              {task.doingByVolunteers?.length || 0}{task.maxVolunteers ? `/${task.maxVolunteers}` : ''} ACTIVE
+                            </Badge>
+                          )}
+                          {task.rewardDescription && (
+                            <Badge className="bg-amber-400 text-white shadow-sm text-[10px]">🎁 {task.rewardDescription}</Badge>
+                          )}
+                          {task.volunteerPoints && (
+                            <Badge className="bg-yellow-500/10 text-yellow-700 border border-yellow-300 text-[10px]">
+                              ⭐ {task.volunteerPoints} pts
+                            </Badge>
+                          )}
                         </div>
                         {!task.volunteerImageUrl && (
-                          <div className="h-12 w-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-4 group-hover:scale-110 transition-transform">
+                          <div className="h-12 w-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-3 group-hover:scale-110 transition-transform">
                             <Users className="h-6 w-6" />
                           </div>
                         )}
@@ -1338,35 +1344,35 @@ export default function VolunteeringPage() {
               {contributionsWithRewards.length > 0 && (
                 <div className="space-y-4 pt-4">
                   <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                    <Heart className="h-5 w-5 text-pink-500 fill-current" />
+                    <Heart className="h-5 w-5 text-amber-400 fill-current" />
                     Your Available Rewards
                   </h3>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {contributionsWithRewards.map(task => (
                       <Card 
                         key={task.id} 
-                        className="group border-pink-500/10 overflow-hidden flex flex-col bg-pink-50/20 cursor-pointer rounded-3xl"
+                        className="group border-amber-400/20 overflow-hidden flex flex-col bg-amber-50/30 cursor-pointer rounded-3xl"
                         onClick={() => handleTaskAction(task.id)}
                       >
-                        <CardHeader className="pb-4 relative">
-                          <div className="absolute top-0 right-0 p-4 flex flex-col items-end gap-2">
-                             <Badge className="bg-green-500 text-white shadow-lg">Work Completed</Badge>
-                             <Badge className="bg-pink-500 text-white shadow-md animate-bounce">🎁 Reward Ready!</Badge>
+                        <CardHeader className="pb-4">
+                          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                            <Badge className="bg-green-500 text-white shadow-sm text-[10px]">✓ Work Completed</Badge>
+                            <Badge className="bg-amber-400 text-white shadow-sm text-[10px] animate-bounce">🎁 Reward Ready!</Badge>
                           </div>
-                          <div className="h-10 w-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-500 mb-2">
+                          <div className="h-10 w-10 rounded-xl bg-amber-400/10 flex items-center justify-center text-amber-500 mb-2">
                             <Heart className="h-5 w-5 fill-current" />
                           </div>
                           <CardTitle className="text-lg leading-tight font-headline">{task.title}</CardTitle>
                         </CardHeader>
                         <CardContent className="pb-4 flex-1">
-                          <div className="p-3 rounded-xl bg-white border-2 border-dashed border-pink-200 text-center shadow-inner">
-                            <span className="text-[10px] font-bold uppercase text-pink-400 block mb-1 tracking-widest">Your Reward</span>
-                            <span className="text-md font-black text-pink-700">{task.rewardDescription}</span>
+                          <div className="p-3 rounded-xl bg-white border-2 border-dashed border-amber-200 text-center shadow-inner">
+                            <span className="text-[10px] font-bold uppercase text-amber-500 block mb-1 tracking-widest">Your Reward</span>
+                            <span className="text-md font-black text-amber-700">{task.rewardDescription}</span>
                           </div>
                         </CardContent>
                         <CardFooter className="pt-0 mt-auto p-0">
                           <Button 
-                            className="w-full bg-pink-500 hover:bg-pink-600 shadow-lg shadow-pink-500/20 font-bold h-10 rounded-none uppercase tracking-widest text-[10px]"
+                            className="w-full bg-amber-400 hover:bg-amber-500 shadow-lg shadow-amber-400/20 font-bold h-10 rounded-none uppercase tracking-widest text-[10px] text-white"
                             onClick={(e) => { e.stopPropagation(); handleRedeemReward(task.id); }}
                             disabled={isSubmitting}
                           >
@@ -1409,7 +1415,7 @@ export default function VolunteeringPage() {
                           </div>
                         </div>
                         {task.rewardDescription && (
-                          <Badge variant="outline" className="text-pink-600 border-pink-200 bg-pink-50">
+                          <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
                             {task.redeemedByVolunteers?.includes(volunteerEmail || "") ? 'Reward Redeemed' : 'Reward Available'}
                           </Badge>
                         )}
@@ -1509,7 +1515,7 @@ export default function VolunteeringPage() {
               <div className="grid gap-6 md:grid-cols-3">
                 <Card className="md:col-span-1 p-6 border-2 border-orange-100 bg-orange-50/30 rounded-3xl flex flex-col items-center text-center">
                   <Avatar className="h-24 w-24 border-4 border-white shadow-xl mb-4">
-                    <AvatarFallback className="bg-gradient-to-br from-orange-500 to-pink-500 text-white text-3xl font-black">
+                    <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-400 text-white text-3xl font-black">
                       {volunteerEmail?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
