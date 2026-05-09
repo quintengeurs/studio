@@ -474,13 +474,13 @@ export default function PlatformAdmin() {
                                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Volunteer Portal</span>
                                 <div className="flex items-center gap-2">
                                     <code className="text-[10px] bg-background border rounded px-2 py-1.5 flex-1 truncate font-mono">
-                                        {getBaseUrl()}/volunteering?org={editOrgSlug || currentEditingOrg?.slug}
+                                        {getBaseUrl()}/hub/{editOrgSlug || currentEditingOrg?.slug}
                                     </code>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleCopyUrl(`${getBaseUrl()}/volunteering?org=${editOrgSlug || currentEditingOrg?.slug}`)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleCopyUrl(`${getBaseUrl()}/hub/${editOrgSlug || currentEditingOrg?.slug}`)}>
                                         {isCopied ? <CheckCheck className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
                                     </Button>
                                     <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" asChild>
-                                        <a href={`${getBaseUrl()}/volunteering?org=${editOrgSlug || currentEditingOrg?.slug}`} target="_blank" rel="noopener noreferrer">
+                                        <a href={`${getBaseUrl()}/hub/${editOrgSlug || currentEditingOrg?.slug}`} target="_blank" rel="noopener noreferrer">
                                             <ExternalLink className="h-3.5 w-3.5" />
                                         </a>
                                     </Button>
