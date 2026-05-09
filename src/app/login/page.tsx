@@ -117,25 +117,44 @@ export default function LoginPage() {
       <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-      <div className="w-full max-w-[550px] relative z-10">
-        <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
-                <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20">
-                    <Building2 className="h-10 w-10" />
+      <div className="w-full max-w-[1000px] relative z-10">
+        <Card className="border-2 shadow-2xl bg-background/80 backdrop-blur-sm overflow-hidden rounded-[2rem]">
+          <div className="grid md:grid-cols-2">
+            {/* Left Side: Community & Hub */}
+            <div className="bg-gradient-to-br from-orange-500 to-amber-500 p-8 text-white flex flex-col justify-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+                <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-black/10 rounded-full blur-2xl" />
+                
+                <div className="relative z-10">
+                    <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 border border-white/30">
+                        <Heart className="h-8 w-8 text-white" />
+                    </div>
+                    <h2 className="text-3xl font-headline font-black mb-4 tracking-tight">Community Hub</h2>
+                    <p className="text-orange-50 font-medium mb-8 text-lg opacity-90 leading-relaxed">
+                        Helping maintain our parks and green spaces. Join our active volunteer network today.
+                    </p>
+
+                    <Link 
+                        href={urlOrgId ? `/hub/${urlOrgId}` : '/hub/hackney-council'}
+                        className="flex items-center justify-center w-full h-14 bg-white text-orange-600 font-black text-lg group rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-95"
+                    >
+                        GO TO VOLUNTEER HUB
+                        <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform" />
+                    </Link>
+                    
+                    <p className="mt-8 text-xs font-bold text-orange-100 uppercase tracking-widest text-center">
+                        Registered Volunteers can earn rewards
+                    </p>
                 </div>
             </div>
-            <h1 className="text-4xl font-headline font-bold tracking-tight">{orgDisplayName}</h1>
-            <p className="text-muted-foreground font-medium mt-2">Internal Staff Portal</p>
-        </div>
 
-        <Card className="border-2 shadow-2xl bg-background/80 backdrop-blur-sm">
-            <CardHeader className="space-y-1 text-center pb-2">
-            <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
-            <CardDescription>
-                Authorised personnel only.
-            </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 pt-6">
+            {/* Right Side: Staff Login */}
+            <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-headline font-bold tracking-tight text-foreground">{orgDisplayName}</h1>
+                    <p className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest mt-1">Internal Staff Portal</p>
+                </div>
+
             {error && (
                 <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -183,32 +202,11 @@ export default function LoginPage() {
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In to Portal"}
                 </Button>
             </form>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-6 pt-2 pb-8">
-                <div className="relative w-full">
-                    <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-dashed" />
-                    </div>
-                    <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest">
-                        <span className="bg-background px-4 text-muted-foreground">Community Access</span>
-                    </div>
-                </div>
-
-                <div className="w-full px-2">
-                    <Link 
-                        href={urlOrgId ? `/hub/${urlOrgId}` : '/hub/hackney-council'}
-                        className="flex items-center justify-center w-full h-12 border-2 border-orange-500/20 hover:border-orange-500/50 hover:bg-orange-500/5 text-orange-600 font-bold group rounded-xl transition-all"
-                    >
-                        <Heart className="mr-2 h-5 w-5 text-orange-500 group-hover:scale-110 transition-transform" />
-                        Go to Volunteer Hub
-                        <ArrowRight className="ml-2 h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                    </Link>
-                </div>
-
-                <p className="text-[10px] text-center w-full text-muted-foreground uppercase tracking-widest font-bold opacity-60">
-                    {orgBranding}
+                <p className="text-[10px] text-center w-full text-muted-foreground uppercase tracking-widest font-black opacity-30 mt-6">
+                    {orgData?.name || "Parks Management System"}
                 </p>
-            </CardFooter>
+            </div>
+          </div>
         </Card>
 
         {typeof window !== 'undefined' && window.location.search.includes('bypass=true') && (

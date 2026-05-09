@@ -14,10 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFirestore } from "@/firebase";
-import { collection, addDoc } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
-import { Heart, ShieldCheck, X } from "lucide-react";
+import { Heart, ShieldCheck, X, Lock, Mail } from "lucide-react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { useAuth } from "@/firebase";
+import { doc, setDoc } from "firebase/firestore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface VolunteerRegistrationModalProps {
@@ -36,27 +36,36 @@ export function VolunteerRegistrationModal({
   orgId
 }: VolunteerRegistrationModalProps) {
   const { toast } = useToast();
-  const db = useFirestore();
+  const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState(defaultEmail);
+  const [password, setPassword] = useState("");
   const [gdprConsent, setGdprConsent] = useState(false);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!db || !email || !gdprConsent) return;
+    if (!db || !email || !password || !gdprConsent || !auth) return;
     
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "users"), {
+      // 1. Create Auth Account
+      const userCredential = await createUserWithEmailAndPassword(auth, email.toLowerCase(), password);
+      const uid = userCredential.user.uid;
+
+      // 2. Create User Profile
+      await setDoc(doc(db, "users", uid), {
+        id: uid,
         email: email.toLowerCase(),
-        name: email.split('@')[0], // Use email prefix as temporary name
+        name: email.split('@')[0],
         gdprConsent: true,
         registeredAt: new Date().toISOString(),
         status: 'pending',
-        isVolunteer: true, // Flag to distinguish from staff
+        isVolunteer: true,
         roles: ['Volunteer'],
         depot: 'Community',
-        orgId: orgId
+        orgId: orgId,
+        totalPoints: 0,
+        completedTasksCount: 0
       });
       
       localStorage.setItem("volunteerEmail", email.toLowerCase());
@@ -94,15 +103,35 @@ export function VolunteerRegistrationModal({
           <form onSubmit={handleSubmit} className="grid gap-6 py-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-11"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="pl-10 h-11"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="password">Create Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pl-10 h-11"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium">Minimum 6 characters required for security.</p>
             </div>
             <div className="flex items-start space-x-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
               <Checkbox 
@@ -129,7 +158,7 @@ export function VolunteerRegistrationModal({
           <Button 
             type="submit" 
             className="w-full h-12 bg-orange-500 hover:bg-orange-600 font-bold"
-            disabled={isSubmitting || !email || !gdprConsent}
+            disabled={isSubmitting || !email || !password || password.length < 6 || !gdprConsent}
             onClick={() => handleSubmit()}
           >
             {isSubmitting ? "Registering..." : "COMPLETE REGISTRATION"}
