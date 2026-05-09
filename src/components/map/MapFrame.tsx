@@ -236,7 +236,7 @@ export default function MapFrame({
         {mapReady ? (
           <><Target className="h-3 w-3 text-green-400 animate-pulse" /> Live Tracking Active</>
         ) : (
-          <><AlertCircle className="h-3 w-3 text-yellow-400" /> Initializing Frame...</>
+          <><AlertCircle className="h-3 w-3 text-yellow-400" /> Initialising Frame...</>
         )}
       </div>
 

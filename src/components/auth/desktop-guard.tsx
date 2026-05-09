@@ -66,7 +66,7 @@ export function DesktopGuard({ children }: { children: React.ReactNode }) {
             <div className="pt-4 border-t space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admin Note</p>
               <p className="text-xs font-medium bg-muted p-3 rounded-lg border">
-                Contact your system administrator to enable desktop-optimized view for this profile.
+                Contact your system administrator to enable desktop-optimised view for this profile.
               </p>
             </div>
             <Button 

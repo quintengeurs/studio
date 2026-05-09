@@ -878,7 +878,7 @@ export default function InspectionsPage() {
               </Button>
             ) : (
               <Button className="w-full font-bold h-12 text-md shadow-xl" onClick={handleFinishInspection} disabled={isSubmitting || isUploading !== null}>
-                {isSubmitting ? "Finalizing Report..." : "Complete Overall Safety Check"}
+                {isSubmitting ? "Finalising Report..." : "Complete Overall Safety Check"}
                 <CheckCircle2 className="ml-2 h-5 w-5" />
               </Button>
             )}

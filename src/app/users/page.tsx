@@ -161,7 +161,7 @@ export default function UserManagement() {
     setIsMigrating(true);
     try {
       await migrateToMultiTenancy(db);
-      toast({ title: "Migration Successful", description: "All users have been linked to the default organization." });
+      toast({ title: "Migration Successful", description: "All users have been linked to the default organisation." });
     } catch (error) {
       toast({ title: "Migration Failed", description: "See console for details.", variant: "destructive" });
     } finally {

@@ -131,7 +131,7 @@ export function AppSidebar() {
                 {organization?.name || "Parks and Green Spaces"}
               </span>
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                {organization?.slug === 'hackney-council' ? 'Hackney Council' : (organization?.name || 'Authorized Access')}
+                {organization?.slug === 'hackney-council' ? 'Hackney Council' : (organization?.name || 'Authorised Access')}
               </span>
             </div>
           </div>

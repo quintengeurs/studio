@@ -132,7 +132,7 @@ export default function LoginPage() {
             <CardHeader className="space-y-1 text-center pb-2">
             <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
             <CardDescription>
-                Authorized personnel only.
+                Authorised personnel only.
             </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 pt-6">

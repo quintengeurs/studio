@@ -73,7 +73,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
     allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
   [allUsers, user?.email]);
 
-  const isAuthorizedToComplete = useMemo(() => {
+  const isAuthorisedToComplete = useMemo(() => {
     if (!task || !user || !currentUserProfile) return false;
     
     // Admins can always complete for testing/emergency
@@ -405,7 +405,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
               <Button 
                 className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600' : 'bg-accent hover:bg-accent/90'}`} 
                 onClick={() => handleStatusUpdate('Doing')}
-                disabled={(task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) || isSubmitting || (!task.isVolunteerEligible && !isAuthorizedToComplete)}
+                disabled={(task.maxVolunteers && (task.doingByVolunteers?.length || 0) >= task.maxVolunteers) || isSubmitting || (!task.isVolunteerEligible && !isAuthorisedToComplete)}
               >
                 {task.isVolunteerEligible 
                   ? (task.status === 'Doing' 

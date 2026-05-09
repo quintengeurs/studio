@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -69,11 +70,12 @@ import { useDataContext } from "@/context/DataContext";
 export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
-  const { profile, isManagement, isMaster, isAdmin } = useUserContext();
+  const { profile, isManagement, isMaster, isAdmin, loading: userLoading } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
+  const router = useRouter();
   
-  // Organization Resolution
+  // Organisation Resolution
   const [urlOrgId, setUrlOrgId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -105,6 +107,13 @@ export default function VolunteeringPage() {
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [editingTaskData, setEditingTaskData] = useState<any>(null);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+
+  // Redirection Logic: If not staff, whisk them to the Hub
+  useEffect(() => {
+    if (!userLoading && (!profile || !isManagement)) {
+      router.push(`/hub/${effectiveOrgId}`);
+    }
+  }, [userLoading, profile, isManagement, effectiveOrgId, router]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("volunteerEmail");

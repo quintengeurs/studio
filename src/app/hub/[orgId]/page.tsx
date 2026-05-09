@@ -74,7 +74,36 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
   
-  const effectiveOrgId = orgId || "hackney-council";
+  const [orgData, setOrgData] = useState<{ name: string; slug: string; branding?: { logoUrl?: string; primaryColor?: string } } | null>(null);
+  const [orgLoading, setOrgLoading] = useState(true);
+  
+  const effectiveOrgId = useMemo(() => {
+    if (orgId === 'hackney') return 'hackney-council';
+    return orgId || 'hackney-council';
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!db || !effectiveOrgId) return;
+    const fetchOrg = async () => {
+      setOrgLoading(true);
+      try {
+        const snap = await getDoc(doc(db, "organizations", effectiveOrgId));
+        if (snap.exists()) {
+          setOrgData(snap.data() as any);
+        }
+      } catch (e) {
+        console.warn("Hub: Could not fetch org branding:", e);
+      } finally {
+        setOrgLoading(false);
+      }
+    };
+    fetchOrg();
+  }, [db, effectiveOrgId]);
+
+  const orgName = orgData?.name || "Hackney Parks";
+  const orgLogo = orgData?.branding?.logoUrl;
+  const orgColor = orgData?.branding?.primaryColor || "#f97316";
+
   
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
@@ -1033,8 +1062,8 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
   // Public View
   return (
     <DashboardShell 
-      title="Volunteer Opportunities" 
-      description="Help us maintain and improve our local parks and green spaces."
+      title={`${orgName} - Volunteer Opportunities`} 
+      description={`Help us maintain and improve green spaces across ${orgName}.`}
       isPublic={true}
       hideHeader={true}
     >
@@ -1085,7 +1114,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
           <div className="relative z-10 max-w-2xl mt-4 sm:mt-0">
             <Badge className="bg-white/20 text-white border-white/30 mb-4 backdrop-blur-sm">Community Hub</Badge>
             <h2 className="text-4xl font-bold mb-4">
-              {volunteerEmail ? "Welcome Back, Volunteer!" : "Make a Difference in Your Local Park"}
+              {volunteerEmail ? `Welcome Back to ${orgName}!` : `Make a Difference in ${orgName}`}
             </h2>
             <p className="text-lg opacity-90 mb-6">
               {volunteerEmail 

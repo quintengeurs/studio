@@ -119,7 +119,7 @@ export default function PlatformAdmin() {
             await setDoc(doc(db, "settings", orgId, "config", "park_permissions"), permsSnap.data());
         }
 
-        toast({ title: "Organization Created", description: `${newOrgForm.name} provisioned.` });
+        toast({ title: "Organisation Created", description: `${newOrgForm.name} provisioned.` });
         setIsAddOrgOpen(false);
         setNewOrgForm({
             name: "",
@@ -172,7 +172,7 @@ export default function PlatformAdmin() {
       if (editOrgSlug && editOrgSlug !== editingOrg.slug) updates.slug = editOrgSlug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       if (Object.keys(updates).length > 0) {
         await updateDoc(doc(db, "organizations", editingOrg.id), updates);
-        toast({ title: "Organization Updated", description: "Details saved successfully." });
+        toast({ title: "Organisation Updated", description: "Details saved successfully." });
       }
       setIsEditOpen(false);
     } catch (error) {
@@ -290,7 +290,7 @@ export default function PlatformAdmin() {
 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {orgsLoading ? (
-                        <div className="col-span-full py-20 text-center text-muted-foreground animate-pulse">Loading Organizations...</div>
+                        <div className="col-span-full py-20 text-center text-muted-foreground animate-pulse">Loading Organisations...</div>
                     ) : filteredOrgs.length === 0 ? (
                         <div className="col-span-full py-20 text-center border-2 border-dashed rounded-xl opacity-50">
                             <Globe className="h-10 w-10 mx-auto mb-4" />
@@ -346,7 +346,7 @@ export default function PlatformAdmin() {
                                     <Button size="sm" className="h-7 text-[10px] font-bold uppercase" onClick={() => {
                                         console.log("Entering organization:", org.id);
                                         setImpersonatedOrgId(org.id);
-                                        toast({ title: "Entering Organization", description: `Accessing content for ${org.name}` });
+                                        toast({ title: "Entering Organisation", description: `Accessing content for ${org.name}` });
                                         router.push("/");
                                     }}>
                                         Manage Content <ExternalLink className="ml-1 h-3 w-3" />
@@ -370,7 +370,7 @@ export default function PlatformAdmin() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Organization Name</Label>
+                        <Label>Organisation Name</Label>
                         <Input value={newOrgForm.name} onChange={e => setNewOrgForm({...newOrgForm, name: e.target.value})} placeholder="Islington Council" />
                     </div>
                     <div className="grid gap-2">
@@ -397,7 +397,7 @@ export default function PlatformAdmin() {
                 </div>
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => setIsAddOrgOpen(false)}>Cancel</Button>
-                    <Button onClick={handleCreateOrg} disabled={isSubmitting}>{isSubmitting ? "Provisioning..." : "Create Organization"}</Button>
+                    <Button onClick={handleCreateOrg} disabled={isSubmitting}>{isSubmitting ? "Provisioning..." : "Create Organisation"}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -407,7 +407,7 @@ export default function PlatformAdmin() {
             <DialogContent className="sm:max-w-[540px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-6 pb-4 border-b">
                     <DialogTitle className="flex items-center gap-2">
-                        <Edit2 className="h-5 w-5 text-primary" /> Edit Organization: {currentEditingOrg?.name}
+                        <Edit2 className="h-5 w-5 text-primary" /> Edit Organisation: {currentEditingOrg?.name}
                     </DialogTitle>
                     <DialogDescription>Modify feature entitlements, org details, and portal URLs.</DialogDescription>
                 </DialogHeader>
@@ -514,7 +514,7 @@ export default function PlatformAdmin() {
                                 toast({ title: "Delete Requested", description: "This feature is coming soon." });
                             }
                         }}>
-                            Archive Organization
+                            Archive Organisation
                         </Button>
                     </div>
                 </div>

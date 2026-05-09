@@ -113,7 +113,7 @@ export default function Dashboard() {
     return Array.from(new Set(list)).slice(0, 10);
   }, [userEffectiveName, user?.email, user?.displayName, currentUserRoles, profile?.depots, profile?.depot]);
 
-  // Personalized Queries
+  // Personalised Queries
   const myTasksQuery = useMemoFirebase(() => {
     if (!db || identities.length === 0 || !profile?.orgId) return null;
     return query(
@@ -196,7 +196,7 @@ export default function Dashboard() {
     );
   }, [rawMyRequests, isManagement, isAdmin, userEffectiveName]);
 
-  // Optimized: Use context for summaries if management, or personalized queries if operative
+  // Optimised: Use context for summaries if management, or Personalised Queries if operative
   const userDepots = useMemo(() => {
     const list = [...(profile?.depots || []), profile?.depot].filter(Boolean) as string[];
     return Array.from(new Set(list));
@@ -270,7 +270,7 @@ export default function Dashboard() {
     return (
       <DashboardShell 
         title="My Dashboard" 
-        description="Your personalized workspace"
+        description="Your personalised workspace"
       >
         <div className="flex flex-col gap-6 pb-20">
           
