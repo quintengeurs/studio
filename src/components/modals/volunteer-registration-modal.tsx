@@ -16,8 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Heart, ShieldCheck, X, Lock, Mail } from "lucide-react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { useAuth } from "@/firebase";
+import { useAuth, useFirestore } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface VolunteerRegistrationModalProps {
@@ -37,6 +38,7 @@ export function VolunteerRegistrationModal({
 }: VolunteerRegistrationModalProps) {
   const { toast } = useToast();
   const auth = useAuth();
+  const db = useFirestore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState("");
