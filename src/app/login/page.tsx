@@ -195,15 +195,14 @@ export default function LoginPage() {
                 </div>
 
                 <div className="w-full px-2">
-                    <Button 
-                        variant="outline" 
-                        className="w-full h-12 border-2 border-orange-500/20 hover:border-orange-500/50 hover:bg-orange-500/5 text-orange-600 font-bold group rounded-xl transition-all"
-                        onClick={() => router.push(urlOrgId ? `/hub/${urlOrgId}` : '/volunteering')}
+                    <Link 
+                        href={urlOrgId ? `/hub/${urlOrgId}` : '/volunteering'}
+                        className="flex items-center justify-center w-full h-12 border-2 border-orange-500/20 hover:border-orange-500/50 hover:bg-orange-500/5 text-orange-600 font-bold group rounded-xl transition-all"
                     >
                         <Heart className="mr-2 h-5 w-5 text-orange-500 group-hover:scale-110 transition-transform" />
                         Go to Volunteer Hub
                         <ArrowRight className="ml-2 h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                    </Button>
+                    </Link>
                 </div>
 
                 <p className="text-[10px] text-center w-full text-muted-foreground uppercase tracking-widest font-bold opacity-60">
