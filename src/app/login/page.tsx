@@ -117,7 +117,7 @@ export default function LoginPage() {
       <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-[500px] relative z-10">
         <div className="text-center mb-8">
             <div className="flex justify-center mb-6">
                 <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-xl shadow-primary/20">
