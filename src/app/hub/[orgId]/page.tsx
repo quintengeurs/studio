@@ -506,31 +506,6 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
     setIsTaskModalOpen(true);
   };
 
-  const handleApproveVolunteer = async (volunteerId: string) => {
-    if (!db || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await updateDoc(doc(db, "users", volunteerId), { status: 'active' });
-      toast({ title: "Volunteer Approved", description: "They can now see and claim tasks." });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to approve volunteer.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteVolunteer = async (volunteerId: string) => {
-    if (!db || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await updateDoc(doc(db, "users", volunteerId), { status: 'rejected' });
-      toast({ title: "Registration Rejected" });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to approve volunteer.", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleDeleteSubmission = async (taskId: string) => {
     if (!db || !volunteerEmail) return;
