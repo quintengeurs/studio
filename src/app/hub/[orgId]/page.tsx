@@ -129,8 +129,16 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
   }, [isManagement]);
 
   useEffect(() => {
+    // Priority 1: Logged in profile (ensures points track correctly)
+    if (profile?.email && !isManagement) {
+      setVolunteerEmail(profile.email);
+      return;
+    }
+    
+    // Priority 2: Local storage (for guests/pending)
     const savedEmail = localStorage.getItem("volunteerEmail");
     if (savedEmail) setVolunteerEmail(savedEmail);
+  }, [profile, isManagement]);
     
     // Setup Bypass for Walkthrough
     const params = new URLSearchParams(window.location.search);

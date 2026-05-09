@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowRight, Building2, Heart } from "lucide-react";
 import Link from "next/link";
+import { useUserContext } from "@/context/UserContext";
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -39,11 +40,20 @@ export default function LoginPage() {
   const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
   const [orgData, setOrgData] = useState<{ name: string; slug: string } | null>(null);
 
+  const { profile, isManagement, loading: userLoading } = useUserContext();
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const org = params.get('org');
     if (org) setUrlOrgId(org);
   }, []);
+
+  // Proactive Redirect: If already staff, go home
+  useEffect(() => {
+    if (!userLoading && profile && isManagement) {
+      router.push("/");
+    }
+  }, [profile, isManagement, userLoading, router]);
 
   // Fetch org name from Firestore when we have a slug
   useEffect(() => {
@@ -134,13 +144,13 @@ export default function LoginPage() {
                         Helping maintain our parks and green spaces. Join our active volunteer network today.
                     </p>
 
-                    <Link 
-                        href={urlOrgId ? `/hub/${urlOrgId}` : '/hub/hackney-council'}
-                        className="flex items-center justify-center w-full h-14 bg-white text-orange-600 font-black text-lg group rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-95"
+                    <Button 
+                        onClick={() => router.push(urlOrgId ? `/hub/${urlOrgId}` : '/hub/hackney-council')}
+                        className="flex items-center justify-center w-full h-14 bg-white text-orange-600 font-black text-lg group rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-95 border-none"
                     >
                         GO TO VOLUNTEER HUB
                         <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-2 transition-transform" />
-                    </Link>
+                    </Button>
                     
                     <p className="mt-8 text-xs font-bold text-orange-100 uppercase tracking-widest text-center">
                         Registered Volunteers can earn rewards
