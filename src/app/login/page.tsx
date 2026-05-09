@@ -167,7 +167,7 @@ export default function LoginPage() {
             {/* Volunteer Card */}
             <Card 
               className="border-2 hover:border-orange-500/50 transition-all cursor-pointer group hover:shadow-2xl hover:-translate-y-2 overflow-hidden flex flex-col items-center text-center"
-              onClick={() => router.push(urlOrgId ? `/volunteering?org=${urlOrgId}` : '/volunteering')}
+              onClick={() => router.push(urlOrgId ? `/hub/${urlOrgId}` : '/volunteering')}
             >
               <CardHeader className="space-y-4 flex flex-col items-center pt-8">
                 <div className="h-16 w-16 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 transition-colors group-hover:bg-orange-500 group-hover:text-white">
