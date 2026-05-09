@@ -140,6 +140,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
     if (savedEmail) setVolunteerEmail(savedEmail);
   }, [profile, isManagement]);
     
+  useEffect(() => {
     // Setup Bypass for Walkthrough
     const params = new URLSearchParams(window.location.search);
     if (params.get('setup') === 'true' && db) {
