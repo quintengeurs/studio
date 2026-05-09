@@ -19,6 +19,11 @@ const OnboardingTour = dynamic(
   { ssr: false }
 );
 
+const WhatsNewModal = dynamic(
+  () => import("@/components/modals/whats-new-modal").then(m => m.WhatsNewModal),
+  { ssr: false }
+);
+
 interface DashboardShellProps {
   children: React.ReactNode;
   title: string;
@@ -131,6 +136,9 @@ export function DashboardShell({ children, title, description, actions, isPublic
       </SidebarInset>
       {shouldShowTour && !!user && !isPublic && (
         <OnboardingTour onComplete={markTourComplete} />
+      )}
+      {!!user && !isPublic && (
+        <WhatsNewModal />
       )}
     </div>
   );

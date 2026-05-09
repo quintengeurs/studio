@@ -34,6 +34,7 @@ import {
   Archive
 } from "lucide-react";
 import Image from "next/image";
+import { useVolunteerOnboarding } from "@/hooks/use-onboarding";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +61,7 @@ const VolunteerRegistrationModal = dynamic(() => import("@/components/modals/vol
 const TaskDetailModal = dynamic(() => import("@/components/modals/task-detail-modal").then(mod => mod.TaskDetailModal), { ssr: false });
 const InfoItemModal = dynamic(() => import("@/components/modals/info-item-modal").then(mod => mod.InfoItemModal), { ssr: false });
 const VolunteerTaskModal = dynamic(() => import("@/components/modals/volunteer-task-modal").then(mod => mod.VolunteerTaskModal), { ssr: false });
+const VolunteerOnboardingTour = dynamic(() => import("@/components/onboarding/VolunteerOnboardingTour").then(mod => mod.VolunteerOnboardingTour), { ssr: false });
 import { useDataContext } from "@/context/DataContext";
 
 export default function VolunteeringPage() {
@@ -173,6 +175,7 @@ export default function VolunteeringPage() {
   // Public Portal Data - Using manual fetch to avoid permission-denied noise in console
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const { shouldShowTour } = useVolunteerOnboarding();
 
 
   const fetchTasks = async () => {
@@ -1172,11 +1175,11 @@ export default function VolunteeringPage() {
         </div>
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="mb-6 bg-orange-50/50 p-1 rounded-xl h-12 w-full">
-            <TabsTrigger value="tasks" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+          <TabsList id="vol-tabs" className="mb-6 bg-orange-50/50 p-1 rounded-xl h-12 w-full">
+            <TabsTrigger value="tasks" data-tour="vol-tab-tasks" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Sparkles className="h-4 w-4 shrink-0" /> <span className="truncate">Available Tasks</span>
             </TabsTrigger>
-            <TabsTrigger value="activity" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold relative text-xs sm:text-sm">
+            <TabsTrigger value="activity" data-tour="vol-tab-activity" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold relative text-xs sm:text-sm">
               <UserCheck className="h-4 w-4 shrink-0" /> <span className="truncate">My Activity</span>
               {(myInProgressTasks.length > 0 || contributionsWithRewards.length > 0) && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] text-white font-bold shadow-sm">
@@ -1184,10 +1187,10 @@ export default function VolunteeringPage() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="news" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+            <TabsTrigger value="news" data-tour="vol-tab-news" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Megaphone className="h-4 w-4 shrink-0" /> <span className="truncate">Hub News</span>
             </TabsTrigger>
-            <TabsTrigger value="profile" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+            <TabsTrigger value="profile" data-tour="vol-tab-profile" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Home className="h-4 w-4 shrink-0" /> <span className="truncate">My Profile</span>
             </TabsTrigger>
           </TabsList>
@@ -1748,6 +1751,10 @@ export default function VolunteeringPage() {
         onOpenChange={setIsCreateTaskModalOpen}
         onSuccess={() => handleRefreshData()}
       />
+
+      {shouldShowTour && (
+        <VolunteerOnboardingTour onComplete={markTourComplete} />
+      )}
     </DashboardShell>
   );
 }

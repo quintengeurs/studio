@@ -8,7 +8,7 @@ import { useUserContext } from "@/context/UserContext";
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
-interface TourStep {
+export interface TourStep {
   id: string;
   target: string | null; // CSS selector or null for centered modal
   title: string;
@@ -96,14 +96,14 @@ const ALL_STEPS: TourStep[] = [
 
 // ─── Spotlight overlay component ──────────────────────────────────────────────
 
-interface SpotlightRect {
+export interface SpotlightRect {
   top: number;
   left: number;
   width: number;
   height: number;
 }
 
-function Spotlight({ rect }: { rect: SpotlightRect | null }) {
+export function Spotlight({ rect }: { rect: SpotlightRect | null }) {
   if (!rect) return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-[2px] z-[9998]" />
   );
@@ -148,7 +148,7 @@ function Spotlight({ rect }: { rect: SpotlightRect | null }) {
 
 // ─── Tooltip bubble component ─────────────────────────────────────────────────
 
-interface TooltipProps {
+export interface TooltipProps {
   step: TourStep;
   stepIndex: number;
   totalSteps: number;
@@ -160,7 +160,7 @@ interface TooltipProps {
   isFirst: boolean;
 }
 
-function TourTooltip({ step, stepIndex, totalSteps, targetRect, onPrev, onNext, onSkip, isLast, isFirst }: TooltipProps) {
+export function TourTooltip({ step, stepIndex, totalSteps, targetRect, onPrev, onNext, onSkip, isLast, isFirst }: TooltipProps) {
   const [pos, setPos] = useState({ top: "50%", left: "50%", transform: "translate(-50%, -50%)" });
 
   useEffect(() => {

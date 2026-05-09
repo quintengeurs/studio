@@ -98,6 +98,8 @@ export interface User {
   status?: string;
   registeredAt?: string;
   hasCompletedOnboarding?: boolean;
+  hasCompletedVolunteerOnboarding?: boolean;
+  seenAnnouncementIds?: string[];
 }
 
 export interface Asset {
