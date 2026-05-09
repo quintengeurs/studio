@@ -67,7 +67,7 @@ import { useDataContext } from "@/context/DataContext";
 export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
-  const { profile, isManagement, isMaster } = useUserContext();
+  const { profile, isManagement, isMaster, isAdmin } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
   
@@ -1219,9 +1219,11 @@ export default function VolunteeringPage() {
             <TabsTrigger value="news" data-tour="vol-tab-news" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Megaphone className="h-4 w-4 shrink-0" /> <span className="truncate">Hub News</span>
             </TabsTrigger>
-            <TabsTrigger value="manage" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
-              <Archive className="h-4 w-4 shrink-0" /> <span className="truncate">Manage Log</span>
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="manage" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+                <Archive className="h-4 w-4 shrink-0" /> <span className="truncate">Manage Log</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="profile" data-tour="vol-tab-profile" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Home className="h-4 w-4 shrink-0" /> <span className="truncate">My Profile</span>
             </TabsTrigger>
@@ -1540,12 +1542,13 @@ export default function VolunteeringPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="manage">
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-6">
-                <Archive className="h-6 w-6 text-orange-500" />
-                <h3 className="text-2xl font-bold">Manage Submissions</h3>
-              </div>
+          {isAdmin && (
+            <TabsContent value="manage">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <Archive className="h-6 w-6 text-orange-500" />
+                  <h3 className="text-2xl font-bold">Manage Submissions</h3>
+                </div>
               <p className="text-sm text-muted-foreground mb-4">
                 Here you can withdraw from tasks you are currently helping with, or delete past submissions to remove your proof from the log.
               </p>
@@ -1591,6 +1594,7 @@ export default function VolunteeringPage() {
               </div>
             </div>
           </TabsContent>
+          )}
 
           <TabsContent value="profile">
             <div className="space-y-6">
