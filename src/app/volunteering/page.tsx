@@ -177,7 +177,7 @@ export default function VolunteeringPage() {
   // Public Portal Data - Using manual fetch to avoid permission-denied noise in console
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
-  const { shouldShowTour } = useVolunteerOnboarding();
+  const { shouldShowTour, markTourComplete } = useVolunteerOnboarding();
 
 
   const fetchTasks = async () => {
