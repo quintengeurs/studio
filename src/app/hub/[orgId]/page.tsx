@@ -1089,20 +1089,26 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 to-amber-400 p-8 text-white shadow-xl">
           <div className="absolute top-4 right-4 z-20 flex flex-col sm:flex-row items-end sm:items-center gap-2">
-            {user ? (
+            {/* 1. Staff Sign Out (Only if management) */}
+            {user && isManagement && (
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm text-[10px] sm:text-xs h-8"
                 onClick={async () => {
-                  const { getAuth, signOut } = await import("firebase/auth");
-                  await signOut(getAuth());
+                  const { signOut } = await import("@/firebase");
+                  const auth = await import("@/firebase").then(m => m.getAuth());
+                  await signOut(auth);
+                  window.location.href = "/login";
                 }}
               >
                 <LogOut className="h-3 w-3 sm:mr-2" />
                 <span className="hidden sm:inline">Staff Sign Out</span>
               </Button>
-            ) : (
+            )}
+            
+            {/* 2. Staff Login (Only if NOT already logged in and NOT a volunteer) */}
+            {!user && !volunteerEmail && (
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -1114,14 +1120,20 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
               </Button>
             )}
             
+            {/* 3. Volunteer Sign Out */}
             {volunteerEmail && (
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm text-[10px] sm:text-xs h-8"
-                onClick={() => {
+                onClick={async () => {
                   localStorage.removeItem("volunteerEmail");
                   setVolunteerEmail(null);
+                  if (user && !isManagement) {
+                    const { signOut } = await import("@/firebase");
+                    const auth = await import("@/firebase").then(m => m.getAuth());
+                    await signOut(auth);
+                  }
                 }}
               >
                 <LogOut className="h-3 w-3 sm:mr-2" />
