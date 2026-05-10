@@ -38,6 +38,8 @@ import {
   Camera,
   Zap,
   Sparkles,
+  Edit,
+  Pencil,
   Bot,
   CheckCircle2,
   X
@@ -67,7 +69,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit, setDoc } from "firebase/firestore";
 import { Role, Frequency, Task, Asset } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
@@ -202,6 +204,8 @@ export default function TasksPage() {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedDetailTaskId, setSelectedDetailTaskId] = useState<string | null>(null);
   const selectedDetailTask = useMemo(() => 
@@ -314,7 +318,7 @@ export default function TasksPage() {
   // Global safety hook to prevent UI lockups from Radix Dialogs
   useEffect(() => {
     // Force reset on mount and whenever modals change
-    const anyModalOpen = isTaskDialogOpen || isAssignDialogOpen || isDetailDialogOpen;
+    const anyModalOpen = isTaskDialogOpen || isAssignDialogOpen || isDetailDialogOpen || isEditModalOpen;
     if (!anyModalOpen) {
       document.body.style.pointerEvents = 'auto';
       document.body.style.overflow = 'auto';
@@ -327,7 +331,7 @@ export default function TasksPage() {
       document.body.style.overflow = 'auto';
       document.body.removeAttribute('data-radix-scroll-lock');
     };
-  }, [isTaskDialogOpen, isAssignDialogOpen, isDetailDialogOpen]);
+  }, [isTaskDialogOpen, isAssignDialogOpen, isDetailDialogOpen, isEditModalOpen]);
 
   // Aggressive force-reset on mount
   useEffect(() => {
@@ -432,6 +436,31 @@ export default function TasksPage() {
         setIsSubmitting(false);
     }
 };
+
+  const handleOpenEditModal = (task: Task) => {
+    setEditingTask(task);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateTask = async () => {
+    if (!db || !editingTask) return;
+    setIsSubmitting(true);
+    try {
+      await updateDoc(doc(db, "tasks", editingTask.id), {
+        title: editingTask.title,
+        objective: editingTask.objective,
+        park: editingTask.park,
+        rewardDescription: editingTask.rewardDescription
+      });
+      toast({ title: "Task Updated" });
+      setIsEditModalOpen(false);
+      setEditingTask(null);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update task.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleDeleteTask = async (taskId: string) => {
     if (!db || !isAdmin) return;
@@ -965,7 +994,12 @@ export default function TasksPage() {
                             <div className="h-8 w-8 rounded-full bg-primary/10 border-primary/20 flex items-center justify-center shrink-0"><UserIcon className="h-4 w-4 text-primary" /></div>
                             <div className="flex flex-col min-w-0"><span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Assignee</span><span className="text-xs font-semibold truncate">{task.assignedTo}</span></div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
+                            {permissions.createTask && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={(e) => { e.stopPropagation(); handleOpenEditModal(task); }}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Badge className={`${getStatusColor(task.status)} font-bold text-[10px] px-3 py-1 rounded-sm`}>{task.status.toUpperCase()}</Badge>
                             {isAdmin && (
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}>
@@ -1312,6 +1346,54 @@ export default function TasksPage() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>Update the details for this operational task.</DialogDescription>
+          </DialogHeader>
+          {editingTask && (
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Task Title</Label>
+                <Input value={editingTask.title} onChange={e => setEditingTask({...editingTask, title: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Objective</Label>
+                <Textarea value={editingTask.objective} onChange={e => setEditingTask({...editingTask, objective: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Select value={editingTask.park} onValueChange={v => setEditingTask({...editingTask, park: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Park" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {editingTask.isVolunteerEligible && (
+                <div className="space-y-2 p-3 bg-orange-50 border border-orange-100 rounded-lg">
+                  <Label className="text-orange-700 font-bold">Reward Description</Label>
+                  <Input 
+                    placeholder="e.g. Free coffee for every bag of litter" 
+                    value={editingTask.rewardDescription || ""} 
+                    onChange={e => setEditingTask({...editingTask, rewardDescription: e.target.value})} 
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateTask} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       
