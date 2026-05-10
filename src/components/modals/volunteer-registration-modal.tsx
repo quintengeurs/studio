@@ -191,6 +191,7 @@ export function VolunteerRegistrationModal({
                   I agree to be contacted about future volunteering opportunities and for my participation to be logged in the system.
                 </p>
               </div>
+            </div>
             )}
           </form>
           <div className="px-6 py-2">
