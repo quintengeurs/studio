@@ -1174,14 +1174,16 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
             <TabsTrigger value="tasks" data-tour="vol-tab-tasks" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Sparkles className="h-4 w-4 shrink-0" /> <span className="truncate">Available Tasks</span>
             </TabsTrigger>
-            <TabsTrigger value="activity" data-tour="vol-tab-activity" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold relative text-xs sm:text-sm">
-              <UserCheck className="h-4 w-4 shrink-0" /> <span className="truncate">My Activity</span>
-              {(myInProgressTasks.length > 0 || contributionsWithRewards.length > 0) && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] text-white font-bold shadow-sm">
-                  {myInProgressTasks.length + contributionsWithRewards.length}
-                </span>
-              )}
-            </TabsTrigger>
+            {volunteerEmail && (
+              <TabsTrigger value="activity" data-tour="vol-tab-activity" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold relative text-xs sm:text-sm">
+                <UserCheck className="h-4 w-4 shrink-0" /> <span className="truncate">My Activity</span>
+                {(myInProgressTasks.length > 0 || contributionsWithRewards.length > 0) && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] text-white font-bold shadow-sm">
+                    {myInProgressTasks.length + contributionsWithRewards.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="news" data-tour="vol-tab-news" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Megaphone className="h-4 w-4 shrink-0" /> <span className="truncate">Hub News</span>
             </TabsTrigger>
@@ -1190,9 +1192,11 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                 <Archive className="h-4 w-4 shrink-0" /> <span className="truncate">Manage Log</span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="profile" data-tour="vol-tab-profile" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
-              <Home className="h-4 w-4 shrink-0" /> <span className="truncate">My Profile</span>
-            </TabsTrigger>
+            {volunteerEmail && (
+              <TabsTrigger value="profile" data-tour="vol-tab-profile" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
+                <Home className="h-4 w-4 shrink-0" /> <span className="truncate">My Profile</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="tasks">
