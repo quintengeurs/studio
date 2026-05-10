@@ -574,22 +574,40 @@ export default function VolunteeringPage() {
     }
   };
 
-  const handleDeleteSubmission = async (taskId: string) => {
-    if (!db || !volunteerEmail) return;
-    if (!confirm("Are you sure you want to delete this submission? This will remove your proof and activity log for this task.")) return;
+  const handleDeleteSubmission = async (taskId: string, targetVolunteerEmail?: string) => {
+    if (!db) return;
+    
+    // Determine which email to remove (passed email or session email)
+    const emailToRemove = targetVolunteerEmail || volunteerEmail;
+    
+    // Only proceed if we have an email to remove OR if user is staff (admin wipe)
+    if (!emailToRemove && !isManagement) return;
+
+    if (!confirm("Are you sure you want to delete this submission? This will remove the proof and activity log for this task.")) return;
     
     setIsSubmitting(true);
     try {
       const taskRef = doc(db, "tasks", taskId);
-      await updateDoc(taskRef, {
-        doingByVolunteers: arrayRemove(volunteerEmail),
-        completedByVolunteers: arrayRemove(volunteerEmail),
-        redeemedByVolunteers: arrayRemove(volunteerEmail),
+      const updateData: any = {
         completionImageUrl: "",
-        completionNote: ""
-      });
+        completionNote: "",
+        status: 'Todo'
+      };
+
+      if (emailToRemove) {
+        updateData.doingByVolunteers = arrayRemove(emailToRemove);
+        updateData.completedByVolunteers = arrayRemove(emailToRemove);
+        updateData.redeemedByVolunteers = arrayRemove(emailToRemove);
+      } else if (isManagement) {
+        updateData.doingByVolunteers = [];
+        updateData.completedByVolunteers = [];
+        updateData.redeemedByVolunteers = [];
+        updateData.assignedTo = "Unassigned";
+      }
+
+      await updateDoc(taskRef, updateData);
       
-      toast({ title: "Submission Deleted", description: "Your activity log and proof have been removed." });
+      toast({ title: "Submission Deleted", description: "The activity log and proof have been removed." });
       handleRefreshData();
     } catch (e) {
       console.error("Failed to delete submission", e);
@@ -766,7 +784,7 @@ export default function VolunteeringPage() {
                           variant="ghost" 
                           size="sm" 
                           className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm rounded-full"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteSubmission(task.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSubmission(task.id, task.completedByVolunteers?.[0]); }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
