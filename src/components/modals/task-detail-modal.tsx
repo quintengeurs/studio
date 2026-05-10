@@ -44,6 +44,7 @@ interface TaskDetailModalProps {
   allParks?: any[];
   volunteerEmail?: string | null;
   onSuccess?: () => void;
+  viewMode?: 'browse' | 'manage';
 }
 
 export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks, volunteerEmail, onSuccess }: TaskDetailModalProps) {
@@ -439,99 +440,109 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
 
             {((task.status === 'Doing' && (!task.isVolunteerEligible || task.doingByVolunteers?.includes(volunteerEmail || ""))) || task.status === 'Pending Approval') && (
               <div className="space-y-6 pt-2 border-t text-left">
-                <div className="space-y-2 text-left">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-                    {task.isVolunteerEligible ? 'Volunteer Note (Optional)' : 'Completion Note & Proof'}
-                  </Label>
-                  <Textarea 
-                    placeholder={task.isVolunteerEligible ? "How was your session? Any highlights for social media?" : "Describe the completed work..."} 
-                    value={completionData.note}
-                    onChange={e => setCompletionData({...completionData, note: e.target.value})}
-                    disabled={task.status === 'Pending Approval'}
-                    className="min-h-[100px]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Photo Evidence</Label>
-                  <div className="flex flex-col gap-2">
-                    {completionData.imageUrl ? (
-                      <div className="relative w-full aspect-video rounded-md overflow-hidden border shadow-sm">
-                        <Image src={completionData.imageUrl} alt="Evidence" fill className="object-cover" />
-                        {task.status !== 'Pending Approval' && (
-                          <Button 
-                            size="icon" variant="destructive" 
-                            className="absolute top-2 right-2 h-7 w-7 rounded-full"
-                            onClick={() => setCompletionData({...completionData, imageUrl: ""})}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ) : task.status !== 'Pending Approval' && (
-                      <Button 
-                        variant="outline" 
-                        className={`w-full h-24 border-dashed border-2 flex flex-col gap-2 ${task.isVolunteerEligible ? 'bg-orange-50/50 hover:bg-orange-100/50 border-orange-200 text-orange-600' : 'bg-muted/10 hover:bg-muted/30'}`}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Camera className={`h-6 w-6 ${task.isVolunteerEligible ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                        <span className={`text-xs font-bold uppercase ${task.isVolunteerEligible ? 'text-orange-600' : 'text-muted-foreground'}`}>
-                          {task.isVolunteerEligible ? 'Upload Team Photo (Optional)' : 'Upload Proof Image'}
-                        </span>
-                      </Button>
-                    )}
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                {viewMode === 'browse' && task.isVolunteerEligible ? (
+                  <div className="p-6 bg-blue-50 border-2 border-blue-100 rounded-3xl text-center">
+                    <Clock className="h-8 w-8 text-blue-500 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-blue-900 mb-1">Task In Progress</p>
+                    <p className="text-xs text-blue-700">You've already started this task! Go to the <strong className="uppercase">My Activity</strong> tab to upload photos and complete it.</p>
                   </div>
-                </div>
-
-                {task.status !== 'Pending Approval' && !task.isVolunteerEligible && (
-                  <div className="p-4 border rounded-lg bg-muted/20 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-primary" />
-                        <Label className="font-bold">Add Collaborators</Label>
-                      </div>
-                      <Checkbox 
-                        id="add-colleagues" 
-                        checked={showColleagueSelection} 
-                        onCheckedChange={(v) => setShowColleagueSelection(!!v)}
+                ) : (
+                  <>
+                    <div className="space-y-2 text-left">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                        {task.isVolunteerEligible ? 'Volunteer Note (Optional)' : 'Completion Note & Proof'}
+                      </Label>
+                      <Textarea 
+                        placeholder={task.isVolunteerEligible ? "How was your session? Any highlights for social media?" : "Describe the completed work..."} 
+                        value={completionData.note}
+                        onChange={e => setCompletionData({...completionData, note: e.target.value})}
+                        disabled={task.status === 'Pending Approval'}
+                        className="min-h-[100px] rounded-2xl"
                       />
                     </div>
-                    
-                    {showColleagueSelection && (
-                      <div className="space-y-2 pt-2 border-t">
-                        <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto pr-2">
-                          {colleagues.map(colleague => (
-                            <div 
-                              key={colleague.id} 
-                              className="flex items-center justify-between p-2 rounded hover:bg-white transition-colors cursor-pointer border border-transparent hover:border-muted"
-                              onClick={() => toggleColleague(colleague.name)}
-                            >
-                              <span className="text-xs font-medium">{colleague.name}</span>
-                              <Checkbox 
-                                checked={selectedColleagues.includes(colleague.name)} 
-                                onCheckedChange={() => toggleColleague(colleague.name)}
-                              />
-                            </div>
-                          ))}
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Photo Evidence</Label>
+                      <div className="flex flex-col gap-2">
+                        {completionData.imageUrl ? (
+                          <div className="relative w-full aspect-video rounded-3xl overflow-hidden border-2 shadow-sm">
+                            <Image src={completionData.imageUrl} alt="Evidence" fill className="object-cover" />
+                            {task.status !== 'Pending Approval' && (
+                              <Button 
+                                size="icon" variant="destructive" 
+                                className="absolute top-3 right-3 h-8 w-8 rounded-full shadow-lg"
+                                onClick={() => setCompletionData({...completionData, imageUrl: ""})}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ) : task.status !== 'Pending Approval' && (
+                          <Button 
+                            variant="outline" 
+                            className={`w-full h-24 border-dashed border-2 flex flex-col gap-2 rounded-3xl ${task.isVolunteerEligible ? 'bg-orange-50/50 hover:bg-orange-100/50 border-orange-200 text-orange-600' : 'bg-muted/10 hover:bg-muted/30'}`}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Camera className={`h-6 w-6 ${task.isVolunteerEligible ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                            <span className={`text-xs font-bold uppercase ${task.isVolunteerEligible ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                              {task.isVolunteerEligible ? 'Upload Team Photo (Optional)' : 'Upload Proof Image'}
+                            </span>
+                          </Button>
+                        )}
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                      </div>
+                    </div>
+
+                    {task.status !== 'Pending Approval' && !task.isVolunteerEligible && (
+                      <div className="p-4 border rounded-2xl bg-muted/20 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-primary" />
+                            <Label className="font-bold">Add Collaborators</Label>
+                          </div>
+                          <Checkbox 
+                            id="add-colleagues" 
+                            checked={showColleagueSelection} 
+                            onCheckedChange={(v) => setShowColleagueSelection(!!v)}
+                          />
                         </div>
+                        
+                        {showColleagueSelection && (
+                          <div className="space-y-2 pt-2 border-t">
+                            <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto pr-2">
+                              {colleagues.map(colleague => (
+                                <div 
+                                  key={colleague.id} 
+                                  className="flex items-center justify-between p-2 rounded-xl hover:bg-white transition-colors cursor-pointer border border-transparent hover:border-muted"
+                                  onClick={() => toggleColleague(colleague.name)}
+                                >
+                                  <span className="text-xs font-medium">{colleague.name}</span>
+                                  <Checkbox 
+                                    checked={selectedColleagues.includes(colleague.name)} 
+                                    onCheckedChange={() => toggleColleague(colleague.name)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
           </div>
         </div>
 
-        {(task.status === 'Doing' || (task.isVolunteerEligible && task.status === 'Todo')) && (!task.isVolunteerEligible || volunteerEmail) && (
+        {(task.status === 'Doing' || (task.isVolunteerEligible && task.status === 'Todo')) && (!task.isVolunteerEligible || volunteerEmail) && (viewMode !== 'browse' || task.status === 'Todo') && (
           <DialogFooter className="p-6 border-t">
             <Button 
               className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-accent text-accent-foreground'}`} 
-              onClick={handleCompleteTask} 
+              onClick={task.status === 'Todo' ? () => handleStatusUpdate('Doing') : handleCompleteTask} 
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Submitting..." : task.isVolunteerEligible ? "COMPLETE VOLUNTEERING" : "SUBMIT WORK FOR APPROVAL"}
+              {isSubmitting ? "Submitting..." : task.status === 'Todo' ? "START TASK" : (task.isVolunteerEligible ? "COMPLETE VOLUNTEERING" : "SUBMIT WORK FOR APPROVAL")}
               <Send className="ml-2 h-4 w-4" />
             </Button>
           </DialogFooter>

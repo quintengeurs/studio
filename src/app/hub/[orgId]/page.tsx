@@ -127,6 +127,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
   
   const [showStaffView, setShowStaffView] = useState(false);
+  const [activeHubTab, setActiveHubTab] = useState('tasks');
 
   // Auto-switch to staff view if user is management
   useEffect(() => {
@@ -1030,6 +1031,8 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
           task={selectedTask}
           allUsers={allUsers}
           allParks={allParks}
+          volunteerEmail={volunteerEmail}
+          viewMode={activeHubTab === 'tasks' ? 'browse' : 'manage'}
         />
 
         <InfoItemModal
@@ -1208,7 +1211,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
           <Heart className="absolute -bottom-10 -right-10 h-64 w-64 text-white opacity-10 rotate-12" />
         </div>
 
-        <Tabs defaultValue="tasks" className="w-full">
+        <Tabs value={activeHubTab} onValueChange={setActiveHubTab} className="w-full">
           <TabsList id="vol-tabs" className="mb-6 bg-orange-50/50 p-1 rounded-xl h-12 w-full">
             <TabsTrigger value="tasks" data-tour="vol-tab-tasks" className="flex-1 flex items-center justify-center gap-2 rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white h-10 px-2 sm:px-6 font-bold text-xs sm:text-sm">
               <Sparkles className="h-4 w-4 shrink-0" /> <span className="truncate">Available Tasks</span>
@@ -1346,7 +1349,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                           onClick={() => handleTaskAction(task.id)}
                           disabled={effectiveStatus === 'pending'}
                         >
-                          {volunteerEmail ? "HELP WITH THIS TASK" : "REGISTER TO HELP"}
+                          {volunteerEmail ? (task.doingByVolunteers?.includes(volunteerEmail) ? "IN PROGRESS" : "START TASK") : "REGISTER TO HELP"}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </CardFooter>
@@ -1716,6 +1719,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
         allParks={allParks}
         volunteerEmail={volunteerEmail}
         onSuccess={() => handleRefreshData(true)}
+        viewMode={activeHubTab === 'tasks' ? 'browse' : 'manage'}
       />
 
       <Dialog open={isEditTaskModalOpen} onOpenChange={setIsEditTaskModalOpen}>
