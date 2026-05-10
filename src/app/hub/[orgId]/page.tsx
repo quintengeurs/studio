@@ -579,6 +579,21 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
     }
   };
 
+  const handleShareSubmission = (task: any) => {
+    const shareData = {
+      title: `I completed a volunteering task: ${task.title}`,
+      text: `Just finished helping out at ${task.park}! Check out my contribution at ${orgData?.name || 'the community hub'}.`,
+      url: window.location.href
+    };
+    
+    if (navigator.share) {
+      navigator.share(shareData).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({ title: "Link Copied!", description: "Share your achievement with others." });
+    }
+  };
+
   const handleRedeemReward = async (taskId: string) => {
     if (!db || !volunteerEmail || isSubmitting) return;
     setIsSubmitting(true);
@@ -1418,7 +1433,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                 ) : (
                   <div className="grid gap-3">
                     {recentlyCompletedTasks.map(task => (
-                      <div key={task.id} className="flex items-center justify-between p-4 rounded-2xl bg-green-50/50 border border-green-100">
+                      <div key={task.id} className="flex items-center justify-between p-4 rounded-2xl bg-green-50/50 border border-green-100 group">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
                             <CheckCircle2 className="h-4 w-4" />
@@ -1433,11 +1448,29 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                             </p>
                           </div>
                         </div>
-                        {task.rewardDescription && (
-                          <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
-                            {task.redeemedByVolunteers?.includes(volunteerEmail || "") ? 'Reward Redeemed' : 'Reward Available'}
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-orange-500 hover:bg-orange-50"
+                            onClick={() => handleShareSubmission(task)}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteSubmission(task.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          {task.rewardDescription && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                              {task.redeemedByVolunteers?.includes(volunteerEmail || "") ? 'Reward Redeemed' : 'Reward Available'}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
