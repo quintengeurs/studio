@@ -599,6 +599,21 @@ export default function VolunteeringPage() {
     }
   };
 
+  const handleShareSubmission = (task: any) => {
+    const shareData = {
+      title: `I completed a volunteering task: ${task.title}`,
+      text: `Just finished helping out at ${task.park}! Check out my contribution.`,
+      url: window.location.origin + `/hub/${effectiveOrgId}`
+    };
+    
+    if (navigator.share) {
+      navigator.share(shareData).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(shareData.url);
+      toast({ title: "Link Copied!", description: "Share your achievement with others." });
+    }
+  };
+
   const handleRedeemReward = async (taskId: string) => {
     if (!db || !volunteerEmail || isSubmitting) return;
     setIsSubmitting(true);
@@ -738,7 +753,23 @@ export default function VolunteeringPage() {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {logTasks.map(task => (
                     <Card key={task.id} className="group relative overflow-hidden border-2 border-orange-500/10 hover:border-orange-500/30 transition-all shadow-md flex flex-col cursor-pointer" onClick={() => { setSelectedTaskId(task.id); setIsTaskModalOpen(true); }}>
-                      <div className="absolute top-0 right-0 p-3">
+                      <div className="absolute top-0 right-0 p-3 flex items-center gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm rounded-full"
+                          onClick={(e) => { e.stopPropagation(); handleShareSubmission(task); }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm rounded-full"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSubmission(task.id); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                         <Badge className="bg-green-500 text-white shadow-lg text-[9px] uppercase font-bold tracking-widest">Completed</Badge>
                       </div>
                       <CardHeader className="pb-3 px-6">
