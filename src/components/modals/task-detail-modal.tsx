@@ -100,8 +100,11 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
       }
     }
 
+    // Volunteers can complete tasks they found on the portal
+    if (volunteerEmail) return true;
+
     return false;
-  }, [task, user, currentUserProfile, currentUserRoles]);
+  }, [task, user, currentUserProfile, currentUserRoles, volunteerEmail]);
 
   const taskDepot = useMemo(() => {
     if (!task || !allParks) return null;
@@ -198,14 +201,30 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
       });
 
       // Award Points to Volunteer Profile
-      if (volunteerEmail && task.volunteerPoints) {
+      if (volunteerEmail) {
         try {
-          let vProfile = allUsers.find(u => u.email?.toLowerCase() === volunteerEmail.toLowerCase());
-          let vProfileId = vProfile?.id;
+          const pointsToAward = task.volunteerPoints || 1;
+          let vProfileId = "";
 
-          // Fallback: If not in local list (common for public view), query Firestore directly
+          // Priority 1: Use the currently logged-in user if it matches the volunteerEmail
+          if (user && user.email?.toLowerCase() === volunteerEmail.toLowerCase()) {
+            vProfileId = user.uid;
+          }
+
+          // Priority 2: Use the context profile if available
+          if (!vProfileId && contextProfile && contextProfile.email?.toLowerCase() === volunteerEmail.toLowerCase()) {
+            vProfileId = contextProfile.id;
+          }
+
+          // Priority 3: Fallback search (common for staff completing on behalf of others)
           if (!vProfileId) {
-            const q = query(collection(db, "users"), where("email", "==", volunteerEmail), limit(1));
+            const vProfile = allUsers.find(u => u.email?.toLowerCase() === volunteerEmail.toLowerCase());
+            vProfileId = vProfile?.id || "";
+          }
+
+          // Priority 4: Last resort Firestore query
+          if (!vProfileId) {
+            const q = query(collection(db, "users"), where("email", "==", volunteerEmail.toLowerCase()), limit(1));
             const snap = await getDocs(q);
             if (!snap.empty) {
               vProfileId = snap.docs[0].id;
@@ -214,12 +233,15 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
 
           if (vProfileId) {
             await updateDoc(doc(db, "users", vProfileId), {
-              totalPoints: increment(task.volunteerPoints),
+              totalPoints: increment(pointsToAward),
               completedTasksCount: increment(1)
             });
+            console.log(`Successfully awarded ${pointsToAward} points to user ${vProfileId}`);
+          } else {
+            console.warn("Could not find a user profile to award points to for email:", volunteerEmail);
           }
         } catch (profileErr) {
-          console.warn("Could not award points (likely permissions):", profileErr);
+          console.warn("Could not award points (likely permissions or network):", profileErr);
         }
       }
 
@@ -502,7 +524,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
           </div>
         </div>
 
-        {task.status === 'Doing' && (!task.isVolunteerEligible || task.doingByVolunteers?.includes(volunteerEmail || "")) && (
+        {(task.status === 'Doing' || (task.isVolunteerEligible && task.status === 'Todo')) && (!task.isVolunteerEligible || volunteerEmail) && (
           <DialogFooter className="p-6 border-t">
             <Button 
               className={`w-full h-12 font-bold ${task.isVolunteerEligible ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-accent text-accent-foreground'}`} 
