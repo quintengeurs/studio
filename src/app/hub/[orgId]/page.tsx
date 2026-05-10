@@ -106,6 +106,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
 
   
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -1142,10 +1143,10 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
             <div className="flex flex-wrap gap-4">
               {!volunteerEmail ? (
                 <>
-                  <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 font-bold" onClick={() => setIsRegModalOpen(true)}>
+                  <Button size="lg" className="bg-white text-orange-600 hover:bg-orange-50 font-bold" onClick={() => { setAuthMode('register'); setIsRegModalOpen(true); }}>
                     Register as Volunteer
                   </Button>
-                  <Button size="lg" variant="ghost" className="text-white hover:bg-white/10 border border-white/30 font-bold" onClick={() => window.location.href = `/login?org=${effectiveOrgId}`}>
+                  <Button size="lg" variant="ghost" className="text-white hover:bg-white/10 border border-white/30 font-bold" onClick={() => { setAuthMode('login'); setIsRegModalOpen(true); }}>
                     Sign In
                   </Button>
                 </>
@@ -1642,6 +1643,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
         onOpenChange={setIsRegModalOpen} 
         onSuccess={handleRegisterSuccess}
         defaultEmail={user?.email || ""}
+        defaultMode={authMode}
         orgId={effectiveOrgId}
       />
 

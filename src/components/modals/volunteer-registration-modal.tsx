@@ -15,9 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Heart, ShieldCheck, X, Lock, Mail } from "lucide-react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { useAuth, useFirestore } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -26,6 +26,7 @@ interface VolunteerRegistrationModalProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: (email: string) => void;
   defaultEmail?: string;
+  defaultMode?: 'register' | 'login';
   orgId: string;
 }
 
@@ -34,65 +35,81 @@ export function VolunteerRegistrationModal({
   onOpenChange, 
   onSuccess,
   defaultEmail = "",
+  defaultMode = 'register',
   orgId
 }: VolunteerRegistrationModalProps) {
   const { toast } = useToast();
   const auth = useAuth();
   const db = useFirestore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<'register' | 'login'>(defaultMode);
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState("");
   const [gdprConsent, setGdprConsent] = useState(false);
 
+  // Sync mode with prop when it opens
+  useEffect(() => {
+    if (open) setMode(defaultMode);
+  }, [open, defaultMode]);
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!db || !email || !password || !gdprConsent || !auth) return;
+    if (!db || !email || !password || !auth) return;
+    if (mode === 'register' && !gdprConsent) return;
     
     setIsSubmitting(true);
     try {
-      // 1. Create Auth Account
-      const userCredential = await createUserWithEmailAndPassword(auth, email.toLowerCase(), password);
-      const uid = userCredential.user.uid;
+      if (mode === 'register') {
+        // 1. Create Auth Account
+        const userCredential = await createUserWithEmailAndPassword(auth, email.toLowerCase(), password);
+        const uid = userCredential.user.uid;
 
-      // 2. Create User Profile
-      await setDoc(doc(db, "users", uid), {
-        id: uid,
-        email: email.toLowerCase(),
-        name: email.split('@')[0],
-        gdprConsent: true,
-        registeredAt: new Date().toISOString(),
-        status: 'pending',
-        isVolunteer: true,
-        roles: ['Volunteer'],
-        depot: 'Community',
-        orgId: orgId,
-        totalPoints: 0,
-        completedTasksCount: 0
-      });
+        // 2. Create User Profile
+        await setDoc(doc(db, "users", uid), {
+          id: uid,
+          email: email.toLowerCase(),
+          name: email.split('@')[0],
+          gdprConsent: true,
+          registeredAt: new Date().toISOString(),
+          status: 'pending',
+          isVolunteer: true,
+          roles: ['Volunteer'],
+          depot: 'Community',
+          orgId: orgId,
+          totalPoints: 0,
+          completedTasksCount: 0
+        });
+        
+        toast({
+          title: "Registration Received",
+          description: "Thank you! Your registration is pending approval by our staff. You'll be able to see tasks once approved.",
+        });
+      } else {
+        // Sign In Mode
+        await signInWithEmailAndPassword(auth, email.toLowerCase(), password);
+        toast({
+          title: "Welcome Back",
+          description: "Successfully signed in to your volunteer account.",
+        });
+      }
       
       localStorage.setItem("volunteerEmail", email.toLowerCase());
-      toast({
-        title: "Registration Received",
-        description: "Thank you! Your registration is pending approval by our staff. You'll be able to see tasks once approved.",
-      });
       onSuccess(email.toLowerCase());
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Registration error:", error);
-      let message = "Failed to register. Please try again.";
+      console.error("Auth error:", error);
+      let message = mode === 'register' ? "Failed to register." : "Invalid email or password.";
       
       if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered. Try logging in instead!";
+        message = "This email is already registered. Try signing in instead!";
       } else if (error.code === 'auth/weak-password') {
         message = "Password is too weak. Please use at least 6 characters.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        message = "Email/Password sign-in is not enabled in the Firebase Console.";
-      } else if (error.code === 'auth/invalid-email') {
-        message = "Please enter a valid email address.";
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        message = "Incorrect email or password. Please check your credentials.";
       }
 
       toast({
-        title: "Registration Error",
+        title: mode === 'register' ? "Registration Error" : "Sign In Error",
         description: message,
         variant: "destructive",
       });
@@ -107,11 +124,18 @@ export function VolunteerRegistrationModal({
         <DialogHeader className="p-6 pb-2">
           <div className="flex items-center gap-2 text-orange-500 mb-2">
             <Heart className="h-5 w-5 fill-current" />
-            <span className="text-xs font-bold uppercase tracking-widest">Join the Team</span>
+            <span className="text-xs font-bold uppercase tracking-widest">
+              {mode === 'register' ? 'Join the Team' : 'Welcome Back'}
+            </span>
           </div>
-          <DialogTitle className="text-2xl font-headline">Volunteer Registration</DialogTitle>
+          <DialogTitle className="text-2xl font-headline">
+            {mode === 'register' ? 'Volunteer Registration' : 'Volunteer Sign In'}
+          </DialogTitle>
           <DialogDescription>
-            Register your interest to help maintain our parks. Once registered, you&quot;ll see a list of active tasks you can help with.
+            {mode === 'register' 
+              ? 'Register your interest to help maintain our parks. Once registered, you"ll see a list of active tasks.'
+              : 'Sign in to track your contributions and see your impact in the community.'
+            }
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-6">
@@ -133,7 +157,7 @@ export function VolunteerRegistrationModal({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="password">Create Password</Label>
+              <Label htmlFor="password">{mode === 'register' ? 'Create Password' : 'Password'}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -146,8 +170,9 @@ export function VolunteerRegistrationModal({
                   className="pl-10 h-11"
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground font-medium">Minimum 6 characters required for security.</p>
+              {mode === 'register' && <p className="text-[10px] text-muted-foreground font-medium">Minimum 6 characters required for security.</p>}
             </div>
+            {mode === 'register' && (
             <div className="flex items-start space-x-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
               <Checkbox 
                 id="gdpr" 
@@ -166,17 +191,28 @@ export function VolunteerRegistrationModal({
                   I agree to be contacted about future volunteering opportunities and for my participation to be logged in the system.
                 </p>
               </div>
-            </div>
+            )}
           </form>
+          <div className="px-6 py-2">
+            <p className="text-xs text-center text-muted-foreground">
+              {mode === 'register' ? 'Already have an account?' : 'Need to register?'}
+              <button 
+                className="ml-1 text-orange-600 font-bold hover:underline"
+                onClick={() => setMode(mode === 'register' ? 'login' : 'register')}
+              >
+                {mode === 'register' ? 'Sign In here' : 'Register here'}
+              </button>
+            </p>
+          </div>
         </div>
         <DialogFooter className="p-6 border-t">
           <Button 
             type="submit" 
             className="w-full h-12 bg-orange-500 hover:bg-orange-600 font-bold"
-            disabled={isSubmitting || !email || !password || password.length < 6 || !gdprConsent}
+            disabled={isSubmitting || !email || !password || (mode === 'register' && (password.length < 6 || !gdprConsent))}
             onClick={() => handleSubmit()}
           >
-            {isSubmitting ? "Registering..." : "COMPLETE REGISTRATION"}
+            {isSubmitting ? "Processing..." : (mode === 'register' ? "COMPLETE REGISTRATION" : "SIGN IN")}
           </Button>
         </DialogFooter>
       </DialogContent>
