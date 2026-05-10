@@ -85,15 +85,20 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
   useEffect(() => {
     if (!db || !effectiveOrgId) return;
     const fetchOrg = async () => {
+      if (!db || !effectiveOrgId) return;
       setOrgLoading(true);
       try {
         const snap = await getDoc(doc(db, "organizations", effectiveOrgId));
         if (snap.exists()) {
           setOrgData(snap.data() as any);
         }
-      } catch (e) {
-        console.warn("Hub: Could not fetch org branding:", e);
+      } catch (e: any) {
+        // Silently ignore permission errors during logout transitions
+        if (!e?.message?.includes('permission')) {
+          console.warn("Hub: Could not fetch org branding:", e);
+        }
       } finally {
+        setOrgLoading(true); // Keep loading state until we are sure or navigating away
         setOrgLoading(false);
       }
     };
@@ -1111,10 +1116,17 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                 size="sm" 
                 className="text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm text-[10px] sm:text-xs h-8"
                 onClick={async () => {
-                  const { signOut } = await import("@/firebase");
-                  const auth = await import("@/firebase").then(m => m.getAuth());
-                  await signOut(auth);
-                  window.location.href = "/login";
+                  try {
+                    const { signOut } = await import("@/firebase");
+                    const auth = await import("@/firebase").then(m => m.getAuth());
+                    // Abort any pending state updates
+                    setOrgLoading(true);
+                    await signOut(auth);
+                    // Use router for smoother transition, or hard reload if preferred
+                    window.location.replace("/login");
+                  } catch (err) {
+                    window.location.href = "/login";
+                  }
                 }}
               >
                 <LogOut className="h-3 w-3 sm:mr-2" />
