@@ -40,6 +40,7 @@ export default function LoginPage() {
   const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
   const [orgData, setOrgData] = useState<{ name: string; slug: string } | null>(null);
 
+  const { user, loading: authLoading } = useAuth();
   const { profile, isManagement, effectiveOrgId, loading: userLoading } = useUserContext();
 
   useEffect(() => {
@@ -50,17 +51,17 @@ export default function LoginPage() {
 
   // Proactive Redirect: If already staff, go home
   useEffect(() => {
-    if (!userLoading && profile && isManagement) {
+    if (!userLoading && !authLoading && user && profile && isManagement) {
       router.push("/");
     }
-  }, [profile, isManagement, userLoading, router]);
+  }, [profile, isManagement, userLoading, authLoading, user, router]);
 
   // Proactive Redirect: If already volunteer, go to Hub
   useEffect(() => {
-    if (!userLoading && profile && !isManagement && (profile.roles?.includes('Volunteer') || profile.isVolunteer)) {
+    if (!userLoading && !authLoading && user && profile && !isManagement && (profile.roles?.includes('Volunteer') || profile.isVolunteer)) {
       router.push(`/hub/${effectiveOrgId || 'hackney-council'}`);
     }
-  }, [profile, isManagement, userLoading, router, effectiveOrgId]);
+  }, [profile, isManagement, userLoading, authLoading, user, router, effectiveOrgId]);
 
   // Fetch org name from Firestore when we have a slug
   useEffect(() => {
