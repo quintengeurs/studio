@@ -82,16 +82,30 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
   }, [allParks, registry]);
 
   const colleagues = useMemo(() => {
-    if (userDepots.length === 0) return [];
-    return allUsers.filter(u => 
+    // 1. Initial candidates (everyone but self and archived)
+    let candidates = allUsers.filter(u => 
       u.email?.toLowerCase() !== user?.email?.toLowerCase() && 
-      !u.isArchived && 
-      (
-        (u.depots?.some(d => userDepots.includes(d))) || 
-        (u.depot && userDepots.includes(u.depot))
-      )
+      !u.isArchived
     );
-  }, [allUsers, userDepots, user?.email]);
+
+    // 2. If a park is selected, filter specifically by that park's depot
+    if (watchPark) {
+      const parkDetail = allParks.find(p => p.name === watchPark);
+      if (parkDetail?.depot) {
+        return candidates.filter(u => 
+          (u.depots?.includes(parkDetail.depot!)) || 
+          (u.depot === parkDetail.depot)
+        );
+      }
+    }
+
+    // 3. Fallback to user's own depots if no park selected or park depot unknown
+    if (userDepots.length === 0) return [];
+    return candidates.filter(u => 
+      (u.depots?.some(d => userDepots.includes(d))) || 
+      (u.depot && userDepots.includes(u.depot))
+    );
+  }, [allUsers, userDepots, user?.email, watchPark, allParks]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
