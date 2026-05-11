@@ -62,6 +62,17 @@ const PARK_FOCUS_POINTS = [
   "Lighting (if applicable)"
 ];
 
+const DEPOT_FOCUS_POINTS = [
+  "Site Access and Perimeter Security",
+  "Health & Safety: Fire Escape Routes (Clear)",
+  "Fire Alarm Call Points and Extinguishers",
+  "Hot Water Testing (Legionella compliance)",
+  "Emergency Lighting Functional Check",
+  "Workshop/Storage Area Tidiness",
+  "First Aid Kits and Eye Wash Stations",
+  "COSHH Storage and Signage"
+];
+
 const InspectionCard = ({ inspection, onStart, onDelete, onEdit, isAdmin }: { 
   inspection: Inspection, 
   onStart: (inspection: Inspection) => void, 
@@ -213,8 +224,9 @@ export default function InspectionsPage() {
     isBespoke: false,
     assetNotes: "",
     customChecks: [] as string[],
-    targetType: 'asset' as 'asset' | 'park',
-    selectedParks: [] as string[]
+    targetType: 'asset' as 'asset' | 'park' | 'depot',
+    selectedParks: [] as string[],
+    selectedDepots: [] as string[]
   });
   const [inspectionResults, setInspectionResults] = useState<{ 
     item: string, 
@@ -227,6 +239,11 @@ export default function InspectionsPage() {
   const [newCustomCheck, setNewCustomCheck] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [selectedParkNames, setSelectedParkNames] = useState<string[]>([]);
+  const [selectedDepotNames, setSelectedDepotNames] = useState<string[]>([]);
+
+  const depots = useMemo(() => {
+    return Array.from(new Set(allParks.map(p => p.depot).filter(Boolean))).sort();
+  }, [allParks]);
 
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
@@ -264,7 +281,7 @@ export default function InspectionsPage() {
           };
           await addDoc(collection(db, "inspections"), inspectionData);
         }
-      } else {
+      } else if (newInspection.targetType === 'park') {
         // Park-based Inspection
         if (selectedParkNames.length === 0) {
           toast({ title: "Error", description: "No parks selected.", variant: "destructive" });
@@ -285,6 +302,42 @@ export default function InspectionsPage() {
             assetId: 'park-general',
             assetName: `General Park Inspection: ${parkName}`,
             park: parkName,
+            status: 'Pending',
+            dueDate: newInspection.dueDate,
+            orgId: profile?.orgId || "hackney-council",
+            checklist: [...baseChecklist, ...customChecklist],
+            frequency: newInspection.isBespoke ? 'Bespoke' : (newInspection.frequency !== 'One-off' ? newInspection.frequency : null),
+            ...(newInspection.isBespoke && {
+              isBespoke: true,
+              startDate: newInspection.startDate,
+              endDate: newInspection.endDate,
+              daysOfWeek: newInspection.daysOfWeek,
+              assetNotes: newInspection.assetNotes
+            })
+          };
+          await addDoc(collection(db, "inspections"), inspectionData);
+        }
+      } else {
+        // Depot-based Inspection
+        if (selectedDepotNames.length === 0) {
+          toast({ title: "Error", description: "No depots selected.", variant: "destructive" });
+          setIsSubmitting(false);
+          return;
+        }
+
+        for (const depotName of selectedDepotNames) {
+          const baseChecklist = DEPOT_FOCUS_POINTS.map(item => ({
+            item, status: 'N/A' as const, notes: ''
+          }));
+          
+          const customChecklist = (newInspection.customChecks || []).map(item => ({
+            item, status: 'N/A' as const, notes: ''
+          }));
+
+          const inspectionData: any = {
+            assetId: 'depot-general',
+            assetName: `Depot Facility Audit: ${depotName}`,
+            park: `Depot: ${depotName}`,
             status: 'Pending',
             dueDate: newInspection.dueDate,
             orgId: profile?.orgId || "hackney-council",
@@ -524,11 +577,15 @@ export default function InspectionsPage() {
                       <RadioGroupItem value="park" id="target-park" />
                       <Label htmlFor="target-park" className="text-xs font-bold cursor-pointer">General Park Site</Label>
                     </div>
+                    <div className="flex items-center space-x-2 bg-muted/30 px-3 py-2 rounded-lg border">
+                      <RadioGroupItem value="depot" id="target-depot" />
+                      <Label htmlFor="target-depot" className="text-xs font-bold cursor-pointer">Depot Facility</Label>
+                    </div>
                   </RadioGroup>
                 </div>
 
-                {newInspection.targetType === 'asset' ? (
-                  <div className="grid gap-2">
+                {newInspection.targetType === 'asset' && (
+                  <div className="grid gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                     <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
                     <div className="border rounded-xl bg-muted/10 overflow-hidden">
                       <ScrollArea className="h-[150px] p-3">
@@ -555,7 +612,9 @@ export default function InspectionsPage() {
                       </ScrollArea>
                     </div>
                   </div>
-                ) : (
+                )}
+
+                {newInspection.targetType === 'park' && (
                   <div className="grid gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                     <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Parks (Select Multiple)</Label>
                     <div className="border rounded-xl bg-muted/10 overflow-hidden">
@@ -581,6 +640,40 @@ export default function InspectionsPage() {
                       <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Standard Focus Points:</p>
                       <p className="text-[9px] text-muted-foreground italic leading-relaxed">
                         {PARK_FOCUS_POINTS.join(" • ")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {newInspection.targetType === 'depot' && (
+                  <div className="grid gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Depots (Select Multiple)</Label>
+                    <div className="border rounded-xl bg-muted/10 overflow-hidden">
+                      <ScrollArea className="h-[150px] p-3">
+                        <div className="grid gap-2">
+                          {depots.map(depotName => (
+                            <div key={depotName} className="flex items-center gap-2 py-1">
+                              <Checkbox 
+                                id={`depot-${depotName}`} 
+                                checked={selectedDepotNames.includes(depotName)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) setSelectedDepotNames(prev => [...prev, depotName]);
+                                  else setSelectedDepotNames(prev => prev.filter(name => name !== depotName));
+                                }}
+                              />
+                              <Label htmlFor={`depot-${depotName}`} className="text-xs font-medium cursor-pointer">{depotName}</Label>
+                            </div>
+                          ))}
+                          {depots.length === 0 && (
+                            <p className="text-xs text-muted-foreground italic p-2">No depots found in configuration.</p>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                    <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Facility Compliance Points:</p>
+                      <p className="text-[9px] text-muted-foreground italic leading-relaxed">
+                        {DEPOT_FOCUS_POINTS.join(" • ")}
                       </p>
                     </div>
                   </div>
@@ -708,7 +801,7 @@ export default function InspectionsPage() {
               </div>
             </div>
             <DialogFooter className="p-6 border-t bg-muted/50">
-              <Button className="w-full" onClick={handleScheduleInspection} disabled={(newInspection.targetType === 'asset' && selectedAssetIds.length === 0) || (newInspection.targetType === 'park' && selectedParkNames.length === 0) || isSubmitting}>
+              <Button className="w-full" onClick={handleScheduleInspection} disabled={(newInspection.targetType === 'asset' && selectedAssetIds.length === 0) || (newInspection.targetType === 'park' && selectedParkNames.length === 0) || (newInspection.targetType === 'depot' && selectedDepotNames.length === 0) || isSubmitting}>
                 {isSubmitting ? "Scheduling..." : "Complete Schedule"}
               </Button>
             </DialogFooter>
