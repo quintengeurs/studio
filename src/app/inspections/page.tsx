@@ -484,15 +484,20 @@ export default function InspectionsPage() {
     } catch (error: any) {
       console.error("Upload error details:", error);
       
-      let errorMsg = error.message || "Unknown error";
-      if (error.message?.includes("CORS")) {
-        errorMsg = "Browser CORS security blocked the upload. Please ensure your Firebase Storage CORS settings are configured.";
-      }
-      
+      // FALLBACK: If storage fails (CORS, etc.), use Base64 string directly
+      // This ensures the user can still complete the inspection.
+      setInspectionResults(prev => {
+        const newResults = [...prev];
+        if (newResults[index]) {
+          newResults[index] = { ...newResults[index], imageUrl: compressed };
+        }
+        return newResults;
+      });
+
       toast({ 
-        title: "Upload Error", 
-        description: errorMsg, 
-        variant: "destructive" 
+        title: "Using local storage", 
+        description: "Cloud upload blocked by security. Image saved locally to this report instead.", 
+        variant: "default" 
       });
     } finally {
       setIsUploading(null);
