@@ -20,7 +20,9 @@ import {
   Camera,
   Upload,
   Image as ImageIcon,
-  X
+  X,
+  Download,
+  FileText
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
@@ -129,11 +131,16 @@ const InspectionCard = ({ inspection, onStart, onDelete, onEdit, isAdmin }: {
           </div>
           
           {inspection.status === 'Completed' ? (
-            <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[10px] text-green-700 font-bold">
+            <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[10px] text-green-700 font-bold bg-green-50 p-2 rounded-lg border border-green-200">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Inspection Record Logged
                 </div>
-                <p className="text-[10px] text-muted-foreground">Inspected by: {inspection.inspectedBy}</p>
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[10px] text-muted-foreground font-medium">Inspected by: <span className="text-foreground font-bold">{inspection.inspectedBy}</span></p>
+                  <Button variant="outline" className="w-full h-9 text-[10px] font-black uppercase tracking-widest hover:bg-primary/5" onClick={() => onStart(inspection)}>
+                    View Details
+                  </Button>
+                </div>
             </div>
           ) : (
             <Button className="w-full h-9 text-xs font-bold" onClick={() => onStart(inspection)}>
@@ -456,6 +463,38 @@ export default function InspectionsPage() {
     }
   };
 
+  const handleExportCSV = (inspection: Inspection) => {
+    if (!inspection.checklist) return;
+
+    const headers = ["Check Item", "Status", "Notes"];
+    const rows = inspection.checklist.map(c => [
+      `"${c.item.replace(/"/g, '""')}"`,
+      c.status,
+      `"${(c.notes || "").replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [
+      ["Inspection Report"],
+      [`Asset: ${inspection.assetName}`],
+      [`Park/Depot: ${inspection.park}`],
+      [`Date: ${inspection.completedAt ? format(new Date(inspection.completedAt), 'yyyy-MM-dd HH:mm') : inspection.dueDate}`],
+      [`Inspected By: ${inspection.inspectedBy || "N/A"}`],
+      [],
+      headers,
+      ...rows
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Inspection_${inspection.assetName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleFinishInspection = async () => {
     if (!db || !selectedInspection || !user || isSubmitting) return;
     setIsSubmitting(true);
@@ -498,7 +537,8 @@ export default function InspectionsPage() {
                         endDate: selectedInspection.endDate,
                         daysOfWeek: selectedInspection.daysOfWeek
                     }),
-                    orgId: profile.orgId
+                    orgId: profile?.orgId || "hackney-council",
+                    targetType: (selectedInspection as any).targetType || 'asset'
                 });
             }
         }
@@ -1078,9 +1118,14 @@ export default function InspectionsPage() {
 
           <div className="p-6 bg-muted/30 border-t mt-auto">
             {selectedInspection?.status === 'Completed' ? (
-              <Button className="w-full font-bold h-12 text-md" variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
-                Close Record
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button className="font-bold h-12" variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
+                  Close Record
+                </Button>
+                <Button className="font-bold h-12 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20" variant="outline" onClick={() => handleExportCSV(selectedInspection)}>
+                  <Download className="mr-2 h-4 w-4" /> Export CSV
+                </Button>
+              </div>
             ) : (
               <Button className="w-full font-bold h-12 text-md shadow-xl" onClick={handleFinishInspection} disabled={isSubmitting || isUploading !== null}>
                 {isSubmitting ? "Finalising Report..." : "Complete Overall Safety Check"}
