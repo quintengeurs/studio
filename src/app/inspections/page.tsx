@@ -446,24 +446,35 @@ export default function InspectionsPage() {
   const [isUploading, setIsUploading] = useState<number | null>(null);
 
   const handleCheckImageUpload = async (file: File, index: number) => {
-    if (!db) return;
+    if (!db || !selectedInspection) return;
     setIsUploading(index);
     try {
       const compressed = await compressImage(file);
       const storage = getStorage();
-      const storageRef = ref(storage, `inspections/${selectedInspection?.id}/check_${index}_${Date.now()}.jpg`);
+      const storageRef = ref(storage, `inspections/${selectedInspection.id}/check_${index}_${Date.now()}.jpg`);
       
-      // Using standard data_url. If this fails with CORS, the bucket configuration must be updated.
-      await uploadString(storageRef, compressed, 'data_url');
+      // Explicitly set content type to help with certain browser/CORS behaviors
+      const metadata = { contentType: 'image/jpeg' };
+      await uploadString(storageRef, compressed, 'data_url', metadata);
       
       const url = await getDownloadURL(storageRef);
       
-      const newResults = [...inspectionResults];
-      newResults[index].imageUrl = url;
-      setInspectionResults(newResults);
+      setInspectionResults(prev => {
+        const newResults = [...prev];
+        if (newResults[index]) {
+          newResults[index] = { ...newResults[index], imageUrl: url };
+        }
+        return newResults;
+      });
+      
       toast({ title: "Image Uploaded", description: "Reference photo attached to this check." });
-    } catch (error) {
-      toast({ title: "Upload Error", description: "Failed to upload inspection image.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Upload error details:", error);
+      toast({ 
+        title: "Upload Error", 
+        description: `Failed to upload image: ${error.message || "Unknown error"}`, 
+        variant: "destructive" 
+      });
     } finally {
       setIsUploading(null);
     }
