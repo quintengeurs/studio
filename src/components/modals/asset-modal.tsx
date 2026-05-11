@@ -16,13 +16,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, MapPin, X, PlusCircle } from "lucide-react";
+import { Plus, MapPin, X, PlusCircle, Image as ImageIcon, Camera } from "lucide-react";
 import { useFirestore, useDoc } from "@/firebase";
 import { collection, addDoc, doc } from "firebase/firestore";
 import { useDataContext } from "@/context/DataContext";
 import { format } from "date-fns";
 import { Frequency, RegistryConfig, ParkDetail } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
+import { compressImage } from "@/lib/image-compress";
+import Image from "next/image";
+
+const ASSET_CATEGORIES = [
+  "Playground", 
+  "Water Features", 
+  "Furniture", 
+  "Signage and Interpretation", 
+  "Walls and Fences", 
+  "Drinking Fountains", 
+  "Lighting", 
+  "Seating", 
+  "Other"
+];
 
 interface AssetModalProps {
   open: boolean;
@@ -59,7 +73,8 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
     inspectionStartDate: format(new Date(), 'yyyy-MM-dd'),
     inspectionNotes: '',
     customChecks: [] as string[],
-    gpsLocation: null as { latitude: number, longitude: number } | null
+    gpsLocation: null as { latitude: number, longitude: number } | null,
+    imageUrl: ""
   });
 
   const [newCustomCheck, setNewCustomCheck] = useState("");
@@ -85,6 +100,18 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
         toast({ title: "Location Error", description: "Check permissions.", variant: "destructive" });
       }
     );
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressedDataUrl = await compressImage(file, 800, 800, 0.7);
+        setFormData(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+      } catch (error) {
+        toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
+      }
+    }
   };
 
   const handleAddCustomCheck = () => {
@@ -118,6 +145,7 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
         isArchived: false,
         lastInspected: 'Never',
         gpsLocation: formData.gpsLocation,
+        imageUrl: formData.imageUrl,
         orgId: profile?.orgId || "hackney-council",
         createdAt: new Date().toISOString()
       };
@@ -154,7 +182,7 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
         name: '', type: '', park: '', location: '', condition: 'Excellent',
         expectedLifespan: '', setupInspection: false, inspectionFrequency: 'Monthly',
         inspectionStartDate: format(new Date(), 'yyyy-MM-dd'), inspectionNotes: '',
-        customChecks: [], gpsLocation: null
+        customChecks: [], gpsLocation: null, imageUrl: ""
       });
       onOpenChange(false);
     } catch (err) {
@@ -179,14 +207,53 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
 
         <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-thin scrollbar-thumb-muted-foreground/20">
           <div className="space-y-6 pb-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Name</Label>
-              <Input placeholder="e.g. Victorian Fountain" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Photo</Label>
+              <div className="flex items-center gap-4">
+                {formData.imageUrl ? (
+                  <div className="relative h-24 w-32 rounded-xl overflow-hidden border-2 border-primary/20 group">
+                    <Image src={formData.imageUrl} alt="Asset preview" fill className="object-cover" />
+                    <button 
+                      onClick={() => setFormData({...formData, imageUrl: ""})}
+                      className="absolute top-1 right-1 h-6 w-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="h-24 w-32 rounded-xl border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2">
+                    <Camera className="h-6 w-6 text-muted-foreground" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Upload</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                )}
+                <div className="flex-1 space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Name</Label>
+                  <Input placeholder="e.g. Victorian Fountain" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                </div>
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase text-muted-foreground">Type / Category</Label>
-              <Input placeholder="e.g. Water Feature" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} />
+              <Label className="text-xs font-bold uppercase text-muted-foreground">Category</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {ASSET_CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setFormData({...formData, type: cat})}
+                    className={`px-3 py-2 text-xs font-semibold rounded-lg border-2 transition-all text-left flex items-center justify-between ${
+                      formData.type === cat 
+                        ? 'border-primary bg-primary/10 text-primary shadow-sm' 
+                        : 'border-muted bg-muted/50 text-muted-foreground hover:border-primary/20'
+                    }`}
+                  >
+                    {cat}
+                    {formData.type === cat && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
