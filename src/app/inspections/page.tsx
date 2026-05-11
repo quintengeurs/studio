@@ -152,7 +152,7 @@ export default function InspectionsPage() {
   const { user } = useUser();
   
   const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers, allParks } = useDataContext();
+  const { allUsers, allParks, registryConfig } = useDataContext();
 
   useEffect(() => {
     // Safety cleanup for navigation locks
@@ -242,8 +242,16 @@ export default function InspectionsPage() {
   const [selectedDepotNames, setSelectedDepotNames] = useState<string[]>([]);
 
   const depots = useMemo(() => {
-    return Array.from(new Set(allParks.map(p => p.depot).filter(Boolean))).sort();
-  }, [allParks]);
+    const fromParks = allParks.map(p => p.depot).filter(Boolean);
+    const fromRegistry = registryConfig?.teams || [];
+    return Array.from(new Set([...fromParks, ...fromRegistry])).sort();
+  }, [allParks, registryConfig]);
+
+  const parksList = useMemo(() => {
+    const fromDetails = allParks.map(p => p.name);
+    const fromRegistry = registryConfig?.parks || [];
+    return Array.from(new Set([...fromDetails, ...fromRegistry])).sort();
+  }, [allParks, registryConfig]);
 
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
@@ -620,7 +628,7 @@ export default function InspectionsPage() {
                     <div className="border rounded-xl bg-muted/10 overflow-hidden">
                       <ScrollArea className="h-[150px] p-3">
                         <div className="grid gap-2">
-                          {Array.from(new Set(allParks.map(p => p.name))).sort().map(parkName => (
+                          {parksList.map(parkName => (
                             <div key={parkName} className="flex items-center gap-2 py-1">
                               <Checkbox 
                                 id={`park-${parkName}`} 
