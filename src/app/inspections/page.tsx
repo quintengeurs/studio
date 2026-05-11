@@ -204,8 +204,17 @@ export default function InspectionsPage() {
         // 2. Global Management visibility
         if (isGlobalMgmt) return true;
 
-        // 3. Depot Management visibility
-        if (isDepotMgmt) {
+        // 3. Depot/Area visibility (Management and Staff)
+        const userDepots = profile?.depots?.length ? profile.depots : (profile?.depot ? [profile.depot] : []);
+        
+        if (userDepots.length > 0) {
+          // If it's a depot inspection, check the name directly
+          if (inspection.park?.startsWith("Depot: ")) {
+            const depotName = inspection.park.replace("Depot: ", "");
+            if (userDepots.includes(depotName)) return true;
+          }
+
+          // If it's an asset or park inspection, find the park's depot
           const parkDetail = allParks.find(d => d.name === inspection.park);
           if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
         }
