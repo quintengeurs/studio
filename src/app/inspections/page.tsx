@@ -468,7 +468,14 @@ export default function InspectionsPage() {
       const storageRef = ref(storage, `inspections/${selectedInspection.id}/check_${index}_${Date.now()}.jpg`);
       
       const metadata = { contentType: 'image/jpeg' };
-      await uploadBytes(storageRef, blob, metadata);
+      
+      // Use a timeout to avoid hanging on CORS preflight failures
+      const uploadPromise = uploadBytes(storageRef, blob, metadata);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Upload timeout")), 5000)
+      );
+
+      await Promise.race([uploadPromise, timeoutPromise]);
       
       const url = await getDownloadURL(storageRef);
       
