@@ -547,13 +547,27 @@ export default function InspectionsPage() {
             }
         }
 
-        const assetRef = doc(db, "assets", selectedInspection.assetId);
-        await updateDoc(assetRef, { lastInspected: format(new Date(), 'yyyy-MM-dd') });
+        // Only update asset if it's a real asset (not a general park/depot inspection)
+        if (selectedInspection.assetId && !['park-general', 'depot-general'].includes(selectedInspection.assetId)) {
+          try {
+            const assetRef = doc(db, "assets", selectedInspection.assetId);
+            await updateDoc(assetRef, { lastInspected: format(new Date(), 'yyyy-MM-dd') });
+          } catch (assetErr) {
+            console.warn("Failed to update asset lastInspected date:", assetErr);
+          }
+        }
 
         setIsCompleteDialogOpen(false);
         toast({ 
             title: "Inspection Logged", 
             description: `Check results for ${selectedInspection.assetName} have been permanently recorded.` 
+        });
+    } catch (error) {
+        console.error("Error completing inspection:", error);
+        toast({ 
+          title: "Submission Error", 
+          description: "Could not finalize the report. Please check your connection and try again.", 
+          variant: "destructive" 
         });
     } finally {
         setIsSubmitting(false);
