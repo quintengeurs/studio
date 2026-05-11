@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit } from "firebase/firestore";
-import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { compressImage } from "@/lib/image-compress";
 import {
@@ -459,12 +459,16 @@ export default function InspectionsPage() {
     setIsUploading(index);
     try {
       const compressed = await compressImage(file);
+      
+      // Convert Data URL to Blob for more robust upload
+      const response = await fetch(compressed);
+      const blob = await response.blob();
+      
       const storage = getStorage();
       const storageRef = ref(storage, `inspections/${selectedInspection.id}/check_${index}_${Date.now()}.jpg`);
       
-      // Explicitly set content type to help with certain browser/CORS behaviors
       const metadata = { contentType: 'image/jpeg' };
-      await uploadString(storageRef, compressed, 'data_url', metadata);
+      await uploadBytes(storageRef, blob, metadata);
       
       const url = await getDownloadURL(storageRef);
       
@@ -479,9 +483,15 @@ export default function InspectionsPage() {
       toast({ title: "Image Uploaded", description: "Reference photo attached to this check." });
     } catch (error: any) {
       console.error("Upload error details:", error);
+      
+      let errorMsg = error.message || "Unknown error";
+      if (error.message?.includes("CORS")) {
+        errorMsg = "Browser CORS security blocked the upload. Please ensure your Firebase Storage CORS settings are configured.";
+      }
+      
       toast({ 
         title: "Upload Error", 
-        description: `Failed to upload image: ${error.message || "Unknown error"}`, 
+        description: errorMsg, 
         variant: "destructive" 
       });
     } finally {
