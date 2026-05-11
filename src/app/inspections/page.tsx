@@ -49,6 +49,18 @@ import { addDays, addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOf
 import { getNextBespokeOccurrence } from "@/lib/scheduling-utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+const PARK_FOCUS_POINTS = [
+  "Pathways and Entrances",
+  "Notice Boards and Signage",
+  "Benches and Seating",
+  "Litter Bins and Waste",
+  "Boundaries, Fences and Gates",
+  "General Horticulture (Beds/Shrubs)",
+  "Tree Safety (Visual Check)",
+  "Lighting (if applicable)"
+];
 
 const InspectionCard = ({ inspection, onStart, onDelete, onEdit, isAdmin }: { 
   inspection: Inspection, 
@@ -200,7 +212,9 @@ export default function InspectionsPage() {
     daysOfWeek: [] as number[],
     isBespoke: false,
     assetNotes: "",
-    customChecks: [] as string[]
+    customChecks: [] as string[],
+    targetType: 'asset' as 'asset' | 'park',
+    selectedParks: [] as string[]
   });
   const [inspectionResults, setInspectionResults] = useState<{ 
     item: string, 
@@ -212,41 +226,80 @@ export default function InspectionsPage() {
   const [editCustomCheck, setEditCustomCheck] = useState("");
   const [newCustomCheck, setNewCustomCheck] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [selectedParkNames, setSelectedParkNames] = useState<string[]>([]);
 
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
     
-    const assetsToSchedule = selectedAssetIds.length > 0 
-      ? assets.filter(a => selectedAssetIds.includes(a.id))
-      : assets.filter(a => a.id === newInspection.assetId);
-
-    if (assetsToSchedule.length === 0) {
-        toast({ title: "Error", description: "No assets selected.", variant: "destructive" });
-        setIsSubmitting(false);
-        return;
-    }
-
     try {
-      for (const asset of assetsToSchedule) {
-        const inspectionData: any = {
-          assetId: asset.id,
-          assetName: asset.name,
-          park: asset.park,
-          status: 'Pending',
-          dueDate: newInspection.dueDate,
-          orgId: profile?.orgId || "hackney-council",
-          frequency: newInspection.isBespoke ? 'Bespoke' : (newInspection.frequency !== 'One-off' ? newInspection.frequency : null),
-          ...(newInspection.isBespoke && {
-            isBespoke: true,
-            startDate: newInspection.startDate,
-            endDate: newInspection.endDate,
-            daysOfWeek: newInspection.daysOfWeek,
-            assetNotes: newInspection.assetNotes,
-            customChecks: newInspection.customChecks
-          })
-        };
-        await addDoc(collection(db, "inspections"), inspectionData);
+      if (newInspection.targetType === 'asset') {
+        const assetsToSchedule = selectedAssetIds.length > 0 
+          ? assets.filter(a => selectedAssetIds.includes(a.id))
+          : assets.filter(a => a.id === newInspection.assetId);
+
+        if (assetsToSchedule.length === 0) {
+            toast({ title: "Error", description: "No assets selected.", variant: "destructive" });
+            setIsSubmitting(false);
+            return;
+        }
+
+        for (const asset of assetsToSchedule) {
+          const inspectionData: any = {
+            assetId: asset.id,
+            assetName: asset.name,
+            park: asset.park,
+            status: 'Pending',
+            dueDate: newInspection.dueDate,
+            orgId: profile?.orgId || "hackney-council",
+            frequency: newInspection.isBespoke ? 'Bespoke' : (newInspection.frequency !== 'One-off' ? newInspection.frequency : null),
+            ...(newInspection.isBespoke && {
+              isBespoke: true,
+              startDate: newInspection.startDate,
+              endDate: newInspection.endDate,
+              daysOfWeek: newInspection.daysOfWeek,
+              assetNotes: newInspection.assetNotes,
+              customChecks: newInspection.customChecks
+            })
+          };
+          await addDoc(collection(db, "inspections"), inspectionData);
+        }
+      } else {
+        // Park-based Inspection
+        if (selectedParkNames.length === 0) {
+          toast({ title: "Error", description: "No parks selected.", variant: "destructive" });
+          setIsSubmitting(false);
+          return;
+        }
+
+        for (const parkName of selectedParkNames) {
+          const baseChecklist = PARK_FOCUS_POINTS.map(item => ({
+            item, status: 'N/A' as const, notes: ''
+          }));
+          
+          const customChecklist = (newInspection.customChecks || []).map(item => ({
+            item, status: 'N/A' as const, notes: ''
+          }));
+
+          const inspectionData: any = {
+            assetId: 'park-general',
+            assetName: `General Park Inspection: ${parkName}`,
+            park: parkName,
+            status: 'Pending',
+            dueDate: newInspection.dueDate,
+            orgId: profile?.orgId || "hackney-council",
+            checklist: [...baseChecklist, ...customChecklist],
+            frequency: newInspection.isBespoke ? 'Bespoke' : (newInspection.frequency !== 'One-off' ? newInspection.frequency : null),
+            ...(newInspection.isBespoke && {
+              isBespoke: true,
+              startDate: newInspection.startDate,
+              endDate: newInspection.endDate,
+              daysOfWeek: newInspection.daysOfWeek,
+              assetNotes: newInspection.assetNotes
+            })
+          };
+          await addDoc(collection(db, "inspections"), inspectionData);
+        }
       }
 
       setIsDialogOpen(false);
@@ -454,33 +507,84 @@ export default function InspectionsPage() {
             </DialogHeader>
             <div className="flex-1 overflow-y-auto p-6 min-h-0">
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
-                  <div className="border rounded-xl bg-muted/10 overflow-hidden">
-                    <ScrollArea className="h-[150px] p-3">
-                      {Array.from(new Set(assets.map(a => a.park))).sort().map(park => (
-                        <div key={park} className="mb-4">
-                          <h4 className="text-[10px] font-bold uppercase text-primary mb-2 border-b border-primary/10 pb-1">{park}</h4>
-                          <div className="grid gap-2">
-                            {assets.filter(a => a.park === park).map(asset => (
-                              <div key={asset.id} className="flex items-center gap-2">
-                                <Checkbox 
-                                  id={`asset-${asset.id}`} 
-                                  checked={selectedAssetIds.includes(asset.id)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) setSelectedAssetIds(prev => [...prev, asset.id]);
-                                    else setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
-                                  }}
-                                />
-                                <Label htmlFor={`asset-${asset.id}`} className="text-xs font-medium cursor-pointer">{asset.name}</Label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </ScrollArea>
-                  </div>
+                
+                <div className="grid gap-2 mb-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Inspection Focus</Label>
+                  <RadioGroup 
+                    defaultValue="asset" 
+                    value={newInspection.targetType} 
+                    onValueChange={(v: any) => setNewInspection({...newInspection, targetType: v})}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2 bg-muted/30 px-3 py-2 rounded-lg border">
+                      <RadioGroupItem value="asset" id="target-asset" />
+                      <Label htmlFor="target-asset" className="text-xs font-bold cursor-pointer">Specific Assets</Label>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-muted/30 px-3 py-2 rounded-lg border">
+                      <RadioGroupItem value="park" id="target-park" />
+                      <Label htmlFor="target-park" className="text-xs font-bold cursor-pointer">General Park Site</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
+
+                {newInspection.targetType === 'asset' ? (
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
+                    <div className="border rounded-xl bg-muted/10 overflow-hidden">
+                      <ScrollArea className="h-[150px] p-3">
+                        {Array.from(new Set(assets.map(a => a.park))).sort().map(park => (
+                          <div key={park} className="mb-4">
+                            <h4 className="text-[10px] font-bold uppercase text-primary mb-2 border-b border-primary/10 pb-1">{park}</h4>
+                            <div className="grid gap-2">
+                              {assets.filter(a => a.park === park).map(asset => (
+                                <div key={asset.id} className="flex items-center gap-2">
+                                  <Checkbox 
+                                    id={`asset-${asset.id}`} 
+                                    checked={selectedAssetIds.includes(asset.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) setSelectedAssetIds(prev => [...prev, asset.id]);
+                                      else setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
+                                    }}
+                                  />
+                                  <Label htmlFor={`asset-${asset.id}`} className="text-xs font-medium cursor-pointer">{asset.name}</Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </ScrollArea>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Parks (Select Multiple)</Label>
+                    <div className="border rounded-xl bg-muted/10 overflow-hidden">
+                      <ScrollArea className="h-[150px] p-3">
+                        <div className="grid gap-2">
+                          {Array.from(new Set(allParks.map(p => p.name))).sort().map(parkName => (
+                            <div key={parkName} className="flex items-center gap-2 py-1">
+                              <Checkbox 
+                                id={`park-${parkName}`} 
+                                checked={selectedParkNames.includes(parkName)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) setSelectedParkNames(prev => [...prev, parkName]);
+                                  else setSelectedParkNames(prev => prev.filter(name => name !== parkName));
+                                }}
+                              />
+                              <Label htmlFor={`park-${parkName}`} className="text-xs font-medium cursor-pointer">{parkName}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                    <div className="p-3 bg-primary/5 border rounded-lg">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Standard Focus Points:</p>
+                      <p className="text-[9px] text-muted-foreground italic leading-relaxed">
+                        {PARK_FOCUS_POINTS.join(" • ")}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
                   <div className="flex flex-col">
@@ -604,7 +708,7 @@ export default function InspectionsPage() {
               </div>
             </div>
             <DialogFooter className="p-6 border-t bg-muted/50">
-              <Button className="w-full" onClick={handleScheduleInspection} disabled={(!newInspection.assetId && selectedAssetIds.length === 0) || isSubmitting}>
+              <Button className="w-full" onClick={handleScheduleInspection} disabled={(newInspection.targetType === 'asset' && selectedAssetIds.length === 0) || (newInspection.targetType === 'park' && selectedParkNames.length === 0) || isSubmitting}>
                 {isSubmitting ? "Scheduling..." : "Complete Schedule"}
               </Button>
             </DialogFooter>
