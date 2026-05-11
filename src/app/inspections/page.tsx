@@ -370,14 +370,6 @@ export default function InspectionsPage() {
         }
       }
 
-      setIsDialogOpen(false);
-      setNewInspection({ 
-        assetId: "", frequency: "One-off", dueDate: format(new Date(), 'yyyy-MM-dd'),
-        startDate: format(new Date(), 'yyyy-MM-dd'), endDate: "",
-        daysOfWeek: [], isBespoke: false, assetNotes: "", customChecks: []
-      });
-      setNewCustomCheck("");
-      setSelectedAssetIds([]);
       const count = newInspection.targetType === 'asset' 
         ? (selectedAssetIds.length > 0 ? selectedAssetIds.length : (newInspection.assetId ? 1 : 0))
         : (newInspection.targetType === 'park' ? selectedParkNames.length : selectedDepotNames.length);
@@ -386,7 +378,28 @@ export default function InspectionsPage() {
         title: "Inspections Scheduled", 
         description: `Successfully scheduled ${count} ${newInspection.targetType === 'asset' ? 'asset' : (newInspection.targetType === 'park' ? 'park' : 'depot')} safety check(s).` 
       });
+
+      setIsDialogOpen(false);
+      setNewInspection({ 
+        assetId: "", 
+        frequency: "One-off", 
+        dueDate: format(new Date(), 'yyyy-MM-dd'),
+        startDate: format(new Date(), 'yyyy-MM-dd'), 
+        endDate: "",
+        daysOfWeek: [], 
+        isBespoke: false, 
+        assetNotes: "", 
+        customChecks: [],
+        targetType: 'asset',
+        selectedParks: [],
+        selectedDepots: []
+      });
+      setNewCustomCheck("");
+      setSelectedAssetIds([]);
+      setSelectedParkNames([]);
+      setSelectedDepotNames([]);
     } catch (error) {
+        console.error("Scheduling error:", error);
         toast({ title: "Error", description: "Could not schedule inspections. Please try again.", variant: "destructive" });
     } finally {
         setIsSubmitting(false);
