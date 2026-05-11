@@ -378,9 +378,13 @@ export default function InspectionsPage() {
       });
       setNewCustomCheck("");
       setSelectedAssetIds([]);
+      const count = newInspection.targetType === 'asset' 
+        ? (selectedAssetIds.length > 0 ? selectedAssetIds.length : (newInspection.assetId ? 1 : 0))
+        : (newInspection.targetType === 'park' ? selectedParkNames.length : selectedDepotNames.length);
+
       toast({ 
         title: "Inspections Scheduled", 
-        description: `Successfully scheduled ${assetsToSchedule.length} safety check(s).` 
+        description: `Successfully scheduled ${count} ${newInspection.targetType === 'asset' ? 'asset' : (newInspection.targetType === 'park' ? 'park' : 'depot')} safety check(s).` 
       });
     } catch (error) {
         toast({ title: "Error", description: "Could not schedule inspections. Please try again.", variant: "destructive" });
@@ -732,23 +736,44 @@ export default function InspectionsPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest">Bespoke Schedule</span>
                     <span className="text-[10px] text-muted-foreground">Custom days and date range</span>
                   </div>
-                  <Switch checked={newInspection.isBespoke} onCheckedChange={(v: boolean) => setNewInspection({...newInspection, isBespoke: v})} />
+                  <Switch checked={newInspection.isBespoke} onCheckedChange={(v: boolean) => setNewInspection({...newInspection, isBespoke: v, frequency: v ? 'Bespoke' : 'One-off'})} />
                 </div>
 
-                {newInspection.isBespoke ? (
-                  <div className="p-4 border-2 border-primary/20 rounded-2xl bg-primary/5 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Start Date</Label>
-                        <Input type="date" value={newInspection.startDate} onChange={e => setNewInspection({...newInspection, startDate: e.target.value})} className="h-9" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">End Date (Optional)</Label>
-                        <Input type="date" value={newInspection.endDate} onChange={e => setNewInspection({...newInspection, endDate: e.target.value})} className="h-9" />
-                      </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="i-date" className="text-[10px] font-bold uppercase tracking-widest opacity-60">{newInspection.isBespoke ? 'Start Date' : 'Due Date'}</Label>
+                    <Input id="i-date" type={newInspection.isBespoke ? "date" : "date"} value={newInspection.isBespoke ? newInspection.startDate : newInspection.dueDate} onChange={e => setNewInspection({...newInspection, [newInspection.isBespoke ? 'startDate' : 'dueDate']: e.target.value})} className="h-11 shadow-sm" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Frequency</Label>
+                    <Select 
+                      disabled={newInspection.isBespoke} 
+                      value={newInspection.isBespoke ? 'Bespoke' : newInspection.frequency} 
+                      onValueChange={(v: Frequency) => setNewInspection({...newInspection, frequency: v})}
+                    >
+                      <SelectTrigger className="h-11 shadow-sm">
+                        <SelectValue placeholder="Select Frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="One-off">One-off</SelectItem>
+                        <SelectItem value="Weekly">Weekly</SelectItem>
+                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Six Monthly">Six Monthly</SelectItem>
+                        <SelectItem value="Yearly">Yearly</SelectItem>
+                        <SelectItem value="Bespoke" disabled>Bespoke (Use Toggle)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {newInspection.isBespoke && (
+                  <div className="p-4 border-2 border-primary/20 rounded-2xl bg-primary/5 space-y-4 animate-in zoom-in-95 duration-200">
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">End Date (Optional)</Label>
+                      <Input type="date" value={newInspection.endDate} onChange={e => setNewInspection({...newInspection, endDate: e.target.value})} className="h-9" />
                     </div>
                     <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Frequency: Repeat Every</Label>
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-40">Repeat on these days</Label>
                       <div className="flex flex-wrap gap-3 pt-1">
                         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => {
                           const dayValue = (idx + 1) % 7;
@@ -821,28 +846,6 @@ export default function InspectionsPage() {
                           </Badge>
                         ))}
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="i-date" className="text-[10px] font-bold uppercase tracking-widest opacity-60">Due Date</Label>
-                      <Input id="i-date" type="date" value={newInspection.dueDate} onChange={e => setNewInspection({...newInspection, dueDate: e.target.value})} className="h-11 shadow-sm" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Frequency</Label>
-                      <Select value={newInspection.frequency} onValueChange={(v: Frequency) => setNewInspection({...newInspection, frequency: v})}>
-                        <SelectTrigger className="h-11 shadow-sm">
-                          <SelectValue placeholder="Select Frequency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="One-off">One-off</SelectItem>
-                          <SelectItem value="Weekly">Weekly</SelectItem>
-                          <SelectItem value="Monthly">Monthly</SelectItem>
-                          <SelectItem value="Six Monthly">Six Monthly</SelectItem>
-                          <SelectItem value="Yearly">Yearly</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
                 )}
