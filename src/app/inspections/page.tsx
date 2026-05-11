@@ -457,11 +457,12 @@ export default function InspectionsPage() {
   const handleCheckImageUpload = async (file: File, index: number) => {
     if (!db || !selectedInspection) return;
     setIsUploading(index);
+    let compressedDataUrl = "";
     try {
-      const compressed = await compressImage(file);
+      compressedDataUrl = await compressImage(file);
       
       // Convert Data URL to Blob for more robust upload
-      const response = await fetch(compressed);
+      const response = await fetch(compressedDataUrl);
       const blob = await response.blob();
       
       const storage = getStorage();
@@ -493,19 +494,23 @@ export default function InspectionsPage() {
       
       // FALLBACK: If storage fails (CORS, etc.), use Base64 string directly
       // This ensures the user can still complete the inspection.
-      setInspectionResults(prev => {
-        const newResults = [...prev];
-        if (newResults[index]) {
-          newResults[index] = { ...newResults[index], imageUrl: compressed };
-        }
-        return newResults;
-      });
+      if (compressedDataUrl) {
+        setInspectionResults(prev => {
+          const newResults = [...prev];
+          if (newResults[index]) {
+            newResults[index] = { ...newResults[index], imageUrl: compressedDataUrl };
+          }
+          return newResults;
+        });
 
-      toast({ 
-        title: "Using local storage", 
-        description: "Cloud upload blocked by security. Image saved locally to this report instead.", 
-        variant: "default" 
-      });
+        toast({ 
+          title: "Using local storage", 
+          description: "Cloud upload blocked by security. Image saved locally to this report instead.", 
+          variant: "default" 
+        });
+      } else {
+        toast({ title: "Error", description: "Could not process or upload image.", variant: "destructive" });
+      }
     } finally {
       setIsUploading(null);
     }
