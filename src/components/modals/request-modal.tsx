@@ -44,7 +44,7 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const { profile } = useUserContext();
+  const { profile, effectiveOrgId } = useUserContext();
   const { registryConfig, configLoading } = useDataContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,7 +88,7 @@ export function RequestModal({ trigger, open, onOpenChange }: RequestModalProps)
 
     const requestData = {
       ...data,
-      orgId: profile?.orgId || "hackney-council",
+      orgId: profile?.orgId || effectiveOrgId || "hackney-council",
       requestedBy: profile?.name || user.displayName || user.email || "Unknown Staff",
       status: "Open",
       createdAt: new Date().toISOString(),

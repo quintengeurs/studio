@@ -127,6 +127,7 @@ export function LogWorkModal({ open, onOpenChange }: LogWorkModalProps) {
         completionImageUrl: data.imageUrl,
         collaborators: data.selectedColleagues,
         isLog: true,
+        orgId: profile?.orgId || "hackney-council",
         createdAt: new Date().toISOString()
       });
 

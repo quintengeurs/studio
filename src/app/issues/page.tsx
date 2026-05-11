@@ -277,7 +277,8 @@ function IssuesContent() {
       ...newIssue,
       status: 'Open',
       reportedBy: user.displayName || user.email,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      orgId: profile?.orgId || effectiveOrgId
     };
 
     try {
@@ -326,7 +327,8 @@ function IssuesContent() {
         status: 'Todo',
         dueDate: new Date().toISOString().split('T')[0],
         park: issue.park,
-        linkedIssueId: selectedIssueId
+        linkedIssueId: selectedIssueId,
+        orgId: profile?.orgId || effectiveOrgId
       };
 
       if (!taskSnap.empty) {
@@ -355,7 +357,10 @@ function IssuesContent() {
   const handleApproveResolution = async (id: string) => {
     if (!db) return;
     try {
-      await updateDoc(doc(db, "issues", id), { status: 'Resolved' });
+      await updateDoc(doc(db, "issues", id), { 
+        status: 'Resolved',
+        orgId: profile?.orgId || effectiveOrgId
+      });
       toast({ title: "Resolution Approved", description: "The issue has been archived." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to approve resolution.", variant: "destructive" });
@@ -375,7 +380,10 @@ function IssuesContent() {
   const handleArchiveIssue = async (id: string) => {
     if (!db) return;
     try {
-      await updateDoc(doc(db, "issues", id), { isArchived: true });
+      await updateDoc(doc(db, "issues", id), { 
+        isArchived: true,
+        orgId: profile?.orgId || effectiveOrgId
+      });
       toast({ title: "Issue Archived", description: "Moved to the permanent archive." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to archive issue.", variant: "destructive" });

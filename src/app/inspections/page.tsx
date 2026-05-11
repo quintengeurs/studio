@@ -229,12 +229,13 @@ export default function InspectionsPage() {
 
     try {
       for (const asset of assetsToSchedule) {
-        const inspectionData = {
+        const inspectionData: any = {
           assetId: asset.id,
           assetName: asset.name,
           park: asset.park,
           status: 'Pending',
           dueDate: newInspection.dueDate,
+          orgId: profile?.orgId || "hackney-council",
           frequency: newInspection.isBespoke ? 'Bespoke' : (newInspection.frequency !== 'One-off' ? newInspection.frequency : null),
           ...(newInspection.isBespoke && {
             isBespoke: true,
@@ -242,8 +243,7 @@ export default function InspectionsPage() {
             endDate: newInspection.endDate,
             daysOfWeek: newInspection.daysOfWeek,
             assetNotes: newInspection.assetNotes,
-            customChecks: newInspection.customChecks,
-            orgId: profile.orgId
+            customChecks: newInspection.customChecks
           })
         };
         await addDoc(collection(db, "inspections"), inspectionData);

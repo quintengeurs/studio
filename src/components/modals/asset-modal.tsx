@@ -22,6 +22,7 @@ import { collection, addDoc, doc } from "firebase/firestore";
 import { useDataContext } from "@/context/DataContext";
 import { format } from "date-fns";
 import { Frequency, RegistryConfig, ParkDetail } from "@/lib/types";
+import { useUserContext } from "@/context/UserContext";
 
 interface AssetModalProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { allParks, registryConfig: contextRegistry } = useDataContext();
+  const { profile } = useUserContext();
   
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
@@ -116,6 +118,7 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
         isArchived: false,
         lastInspected: 'Never',
         gpsLocation: formData.gpsLocation,
+        orgId: profile?.orgId || "hackney-council",
         createdAt: new Date().toISOString()
       };
 
@@ -141,6 +144,7 @@ export function AssetModal({ open, onOpenChange }: AssetModalProps) {
           frequency: formData.inspectionFrequency,
           assetNotes: formData.inspectionNotes,
           checklist: [...baseChecklist, ...customChecklist],
+          orgId: profile?.orgId || "hackney-council",
           createdAt: new Date().toISOString()
         });
       }

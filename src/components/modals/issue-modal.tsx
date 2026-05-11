@@ -20,6 +20,7 @@ import { useFirestore, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, doc } from "firebase/firestore";
 import { compressImage } from "@/lib/image-compress";
 import { useDataContext } from "@/context/DataContext";
+import { useUserContext } from "@/context/UserContext";
 import { RegistryConfig } from "@/lib/types";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
@@ -41,6 +42,7 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
   const db = useFirestore();
   const { user } = useUser();
   const { allParks, registryConfig: contextRegistry } = useDataContext();
+  const { profile, effectiveOrgId } = useUserContext();
   
   const registryRef = useMemo(() => db ? doc(db, "settings", "registry") : null, [db]);
   const { data: localRegistry } = useDoc<RegistryConfig>(registryRef as any);
@@ -118,7 +120,8 @@ export function IssueModal({ open, onOpenChange }: IssueModalProps) {
         ...data,
         status: 'Open',
         reportedBy: user.displayName || user.email,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        orgId: profile?.orgId || effectiveOrgId
       });
 
       toast({ title: "Issue Raised", description: "Successfully created the issue report." });
