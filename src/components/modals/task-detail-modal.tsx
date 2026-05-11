@@ -47,7 +47,7 @@ interface TaskDetailModalProps {
   viewMode?: 'browse' | 'manage';
 }
 
-export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks, volunteerEmail, onSuccess }: TaskDetailModalProps) {
+export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUsers, allParks, volunteerEmail, onSuccess, viewMode }: TaskDetailModalProps) {
   const { toast } = useToast();
   const db = useFirestore();
   const { profile: contextProfile, currentUserRoles } = useUserContext();
