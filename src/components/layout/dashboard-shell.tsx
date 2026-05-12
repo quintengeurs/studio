@@ -83,9 +83,6 @@ export function DashboardShell({ children, title, description, actions, isPublic
     return null;
   }
 
-  const { profile } = useUserContext();
-  const isVolunteer = profile?.roles?.includes('Volunteer') || profile?.isVolunteer;
-  const showNav = !!user && !isPublic && !isVolunteer;
 
   return (
     <div className="flex min-h-screen bg-background w-full overflow-x-hidden">
