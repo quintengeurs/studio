@@ -115,15 +115,26 @@ export default function Dashboard() {
 
   // Personalised Queries
   const myTasksQuery = useMemoFirebase(() => {
-    if (!db || identities.length === 0 || !profile?.orgId) return null;
+    if (!db || !profile?.orgId) return null;
+    if (isManagement || isAdmin) {
+      return query(
+        collection(db, "tasks"), 
+        where("orgId", "==", profile.orgId),
+        where("status", "!=", "Completed"),
+        limit(50)
+      );
+    }
+    if (identities.length === 0) return null;
     return query(
       collection(db, "tasks"), 
       where("orgId", "==", profile.orgId),
       where("assignedTo", "in", identities)
     );
-  }, [db, identities, profile?.orgId]);
+  }, [db, identities, profile?.orgId, isManagement, isAdmin]);
 
-  const { data: myTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
+  const { data: rawTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
+
+  const myTasks = rawTasks;
 
   const myIssuesQuery = useMemoFirebase(() => {
     if (!db || !profile?.orgId) return null;

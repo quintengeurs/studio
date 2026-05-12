@@ -64,10 +64,17 @@ export function DashboardShell({ children, title, description, actions, isPublic
     return () => clearTimeout(timer);
   }, [title]); // Trigger on every page title change (navigation)
 
-  if (loading) {
+  const { profile, loading: profileLoading } = useUserContext();
+  const isVolunteer = profile?.roles?.includes('Volunteer') || profile?.isVolunteer;
+  const showNav = !!user && !isPublic && !isVolunteer;
+
+  if (loading || profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Syncing Profile...</p>
+        </div>
       </div>
     );
   }
@@ -76,9 +83,9 @@ export function DashboardShell({ children, title, description, actions, isPublic
     return null;
   }
 
-  const { profile, isManagement } = useUserContext();
+  const { profile } = useUserContext();
   const isVolunteer = profile?.roles?.includes('Volunteer') || profile?.isVolunteer;
-  const showNav = !!user && !isPublic && isManagement && !isVolunteer;
+  const showNav = !!user && !isPublic && !isVolunteer;
 
   return (
     <div className="flex min-h-screen bg-background w-full overflow-x-hidden">
