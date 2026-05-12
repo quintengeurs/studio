@@ -69,7 +69,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit, setDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit, setDoc, orderBy } from "firebase/firestore";
 import { Role, Frequency, Task, Asset } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
@@ -130,6 +130,17 @@ export default function TasksPage() {
   const { data: proposedTasks = [] } = useCollection<any>(
     db ? query(collection(db, "proposed_tasks"), where("status", "==", "pending")) : null
   );
+
+  const automationLogQuery = useMemoFirebase(() => 
+    db ? query(
+      collection(db, "automation_logs"), 
+      where("type", "==", "daily_evaluation"),
+      orderBy("timestamp", "desc"),
+      limit(1)
+    ) : null,
+  [db]);
+  const { data: latestLogs = [] } = useCollection<any>(automationLogQuery as any);
+  const latestLog = latestLogs[0] || null;
 
   const isOperational = !permissions.viewAllTasks;
 
@@ -828,6 +839,31 @@ export default function TasksPage() {
 
           <TabsContent value="automation">
             <div className="grid gap-4">
+              {latestLog && (
+                <div className={`p-4 rounded-2xl border flex items-center gap-4 mb-2 ${
+                  latestLog.status === 'success' ? 'bg-primary/5 border-primary/20' : 'bg-destructive/5 border-destructive/20'
+                }`}>
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+                    latestLog.status === 'success' ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
+                  }`}>
+                    {latestLog.stats?.tasksProposed > 0 ? <Sparkles className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-foreground">
+                      {latestLog.stats?.tasksProposed > 0 
+                        ? `Automation engine triggered ${latestLog.stats.tasksProposed} suggestions this morning.`
+                        : "Automation engine checked APIs this morning, but no triggers occurred."}
+                    </p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                      Last Check: {format(new Date(latestLog.timestamp), 'MMM d, yyyy @ h:mm a')} • Status: {latestLog.status.toUpperCase()}
+                    </p>
+                  </div>
+                  {latestLog.stats?.tasksProposed === 0 && (
+                    <Badge variant="secondary" className="bg-muted text-[10px] font-bold uppercase py-1">Quiet Day</Badge>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-col gap-1 mb-2">
                 <h3 className="text-lg font-bold flex items-center gap-2 text-primary">
                   <Bot className="h-5 w-5" /> Smart Suggestions
