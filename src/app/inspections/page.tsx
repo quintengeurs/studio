@@ -879,7 +879,6 @@ export default function InspectionsPage() {
                         {DEPOT_FOCUS_POINTS.join(" • ")}
                       </p>
                     </div>
-                    </div>
                   </div>
                 )}
 
