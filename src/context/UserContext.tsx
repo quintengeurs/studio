@@ -29,16 +29,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const [impersonatedOrgId, setImpersonatedOrgIdState] = React.useState<string | null>(null);
 
-
   const setImpersonatedOrgId = (id: string | null) => {
     setImpersonatedOrgIdState(id);
     if (id) localStorage.setItem('impersonatedOrgId', id);
     else localStorage.removeItem('impersonatedOrgId');
   };
-
-  const emailId = useMemo(() => 
-    user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", 
-  [user?.email]);
 
   // 1. Check by UID
   const profileByUidRef = useMemo(() => 
@@ -46,13 +41,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [db, user?.uid]);
   const { data: profileByUid, loading: loadingUid } = useDoc<User>(profileByUidRef as any);
 
-  // 2. Check by Email ID (legacy/sync pattern)
+  // 2. Check by Email ID (Sanitized)
+  const emailId = useMemo(() => 
+    user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", 
+  [user?.email]);
   const profileByEmailRef = useMemo(() => 
     db && emailId ? doc(db, "users", emailId) : null, 
   [db, emailId]);
   const { data: profileByEmail, loading: loadingEmailId } = useDoc<User>(profileByEmailRef as any);
 
-  const profile = profileByEmail || profileByUid || null;
+  // 3. Fallback: Query by Email
+  const profileByQueryRef = useMemoFirebase(() => 
+    db && user?.email ? query(collection(db, "users"), where("email", "==", user.email.toLowerCase())) : null,
+  [db, user?.email]);
+  const { data: profilesByQuery, loading: loadingQuery } = useCollection<User>(profileByQueryRef as any);
+  const profileByQuery = profilesByQuery?.[0] || null;
+
+  const profile = profileByUid || profileByEmail || profileByQuery || null;
   
   const currentUserRoles = useMemo(() => {
     const rolesSet = new Set<string>();

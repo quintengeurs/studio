@@ -350,7 +350,8 @@ export default function UserManagement() {
 
     const trainingString = getFinalTrainingString() || "None";
     const userEmail = newUser.email?.trim() || "";
-    const tempId = `user_${Date.now()}`;
+    const emailId = userEmail.toLowerCase().replace(/[.#$[\]]/g, "_");
+    const tempId = emailId || `user_${Date.now()}`;
     const userToSave = {
         ...newUser,
         id: tempId,
@@ -534,6 +535,10 @@ export default function UserManagement() {
         setIsDeleteUserConfirmOpen(false);
         setIsProfileDialogOpen(false);
         setSelectedUser(null);
+        
+        // Manual cleanup of pointer events to prevent UI lockup after hard deletion
+        document.body.style.pointerEvents = 'auto';
+        document.body.style.overflow = 'auto';
         
         toast({ 
             title: "Account Permanently Deleted", 
