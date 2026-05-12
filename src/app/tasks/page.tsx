@@ -86,30 +86,30 @@ export default function TasksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const volunteerImageRef = useRef<HTMLInputElement>(null);
 
-  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
+  const { profile, permissions, isAdmin, currentUserRoles, effectiveOrgId } = useUserContext();
   const { allUsers: users, allParks: allDetails, allIssues, registryConfig: contextRegistry } = useDataContext();
 
   const [taskLimit, setTaskLimit] = useState(25);
   const [archivedLimit, setArchivedLimit] = useState(25);
 
   const tasksQuery = useMemoFirebase(() => 
-    (db && profile?.orgId) ? query(
+    (db && effectiveOrgId) ? query(
       collection(db, "tasks"), 
-      where("orgId", "==", profile.orgId),
+      where("orgId", "==", effectiveOrgId),
       where("status", "!=", "Completed"), 
       limit(taskLimit)
     ) : null, 
-  [db, taskLimit, profile?.orgId]);
+  [db, taskLimit, effectiveOrgId]);
   const { data: tasks = [], loading: tasksLoading } = useCollection<Task>(tasksQuery as any);
 
   const archivedTasksQuery = useMemoFirebase(() => 
-    (db && profile?.orgId) ? query(
+    (db && effectiveOrgId) ? query(
       collection(db, "tasks"), 
-      where("orgId", "==", profile.orgId),
+      where("orgId", "==", effectiveOrgId),
       where("status", "==", "Completed"), 
       limit(archivedLimit)
     ) : null, 
-  [db, archivedLimit, profile?.orgId]);
+  [db, archivedLimit, effectiveOrgId]);
   const { data: archivedTasks = [], loading: archivedTasksLoading } = useCollection<Task>(archivedTasksQuery as any);
 
   const assetsQuery = useMemoFirebase(() => 

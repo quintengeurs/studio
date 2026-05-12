@@ -55,7 +55,7 @@ export default function InfoCornerPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const { profile, permissions } = useUserContext();
+  const { profile, permissions, effectiveOrgId } = useUserContext();
   const { allUsers } = useDataContext();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,14 +63,14 @@ export default function InfoCornerPage() {
   const [selectedItemForList, setSelectedItemForList] = useState<InfoItem | null>(null);
 
   const infoQuery = useMemoFirebase(() => {
-    if (!db || !profile?.orgId) return null;
+    if (!db || !effectiveOrgId) return null;
     return query(
       collection(db, "info_items"), 
-      where("orgId", "==", profile.orgId),
+      where("orgId", "==", effectiveOrgId),
       where("isArchived", "==", false), 
       orderBy("createdAt", "desc")
     );
-  }, [db, profile?.orgId]);
+  }, [db, effectiveOrgId]);
 
   const { data: rawItems = [], loading } = useCollection<InfoItem>(infoQuery as any);
 

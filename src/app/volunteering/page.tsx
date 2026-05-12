@@ -70,7 +70,7 @@ import { useDataContext } from "@/context/DataContext";
 export default function VolunteeringPage() {
   const db = useFirestore();
   const { user } = useUser();
-  const { profile, isManagement, isMaster, isAdmin, loading: userLoading } = useUserContext();
+  const { profile, isManagement, isMaster, isAdmin, loading: userLoading, effectiveOrgId: contextOrgId } = useUserContext();
   const { allUsers, allParks } = useDataContext();
   const { toast } = useToast();
   const router = useRouter();
@@ -87,11 +87,9 @@ export default function VolunteeringPage() {
   const effectiveOrgId = useMemo(() => {
     // If a specific org is requested via URL, respect it (allows staff to view public portals of other orgs)
     if (urlOrgId) return urlOrgId;
-    // Otherwise, default to their logged-in org
-    if (user && profile?.orgId) return profile.orgId;
-    // Fallback to default
-    return "hackney-council";
-  }, [profile?.orgId, urlOrgId, user]);
+    // Otherwise, default to the context-resolved org
+    return contextOrgId || "hackney-council";
+  }, [contextOrgId, urlOrgId]);
   
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [volunteerEmail, setVolunteerEmail] = useState<string | null>(null);
@@ -1213,6 +1211,121 @@ export default function VolunteeringPage() {
           onOpenChange={setIsCreateTaskModalOpen}
           onSuccess={() => handleRefreshData()}
         />
+
+        <Dialog open={isEditTaskModalOpen} onOpenChange={setIsEditTaskModalOpen}>
+          <DialogContent className="sm:max-w-[600px] bg-white rounded-3xl border-2 border-orange-500/10 shadow-2xl overflow-hidden p-0">
+            <DialogHeader className="bg-gradient-to-b from-orange-50 to-white px-6 pt-6 pb-4 border-b border-orange-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 shadow-inner">
+                  <Pencil className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-headline text-orange-900">Edit Opportunity</DialogTitle>
+                  <DialogDescription className="text-orange-600/70">
+                    Update the details for this community task.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {editingTaskData && (
+              <div className="px-6 py-6 space-y-5 max-h-[70vh] overflow-y-auto">
+                <div className="grid gap-5">
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Title</Label>
+                    <Input 
+                      value={editingTaskData.title || ""} 
+                      onChange={(e) => setEditingTaskData({...editingTaskData, title: e.target.value})}
+                      className="h-11 bg-muted/20"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Objective</Label>
+                    <Textarea 
+                      value={editingTaskData.objective || ""} 
+                      onChange={(e) => setEditingTaskData({...editingTaskData, objective: e.target.value})}
+                      className="min-h-[100px] bg-muted/20"
+                    />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Location</Label>
+                      <Input 
+                        value={editingTaskData.park || ""} 
+                        onChange={(e) => setEditingTaskData({...editingTaskData, park: e.target.value})}
+                        className="h-11 bg-muted/20"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Deadline</Label>
+                      <Input 
+                        type="date"
+                        value={editingTaskData.dueDate || ""} 
+                        onChange={(e) => setEditingTaskData({...editingTaskData, dueDate: e.target.value})}
+                        className="h-11 bg-muted/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4 p-4 rounded-xl bg-orange-50/50 border border-orange-100">
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-orange-600">Points Awarded</Label>
+                      <Input 
+                        type="number"
+                        value={editingTaskData.volunteerPoints || 0} 
+                        onChange={(e) => setEditingTaskData({...editingTaskData, volunteerPoints: parseInt(e.target.value) || 0})}
+                        className="h-11 font-bold"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-orange-600">Max Volunteers</Label>
+                      <Input 
+                        type="number"
+                        value={editingTaskData.maxVolunteers || 0} 
+                        onChange={(e) => setEditingTaskData({...editingTaskData, maxVolunteers: parseInt(e.target.value) || 0})}
+                        className="h-11 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-pink-600">Reward Description</Label>
+                      <Input 
+                        value={editingTaskData.rewardDescription || ""} 
+                        onChange={(e) => setEditingTaskData({...editingTaskData, rewardDescription: e.target.value})}
+                        className="h-11 bg-pink-50/20 border-pink-100"
+                        placeholder="e.g. Free Coffee"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-pink-600">Redemption Code</Label>
+                      <Input 
+                        value={editingTaskData.rewardCode || ""} 
+                        onChange={(e) => setEditingTaskData({...editingTaskData, rewardCode: e.target.value})}
+                        className="h-11 bg-pink-50/20 border-pink-100 uppercase"
+                        placeholder="e.g. COFFEE123"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="p-6 border-t bg-muted/10">
+              <Button variant="ghost" onClick={() => setIsEditTaskModalOpen(false)}>Cancel</Button>
+              <Button 
+                onClick={handleUpdateTask} 
+                className="bg-orange-500 hover:bg-orange-600 font-bold"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardShell>
     );
   }

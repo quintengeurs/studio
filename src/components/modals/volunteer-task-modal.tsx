@@ -267,14 +267,26 @@ export function VolunteerTaskModal({ open, onOpenChange, onSuccess }: VolunteerT
               </div>
             </div>
             
-            <div className="grid gap-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Reward (Optional)</Label>
-              <Input 
-                {...register("rewardDescription")} 
-                placeholder="e.g., Free Coffee at the Pavilion Cafe" 
-                className="h-12 bg-pink-50/30 border-pink-100 focus-visible:ring-pink-500 placeholder:text-pink-300"
-              />
-              {errors.rewardDescription && <p className="text-[10px] font-bold text-destructive">{errors.rewardDescription.message}</p>}
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Reward (Optional)</Label>
+                <Input 
+                  {...register("rewardDescription")} 
+                  placeholder="e.g., Free Coffee at Pavilion" 
+                  className="h-12 bg-pink-50/30 border-pink-100 focus-visible:ring-pink-500 placeholder:text-pink-300"
+                />
+                {errors.rewardDescription && <p className="text-[10px] font-bold text-destructive">{errors.rewardDescription.message}</p>}
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Redemption Code (Optional)</Label>
+                <Input 
+                  {...register("rewardCode")} 
+                  placeholder="e.g., COFFEE123" 
+                  className="h-12 bg-pink-50/30 border-pink-100 focus-visible:ring-pink-500 placeholder:text-pink-300 uppercase"
+                />
+                {errors.rewardCode && <p className="text-[10px] font-bold text-destructive">{errors.rewardCode.message}</p>}
+              </div>
             </div>
           </div>
 

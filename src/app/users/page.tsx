@@ -155,6 +155,7 @@ export default function UserManagement() {
   const [isDeleteUserConfirmOpen, setIsDeleteUserConfirmOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   const handleRunMigration = async () => {
     if (!db || isMigrating) return;
@@ -189,12 +190,20 @@ export default function UserManagement() {
   
   // Global safety hook to prevent UI lockups from Radix Dialogs
   useEffect(() => {
-    const anyModalOpen = isAddDialogOpen || isUpdateModalOpen || isTaskDeleteConfirmOpen || isProfileDialogOpen || isConfigDialogOpen || isArchiveConfirmOpen;
+    const anyModalOpen = isAddDialogOpen || isUpdateModalOpen || isTaskDeleteConfirmOpen || isProfileDialogOpen || isConfigDialogOpen || isArchiveConfirmOpen || isDeleteUserConfirmOpen;
     if (!anyModalOpen) {
       document.body.style.pointerEvents = 'auto';
       document.body.style.overflow = 'auto';
     }
-  }, [isAddDialogOpen, isUpdateModalOpen, isTaskDeleteConfirmOpen, isProfileDialogOpen, isConfigDialogOpen, isArchiveConfirmOpen]);
+  }, [isAddDialogOpen, isUpdateModalOpen, isTaskDeleteConfirmOpen, isProfileDialogOpen, isConfigDialogOpen, isArchiveConfirmOpen, isDeleteUserConfirmOpen]);
+
+  // Secondary unmount safety
+  useEffect(() => {
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
   
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>([]);
 
@@ -415,6 +424,52 @@ export default function UserManagement() {
         toast({ title: "Error", description: "Could not update profile.", variant: "destructive" });
     } finally {
         setIsUserSubmitting(false);
+        // Force cleanup of pointer events just in case
+        setTimeout(() => {
+          document.body.style.pointerEvents = 'auto';
+        }, 300);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (!db || selectedUserIds.length === 0 || isUserSubmitting) return;
+    if (!confirm(`Are you sure you want to archive ${selectedUserIds.length} selected users?`)) return;
+
+    setIsUserSubmitting(true);
+    try {
+        const { writeBatch } = await import("firebase/firestore");
+        const batch = writeBatch(db);
+        selectedUserIds.forEach(id => {
+            batch.update(doc(db, "users", id), { isArchived: true });
+        });
+        await batch.commit();
+        setSelectedUserIds([]);
+        toast({ title: "Bulk Archive Complete", description: `${selectedUserIds.length} staff members moved to archives.` });
+    } catch (e) {
+        toast({ title: "Bulk Action Failed", variant: "destructive" });
+    } finally {
+        setIsUserSubmitting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!db || selectedUserIds.length === 0 || isUserSubmitting) return;
+    if (!confirm(`DANGER: Are you sure you want to PERMANENTLY delete ${selectedUserIds.length} users? This will only remove their Firestore records. Use this if you have already deleted them from Firebase Auth.`)) return;
+
+    setIsUserSubmitting(true);
+    try {
+        const { writeBatch } = await import("firebase/firestore");
+        const batch = writeBatch(db);
+        selectedUserIds.forEach(id => {
+            batch.delete(doc(db, "users", id));
+        });
+        await batch.commit();
+        setSelectedUserIds([]);
+        toast({ title: "Bulk Deletion Complete", description: `${selectedUserIds.length} records removed from Firestore.` });
+    } catch (e) {
+        toast({ title: "Bulk Action Failed", variant: "destructive" });
+    } finally {
+        setIsUserSubmitting(false);
     }
   };
 
@@ -570,7 +625,20 @@ export default function UserManagement() {
       title="User Management" 
       description="Control system access and assign operative roles"
       actions={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedUserIds.length > 0 && (
+            <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-xl border border-dashed pr-2 animate-in slide-in-from-right-4">
+              <Badge variant="secondary" className="bg-primary text-primary-foreground font-bold px-2 py-0.5">{selectedUserIds.length} Selected</Badge>
+              <Button variant="ghost" size="sm" className="h-8 text-[10px] font-bold uppercase hover:bg-muted" onClick={() => setSelectedUserIds([])}>Cancel</Button>
+              <Separator orientation="vertical" className="h-6" />
+              <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase border-primary text-primary hover:bg-primary/5" onClick={handleBulkArchive}>
+                <UserMinus className="mr-1.5 h-3 w-3" /> Archive
+              </Button>
+              <Button variant="destructive" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={handleBulkDelete}>
+                <Trash2 className="mr-1.5 h-3 w-3" /> Delete
+              </Button>
+            </div>
+          )}
           <Button variant="outline" className="font-bold" onClick={() => setIsConfigDialogOpen(true)} disabled={configLoading}>
             <Settings2 className="mr-2 h-4 w-4" /> Configure Registry
           </Button>
@@ -690,6 +758,18 @@ export default function UserManagement() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
+                <TableHead className="w-[50px] px-4">
+                  <Checkbox 
+                    checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedUserIds(filteredUsers.map(u => u.id));
+                      } else {
+                        setSelectedUserIds([]);
+                      }
+                    }}
+                  />
+                </TableHead>
                 <TableHead className="font-headline font-bold">User Information</TableHead>
                 <TableHead className="font-headline font-bold">Role</TableHead>
                 <TableHead className="font-headline font-bold">Training & Certs</TableHead>
@@ -713,7 +793,26 @@ export default function UserManagement() {
                 </TableRow>
               ) : (
                 filteredUsers.map((user) => (
-                  <TableRow key={user.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => openUserProfile(user)}>
+                  <TableRow 
+                    key={user.id} 
+                    className={cn(
+                        "hover:bg-muted/20 transition-colors cursor-pointer",
+                        selectedUserIds.includes(user.id) ? "bg-primary/5 border-l-4 border-l-primary" : ""
+                    )} 
+                    onClick={() => openUserProfile(user)}
+                  >
+                    <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox 
+                        checked={selectedUserIds.includes(user.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedUserIds(prev => 
+                            checked 
+                              ? [...prev, user.id] 
+                              : prev.filter(id => id !== user.id)
+                          );
+                        }}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="relative">

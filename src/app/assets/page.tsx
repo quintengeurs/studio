@@ -86,31 +86,31 @@ export default function AssetRegister() {
   const db = useFirestore();
   const { user } = useUser();
   
-  const { profile, permissions, isAdmin } = useUserContext();
+  const { profile, permissions, isAdmin, effectiveOrgId } = useUserContext();
   const { allUsers, allParks } = useDataContext();
 
   // Live Assets
   const [assetLimit, setAssetLimit] = useState(25);
   const assetsQuery = useMemoFirebase(() => {
-    if (!db || !profile?.orgId) return null;
+    if (!db || !effectiveOrgId) return null;
     return query(
       collection(db, "assets"), 
-      where("orgId", "==", profile.orgId),
+      where("orgId", "==", effectiveOrgId),
       where("isArchived", "==", false), 
       limit(assetLimit)
     );
-  }, [db, assetLimit, profile?.orgId]);
+  }, [db, assetLimit, effectiveOrgId]);
   const { data: assets = [], loading: assetsLoading } = useCollection<Asset>(assetsQuery as any);
 
   // Live All Inspections (for history)
   const inspectionsQuery = useMemoFirebase(() => {
-    if (!db || !profile?.orgId) return null;
+    if (!db || !effectiveOrgId) return null;
     return query(
       collection(db, "inspections"), 
-      where("orgId", "==", profile.orgId),
+      where("orgId", "==", effectiveOrgId),
       limit(500)
     );
-  }, [db, profile?.orgId]);
+  }, [db, effectiveOrgId]);
   const { data: allInspections = [] } = useCollection<Inspection>(inspectionsQuery as any);
 
   // Live All Tasks (for history)

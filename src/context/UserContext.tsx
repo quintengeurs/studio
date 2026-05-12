@@ -93,8 +93,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // 3. Organization Fetching
   const effectiveOrgId = useMemo(() => {
     if (isAdmin && impersonatedOrgId) return impersonatedOrgId;
-    return profile?.orgId || null;
-  }, [isAdmin, impersonatedOrgId, profile?.orgId]);
+    // Fallback to hackney-council for legacy users/profiles without an orgId
+    return profile?.orgId || (profile ? "hackney-council" : null);
+  }, [isAdmin, impersonatedOrgId, profile?.orgId, profile]);
   const orgRef = useMemo(() => 
     db && effectiveOrgId ? doc(db, "organizations", effectiveOrgId) : null, 
   [db, effectiveOrgId]);

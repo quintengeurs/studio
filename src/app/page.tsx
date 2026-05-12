@@ -57,7 +57,7 @@ export default function Dashboard() {
   const [assetModalOpen, setAssetModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const { profile, isAdmin, isManagement, currentUserRoles, permissions } = useUserContext();
+  const { profile, isAdmin, isManagement, currentUserRoles, permissions, effectiveOrgId } = useUserContext();
   const { allUsers, allIssues, allParks } = useDataContext();
   const { toast } = useToast();
 
@@ -69,7 +69,7 @@ export default function Dashboard() {
 
   const userDisplayName = user?.displayName || user?.email || "";
 
-  const registryRef = useMemo(() => (db && profile?.orgId) ? doc(db, "settings", profile.orgId) : null, [db, profile?.orgId]);
+  const registryRef = useMemo(() => (db && effectiveOrgId) ? doc(db, "settings", effectiveOrgId) : null, [db, effectiveOrgId]);
   const { data: registryConfig } = useDoc<RegistryConfig>(registryRef as any);
 
   const handleCollectItem = async (id: string) => {
@@ -77,7 +77,7 @@ export default function Dashboard() {
     try {
       await updateDoc(doc(db, "requests", id), { 
         status: "Collected",
-        orgId: profile?.orgId || "hackney-council"
+        orgId: effectiveOrgId || "hackney-council"
       });
       toast({ title: "Item Collected", description: "Your request has been marked as collected." });
     } catch (error) {
@@ -115,11 +115,11 @@ export default function Dashboard() {
 
   // Personalised Queries
   const myTasksQuery = useMemoFirebase(() => {
-    if (!db || !profile?.orgId) return null;
+    if (!db || !effectiveOrgId) return null;
     if (isManagement || isAdmin) {
       return query(
         collection(db, "tasks"), 
-        where("orgId", "==", profile.orgId),
+        where("orgId", "==", effectiveOrgId),
         where("status", "!=", "Completed"),
         limit(50)
       );
@@ -127,10 +127,10 @@ export default function Dashboard() {
     if (identities.length === 0) return null;
     return query(
       collection(db, "tasks"), 
-      where("orgId", "==", profile.orgId),
+      where("orgId", "==", effectiveOrgId),
       where("assignedTo", "in", identities)
     );
-  }, [db, identities, profile?.orgId, isManagement, isAdmin]);
+  }, [db, identities, effectiveOrgId, isManagement, isAdmin]);
 
   const { data: rawTasks = [], loading: tasksLoading } = useCollection<Task>(myTasksQuery as any);
 

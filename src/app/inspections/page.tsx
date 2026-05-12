@@ -166,7 +166,7 @@ export default function InspectionsPage() {
   const db = useFirestore();
   const { user } = useUser();
   
-  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
+  const { profile, permissions, isAdmin, currentUserRoles, effectiveOrgId } = useUserContext();
   const { allUsers, allParks, registryConfig } = useDataContext();
 
   useEffect(() => {
@@ -176,14 +176,14 @@ export default function InspectionsPage() {
   }, []);
 
   const assetsQuery = useMemoFirebase(() => 
-    (db && profile?.orgId) ? query(collection(db, "assets"), where("orgId", "==", profile.orgId), limit(500)) : null, 
-  [db, profile?.orgId]);
+    (db && effectiveOrgId) ? query(collection(db, "assets"), where("orgId", "==", effectiveOrgId), limit(500)) : null, 
+  [db, effectiveOrgId]);
   const { data: assets = [] } = useCollection<Asset>(assetsQuery as any);
 
   const [inspectionLimit, setInspectionLimit] = useState(25);
   const inspectionsQuery = useMemoFirebase(() => 
-    (db && profile?.orgId) ? query(collection(db, "inspections"), where("orgId", "==", profile.orgId), limit(inspectionLimit)) : null, 
-  [db, inspectionLimit, profile?.orgId]);
+    (db && effectiveOrgId) ? query(collection(db, "inspections"), where("orgId", "==", effectiveOrgId), limit(inspectionLimit)) : null, 
+  [db, inspectionLimit, effectiveOrgId]);
   const { data: inspections = [], loading: inspectionsLoading } = useCollection<Inspection>(inspectionsQuery as any);
 
   const loading = inspectionsLoading; // Used by the UI

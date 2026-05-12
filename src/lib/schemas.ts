@@ -10,6 +10,7 @@ export const volunteerTaskSchema = z.object({
   maxVolunteers: z.coerce.number().min(1, "Must allow at least 1 volunteer").max(100),
   volunteerPoints: z.coerce.number().min(1, "Must award at least 1 point").max(1000),
   rewardDescription: z.string().optional(),
+  rewardCode: z.string().optional(),
   imageUrl: z.string().optional(),
 });
 

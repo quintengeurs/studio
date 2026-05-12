@@ -121,26 +121,26 @@ const ALL_ROLES: Role[] = [
 ];
 
 export default function SmartTaskingPage() {
-  const { profile, permissions } = useUserContext();
+  const { profile, permissions, effectiveOrgId } = useUserContext();
   const { allParks, registryConfig } = useDataContext();
   const { user } = useUser();
   const db = useFirestore();
 
   // Rules Data
   const rulesQuery = useMemoFirebase(() => 
-    (db && profile?.orgId) ? query(
+    (db && effectiveOrgId) ? query(
       collection(db, "smart_rules"), 
-      where("orgId", "==", profile.orgId)
+      where("orgId", "==", effectiveOrgId)
     ) : null, 
-  [db, profile?.orgId]);
+  [db, effectiveOrgId]);
   const { data: rules = [] } = useCollection<SmartRule>(rulesQuery as any);
 
   const machineryQuery = useMemoFirebase(() => 
-    (db && profile?.orgId) ? query(
+    (db && effectiveOrgId) ? query(
       collection(db, "machinery"), 
-      where("orgId", "==", profile.orgId)
+      where("orgId", "==", effectiveOrgId)
     ) : null, 
-  [db, profile?.orgId]);
+  [db, effectiveOrgId]);
   const { data: allMachinery = [] } = useCollection<Machinery>(machineryQuery as any);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -210,7 +210,7 @@ export default function SmartTaskingPage() {
           tags: selectedTags,
           loggedBy: user?.email || "Unknown",
           createdAt: new Date().toISOString(),
-          orgId: profile?.orgId || "hackney-council"
+          orgId: effectiveOrgId || "hackney-council"
         };
 
         const tasks = simulateConditions(condition, rules, allMachinery);
@@ -239,7 +239,7 @@ export default function SmartTaskingPage() {
           tags: selectedTags,
           loggedBy: user?.email || "Unknown",
           createdAt: new Date().toISOString(),
-          orgId: profile?.orgId || "hackney-council"
+          orgId: effectiveOrgId || "hackney-council"
         };
         await evaluateAndApplyConditions(condition, user as any, rules, allMachinery);
       }
@@ -288,14 +288,14 @@ export default function SmartTaskingPage() {
         await updateDoc(ruleRef, {
           ...newRule,
           updatedAt: new Date().toISOString(),
-          orgId: profile?.orgId || "hackney-council"
+          orgId: effectiveOrgId || "hackney-council"
         } as any);
         setSuccessMsg("Rule updated successfully!");
       } else {
         await addDoc(collection(db, "smart_rules"), {
           ...newRule,
           createdAt: new Date().toISOString(),
-          orgId: profile?.orgId || "hackney-council"
+          orgId: effectiveOrgId || "hackney-council"
         });
         setSuccessMsg("New logic rule created!");
       }

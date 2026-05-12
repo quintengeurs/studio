@@ -196,6 +196,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
         collaborators: selectedColleagues || [],
         ...(volunteerEmail ? { 
           completedByVolunteers: arrayUnion(volunteerEmail),
+          doingByVolunteers: arrayRemove(volunteerEmail),
           assignedTo: `Volunteer: ${volunteerEmail}`,
           completedAt: new Date().toISOString()
         } : {})
@@ -204,7 +205,7 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
       // Award Points to Volunteer Profile
       if (volunteerEmail) {
         try {
-          const pointsToAward = task.volunteerPoints || 1;
+          const pointsToAward = Number(task.volunteerPoints || 1);
           let vProfileId = "";
 
           // Priority 1: Use the currently logged-in user if it matches the volunteerEmail
@@ -217,8 +218,8 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
             vProfileId = contextProfile.id;
           }
 
-          // Priority 3: Fallback search (common for staff completing on behalf of others)
-          if (!vProfileId) {
+          // Priority 3: Check allUsers (passed from volunteering page context)
+          if (!vProfileId && allUsers) {
             const vProfile = allUsers.find(u => u.email?.toLowerCase() === volunteerEmail.toLowerCase());
             vProfileId = vProfile?.id || "";
           }
@@ -233,16 +234,16 @@ export function TaskDetailModal({ open, onOpenChange, task, linkedIssue, allUser
           }
 
           if (vProfileId) {
+            console.log(`Awarding ${pointsToAward} points and incrementing tasks for user: ${vProfileId}`);
             await updateDoc(doc(db, "users", vProfileId), {
               totalPoints: increment(pointsToAward),
               completedTasksCount: increment(1)
             });
-            console.log(`Successfully awarded ${pointsToAward} points to user ${vProfileId}`);
           } else {
             console.warn("Could not find a user profile to award points to for email:", volunteerEmail);
           }
         } catch (profileErr) {
-          console.warn("Could not award points (likely permissions or network):", profileErr);
+          console.error("Points award error:", profileErr);
         }
       }
 

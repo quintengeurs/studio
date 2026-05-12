@@ -53,7 +53,7 @@ export default function ParksPage() {
   const db = useFirestore();
   const isMobile = useIsMobile();
 
-  const { profile: currentUserData, isAdmin: contextIsAdmin, currentUserRoles: contextRoles, loading: contextLoading } = useUserContext();
+  const { profile: currentUserData, isAdmin: contextIsAdmin, currentUserRoles: contextRoles, loading: contextLoading, effectiveOrgId } = useUserContext();
   const { registryConfig, configLoading } = useDataContext();
 
   const parks = useMemo(() => registryConfig?.parks ? [...registryConfig.parks].sort() : [], [registryConfig?.parks]);
@@ -65,26 +65,26 @@ export default function ParksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const usersQuery = useMemoFirebase(() => 
-    (db && currentUserData?.orgId) ? query(
+    (db && effectiveOrgId) ? query(
       collection(db, "users"), 
-      where("orgId", "==", currentUserData.orgId),
+      where("orgId", "==", effectiveOrgId),
       where("isArchived", "==", false)
     ) : null, 
-  [db, currentUserData?.orgId]);
+  [db, effectiveOrgId]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   
   const detailsQuery = useMemoFirebase(() => 
-    (db && currentUserData?.orgId) ? query(
+    (db && effectiveOrgId) ? query(
       collection(db, "parks_details"), 
-      where("orgId", "==", currentUserData.orgId),
+      where("orgId", "==", effectiveOrgId),
       limit(500)
     ) : null, 
-  [db, currentUserData?.orgId]);
+  [db, effectiveOrgId]);
   const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
 
   const parkPermsRef = useMemo(() => 
-    (db && currentUserData?.orgId) ? doc(db, "settings", currentUserData.orgId, "config", "park_permissions") : null, 
-  [db, currentUserData?.orgId]);
+    (db && effectiveOrgId) ? doc(db, "settings", effectiveOrgId, "config", "park_permissions") : null, 
+  [db, effectiveOrgId]);
   const { data: parkPermsConfig } = useDoc<ParkPermissionsConfig>(parkPermsRef as any);
 
   const [selectedParkName, setSelectedParkName] = useState<string | null>(null);
@@ -255,7 +255,7 @@ export default function ParksPage() {
 
         await setDoc(doc(db, "parks_details", parkId), { 
           updates: updatedList,
-          orgId: currentUserData?.orgId || "hackney-council"
+          orgId: effectiveOrgId || "hackney-council"
         }, { merge: true });
         toast({ title: "Update Saved", description: `Added entry to ${selectedParkName}.` });
         setIsUpdateModalOpen(false);
@@ -350,7 +350,7 @@ export default function ParksPage() {
       setConfigParks(current => current.filter(p => p !== value));
     }
 
-    const registryRef = doc(db, "settings", currentUserData?.orgId || "registry");
+    const registryRef = doc(db, "settings", effectiveOrgId || "registry");
     const updatePayload = {
       [field]: operation === 'add' ? arrayUnion(value) : arrayRemove(value)
     };
@@ -428,7 +428,7 @@ export default function ParksPage() {
         ...editForm,
         name: selectedParkName,
         id: parkId,
-        orgId: currentUserData?.orgId || "hackney-council"
+        orgId: effectiveOrgId || "hackney-council"
       }, { merge: true });
 
       toast({ title: "Park Updated", description: `${selectedParkName} information has been saved successfully.` });
