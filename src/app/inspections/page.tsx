@@ -269,6 +269,29 @@ export default function InspectionsPage() {
     return Array.from(new Set([...fromDetails, ...fromRegistry])).sort();
   }, [allParks, registryConfig]);
 
+  const [assetFilterType, setAssetFilterType] = useState<string>("All");
+  const [assetFilterPark, setAssetFilterPark] = useState<string>("All");
+
+  const ASSET_CATEGORIES = [
+    "Playground", 
+    "Water Features", 
+    "Furniture", 
+    "Signage and Interpretation", 
+    "Walls and Fences", 
+    "Drinking Fountains", 
+    "Lighting", 
+    "Seating", 
+    "Other"
+  ];
+
+  const filteredSchedulingAssets = useMemo(() => {
+    return assets.filter(a => {
+      const matchesType = assetFilterType === "All" || a.type === assetFilterType;
+      const matchesPark = assetFilterPark === "All" || a.park === assetFilterPark;
+      return matchesType && matchesPark;
+    });
+  }, [assets, assetFilterType, assetFilterPark]);
+
   const handleScheduleInspection = async () => {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
@@ -711,30 +734,61 @@ export default function InspectionsPage() {
                 </div>
 
                 {newInspection.targetType === 'asset' && (
-                  <div className="grid gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Assets (Select Multiple)</Label>
+                  <div className="grid gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Filter by Type</Label>
+                        <Select value={assetFilterType} onValueChange={setAssetFilterType}>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="All Types" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">All Categories</SelectItem>
+                            {ASSET_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Filter by Park</Label>
+                        <Select value={assetFilterPark} onValueChange={setAssetFilterPark}>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="All Parks" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">All Parks</SelectItem>
+                            {parksList.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Select Assets ({filteredSchedulingAssets.length})</Label>
                     <div className="border rounded-xl bg-muted/10 overflow-hidden">
                       <ScrollArea className="h-[150px] p-3">
-                        {Array.from(new Set(assets.map(a => a.park))).sort().map(park => (
-                          <div key={park} className="mb-4">
-                            <h4 className="text-[10px] font-bold uppercase text-primary mb-2 border-b border-primary/10 pb-1">{park}</h4>
-                            <div className="grid gap-2">
-                              {assets.filter(a => a.park === park).map(asset => (
-                                <div key={asset.id} className="flex items-center gap-2">
-                                  <Checkbox 
-                                    id={`asset-${asset.id}`} 
-                                    checked={selectedAssetIds.includes(asset.id)}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) setSelectedAssetIds(prev => [...prev, asset.id]);
-                                      else setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
-                                    }}
-                                  />
-                                  <Label htmlFor={`asset-${asset.id}`} className="text-xs font-medium cursor-pointer">{asset.name}</Label>
-                                </div>
-                              ))}
-                            </div>
+                        {filteredSchedulingAssets.length === 0 ? (
+                          <div className="py-8 text-center text-xs text-muted-foreground italic">
+                            No assets match these filters.
                           </div>
-                        ))}
+                        ) : (
+                          <div className="grid gap-2">
+                            {filteredSchedulingAssets.map(asset => (
+                              <div key={asset.id} className="flex items-center gap-2 py-1 px-2 hover:bg-primary/5 rounded-lg transition-colors">
+                                <Checkbox 
+                                  id={`asset-${asset.id}`} 
+                                  checked={selectedAssetIds.includes(asset.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) setSelectedAssetIds(prev => [...prev, asset.id]);
+                                    else setSelectedAssetIds(prev => prev.filter(id => id !== asset.id));
+                                  }}
+                                />
+                                <Label htmlFor={`asset-${asset.id}`} className="text-xs font-medium cursor-pointer flex-1">
+                                  {asset.name} 
+                                  <span className="ml-2 text-[9px] text-muted-foreground opacity-60">({asset.park})</span>
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </ScrollArea>
                     </div>
                   </div>
