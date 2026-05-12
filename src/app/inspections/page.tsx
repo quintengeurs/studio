@@ -75,6 +75,14 @@ const DEPOT_FOCUS_POINTS = [
   "COSHH Storage and Signage"
 ];
 
+const ASSET_FOCUS_POINTS = [
+  "General Structural Integrity",
+  "Cleanliness and Hygiene",
+  "Safe for Public Use",
+  "Fixings and Anchors",
+  "Surface Condition"
+];
+
 const InspectionCard = ({ inspection, onStart, onDelete, onEdit, isAdmin }: { 
   inspection: Inspection, 
   onStart: (inspection: Inspection) => void, 
@@ -240,10 +248,21 @@ export default function InspectionsPage() {
     isBespoke: false,
     assetNotes: "",
     customChecks: [] as string[],
+    enabledBaseChecks: [] as string[],
     targetType: 'asset' as 'asset' | 'park' | 'depot',
     selectedParks: [] as string[],
     selectedDepots: [] as string[]
   });
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      const base = newInspection.targetType === 'asset' ? ASSET_FOCUS_POINTS 
+                 : newInspection.targetType === 'park' ? PARK_FOCUS_POINTS 
+                 : DEPOT_FOCUS_POINTS;
+      setNewInspection(prev => ({ ...prev, enabledBaseChecks: [...base] }));
+    }
+  }, [isDialogOpen, newInspection.targetType]);
+
   const [inspectionResults, setInspectionResults] = useState<{ 
     item: string, 
     passed: boolean, 
@@ -323,8 +342,11 @@ export default function InspectionsPage() {
               endDate: newInspection.endDate,
               daysOfWeek: newInspection.daysOfWeek,
               assetNotes: newInspection.assetNotes,
-              customChecks: newInspection.customChecks
-            })
+            }),
+            checklist: [
+              ...newInspection.enabledBaseChecks.map(item => ({ item, status: 'N/A' as const, notes: '' })),
+              ...newInspection.customChecks.map(item => ({ item, status: 'N/A' as const, notes: '' }))
+            ]
           };
           await addDoc(collection(db, "inspections"), inspectionData);
         }
@@ -337,7 +359,7 @@ export default function InspectionsPage() {
         }
 
         for (const parkName of selectedParkNames) {
-          const baseChecklist = PARK_FOCUS_POINTS.map(item => ({
+          const baseChecklist = newInspection.enabledBaseChecks.map(item => ({
             item, status: 'N/A' as const, notes: ''
           }));
           
@@ -373,7 +395,7 @@ export default function InspectionsPage() {
         }
 
         for (const depotName of selectedDepotNames) {
-          const baseChecklist = DEPOT_FOCUS_POINTS.map(item => ({
+          const baseChecklist = newInspection.enabledBaseChecks.map(item => ({
             item, status: 'N/A' as const, notes: ''
           }));
           
@@ -422,6 +444,7 @@ export default function InspectionsPage() {
         isBespoke: false, 
         assetNotes: "", 
         customChecks: [],
+        enabledBaseChecks: [],
         targetType: 'asset',
         selectedParks: [],
         selectedDepots: []
@@ -856,8 +879,51 @@ export default function InspectionsPage() {
                         {DEPOT_FOCUS_POINTS.join(" • ")}
                       </p>
                     </div>
+                    </div>
                   </div>
                 )}
+
+                <div className="p-4 border border-primary/20 rounded-xl bg-primary/5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-primary">Standard Inspection Checklist</Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 text-[9px] uppercase font-bold"
+                      onClick={() => {
+                        const base = newInspection.targetType === 'asset' ? ASSET_FOCUS_POINTS 
+                                   : newInspection.targetType === 'park' ? PARK_FOCUS_POINTS 
+                                   : DEPOT_FOCUS_POINTS;
+                        if (newInspection.enabledBaseChecks.length === base.length) {
+                          setNewInspection(prev => ({ ...prev, enabledBaseChecks: [] }));
+                        } else {
+                          setNewInspection(prev => ({ ...prev, enabledBaseChecks: [...base] }));
+                        }
+                      }}
+                    >
+                      {newInspection.enabledBaseChecks.length === (newInspection.targetType === 'asset' ? ASSET_FOCUS_POINTS.length : (newInspection.targetType === 'park' ? PARK_FOCUS_POINTS.length : DEPOT_FOCUS_POINTS.length)) ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                    {(newInspection.targetType === 'asset' ? ASSET_FOCUS_POINTS 
+                      : newInspection.targetType === 'park' ? PARK_FOCUS_POINTS 
+                      : DEPOT_FOCUS_POINTS).map(item => (
+                      <div key={item} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`base-${item}`} 
+                          checked={newInspection.enabledBaseChecks.includes(item)}
+                          onCheckedChange={(checked) => {
+                            if (checked) setNewInspection(prev => ({ ...prev, enabledBaseChecks: [...prev.enabledBaseChecks, item] }));
+                            else setNewInspection(prev => ({ ...prev, enabledBaseChecks: prev.enabledBaseChecks.filter(i => i !== item) }));
+                          }}
+                        />
+                        <Label htmlFor={`base-${item}`} className="text-[10px] font-medium leading-tight cursor-pointer">
+                          {item}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="flex items-center justify-between p-3 border rounded-xl bg-muted/20">
                   <div className="flex flex-col">
