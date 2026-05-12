@@ -30,8 +30,24 @@ import {
   History,
   CheckCircle2,
   AlertCircle,
-  Trash2
+  Trash2,
+  Image as ImageIcon,
+  Camera
 } from "lucide-react";
+import { compressImage } from "@/lib/image-compress";
+import Image from "next/image";
+
+const ASSET_CATEGORIES = [
+  "Playground", 
+  "Water Features", 
+  "Furniture", 
+  "Signage and Interpretation", 
+  "Walls and Fences", 
+  "Drinking Fountains", 
+  "Lighting", 
+  "Seating", 
+  "Other"
+];
 import { Card } from "@/components/ui/card";
 import {
   Dialog,
@@ -133,7 +149,8 @@ export default function AssetRegister() {
     inspectionStartDate: format(new Date(), 'yyyy-MM-dd'),
     inspectionNotes: '',
     customChecks: [] as string[],
-    gpsLocation: null as { latitude: number, longitude: number } | null
+    gpsLocation: null as { latitude: number, longitude: number } | null,
+    imageUrl: ""
   });
 
   const [newCustomCheck, setNewCustomCheck] = useState("");
@@ -184,6 +201,22 @@ export default function AssetRegister() {
     );
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressedDataUrl = await compressImage(file, 800, 800, 0.7);
+        if (isEdit) {
+          setSelectedAsset(prev => prev ? { ...prev, imageUrl: compressedDataUrl } : null);
+        } else {
+          setNewAsset(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+        }
+      } catch (error) {
+        toast({ title: "Image Error", description: "Could not process image.", variant: "destructive" });
+      }
+    }
+  };
+
   const handleAddAsset = async () => {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
@@ -197,6 +230,7 @@ export default function AssetRegister() {
       isArchived: false,
       lastInspected: 'Never',
       gpsLocation: newAsset.gpsLocation,
+      imageUrl: newAsset.imageUrl,
       orgId: profile.orgId
     };
 
@@ -239,7 +273,8 @@ export default function AssetRegister() {
         inspectionStartDate: format(new Date(), 'yyyy-MM-dd'),
         inspectionNotes: '',
         customChecks: [],
-        gpsLocation: null
+        gpsLocation: null,
+        imageUrl: ""
       });
       toast({ title: "Asset Added", description: `${assetData.name} registered successfully.` });
     } finally {
@@ -337,52 +372,54 @@ export default function AssetRegister() {
               <DialogDescription>Register a new piece of infrastructure.</DialogDescription>
             </DialogHeader>
             <ScrollArea className="flex-1 p-6">
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Input value={newAsset.name} onChange={e => setNewAsset({...newAsset, name: e.target.value})} placeholder="e.g. South End Play Frame" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Location / Landmark (Text)</Label>
-                  <div className="flex gap-2">
-                    <Input className="flex-1" value={newAsset.location} onChange={e => setNewAsset({...newAsset, location: e.target.value})} placeholder="e.g. Near East Gate" />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleGetLocation}
-                      className={newAsset.gpsLocation ? "text-primary border-primary bg-primary/5 font-bold" : "font-bold"}
-                    >
-                      <MapPin className={`h-4 w-4 ${newAsset.gpsLocation ? '' : 'mr-2'}`} />
-                      {newAsset.gpsLocation ? "Captured" : "Get GPS"}
-                    </Button>
+              <div className="space-y-6 py-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Photo</Label>
+                  <div className="flex items-center gap-4">
+                    {newAsset.imageUrl ? (
+                      <div className="relative h-24 w-32 rounded-xl overflow-hidden border-2 border-primary/20 group">
+                        <Image src={newAsset.imageUrl} alt="Asset preview" fill className="object-cover" />
+                        <button 
+                          onClick={() => setNewAsset({...newAsset, imageUrl: ""})}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="h-24 w-32 rounded-xl border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2">
+                        <Camera className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Upload</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, false)} />
+                      </label>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Asset Name</Label>
+                      <Input value={newAsset.name} onChange={e => setNewAsset({...newAsset, name: e.target.value})} placeholder="e.g. South End Play Frame" />
+                    </div>
                   </div>
-                  {newAsset.gpsLocation && (
-                    <p className="text-[10px] text-muted-foreground italic">Lat: {newAsset.gpsLocation.latitude.toFixed(4)}, Lon: {newAsset.gpsLocation.longitude.toFixed(4)}</p>
-                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Category</Label>
-                    <Select value={newAsset.type} onValueChange={v => setNewAsset({...newAsset, type: v})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Sports and Leisure">Sports and Leisure</SelectItem>
-                        <SelectItem value="Planting">Planting</SelectItem>
-                        <SelectItem value="Trees">Trees</SelectItem>
-                        <SelectItem value="Electrical">Electrical</SelectItem>
-                        <SelectItem value="Water and drainage">Water and drainage</SelectItem>
-                        <SelectItem value="Bins and litter">Bins and litter</SelectItem>
-                        <SelectItem value="H&S">H&S</SelectItem>
-                        <SelectItem value="Toilet">Toilet</SelectItem>
-                        <SelectItem value="Playground Equipment">Playground Equipment</SelectItem>
-                        <SelectItem value="Park Furniture">Park Furniture</SelectItem>
-                        <SelectItem value="Lighting">Lighting</SelectItem>
-                        <SelectItem value="Waste Management">Waste Management</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Category</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ASSET_CATEGORIES.map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setNewAsset({...newAsset, type: cat})}
+                        className={`px-3 py-2 text-[10px] font-semibold rounded-lg border-2 transition-all text-left flex items-center justify-between ${
+                          newAsset.type === cat 
+                            ? 'border-primary bg-primary/10 text-primary shadow-sm' 
+                            : 'border-muted bg-muted/50 text-muted-foreground hover:border-primary/20'
+                        }`}
+                      >
+                        {cat}
+                        {newAsset.type === cat && <div className="h-1 w-1 rounded-full bg-primary" />}
+                      </button>
+                    ))}
                   </div>
+                </div>
                   <div className="grid gap-2">
                     <Label>Park</Label>
                      <Select value={newAsset.park} onValueChange={v => setNewAsset({...newAsset, park: v})}>
@@ -570,13 +607,24 @@ export default function AssetRegister() {
                 filteredAssets.map((asset) => (
                   <TableRow key={asset.id} className="hover:bg-accent/5 transition-colors cursor-pointer" onClick={() => openAssetDetails(asset)}>
                     <TableCell className="font-medium">
-                      <div className="min-w-[120px]">
-                        <div className="truncate max-w-[200px]">{asset.name}</div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-[10px] text-muted-foreground font-normal truncate max-w-[150px]">{asset.location}</div>
-                          {asset.gpsLocation && (
-                            <Badge variant="secondary" className="text-[8px] h-3.5 px-1 font-bold bg-primary/5 text-primary border-primary/10">GPS</Badge>
-                          )}
+                      <div className="flex items-center gap-3 min-w-[150px]">
+                        {asset.imageUrl ? (
+                          <div className="relative h-10 w-10 rounded-lg overflow-hidden border bg-muted shrink-0">
+                            <Image src={asset.imageUrl} alt={asset.name} fill className="object-cover" />
+                          </div>
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted shrink-0 text-muted-foreground/40">
+                             <ImageIcon size={16} />
+                          </div>
+                        )}
+                        <div className="truncate">
+                          <div className="truncate max-w-[200px]">{asset.name}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-[10px] text-muted-foreground font-normal truncate max-w-[150px]">{asset.location}</div>
+                            {asset.gpsLocation && (
+                              <Badge variant="secondary" className="text-[8px] h-3.5 px-1 font-bold bg-primary/5 text-primary border-primary/10">GPS</Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
