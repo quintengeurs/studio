@@ -123,7 +123,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     );
 
     const base = getEffectivePermissions(profile, isMobile, user?.email, matchedTemplates);
-    return applyFeatureGating(base, organization?.activeFeatures);
+    return applyFeatureGating(base, organization?.activeFeatures, isMaster);
   }, [profile, isMobile, user?.email, organization?.activeFeatures, allRoleTemplates, currentUserRoles]);
 
   // Heartbeat / Presence System

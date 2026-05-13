@@ -327,7 +327,8 @@ export function getEffectivePermissions(
  * Overrides user permissions based on the active features enabled for their organization.
  * This ensures that if a module is disabled at the SaaS level, no user (even admins) can access it.
  */
-export function applyFeatureGating(permissions: AccessPermissions, activeFeatures: string[] | undefined): AccessPermissions {
+export function applyFeatureGating(permissions: AccessPermissions, activeFeatures: string[] | undefined, isMaster?: boolean): AccessPermissions {
+  if (isMaster) return permissions;
   if (!activeFeatures) return permissions;
 
   return {

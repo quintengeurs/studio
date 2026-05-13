@@ -26,7 +26,13 @@ export async function migrateToMultiTenancy(db: Firestore) {
       'volunteering', 
       'smart_tasking', 
       'info_corner', 
-      'map'
+      'map',
+      'events',
+      'projects',
+      'development',
+      'operational',
+      'sports',
+      'calendar'
     ],
     createdAt: new Date().toISOString()
   };
