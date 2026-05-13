@@ -46,7 +46,29 @@ const MapFrame = dynamic(() => import("@/components/map/MapFrame"), {
 export default function MapPage() {
   const router = useRouter();
   const { permissions } = useUserContext();
-  const { allAssets: assets, allIssues: issues } = useDataContext();
+  const { getAssets, getIssues } = useDataContext();
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [assetsData, issuesData] = await Promise.all([
+          getAssets(),
+          getIssues()
+        ]);
+        setAssets(assetsData);
+        setIssues(issuesData);
+      } catch (err) {
+        console.error("Map data fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [getAssets, getIssues]);
 
   // Map Filter States
   const [showIssues, setShowIssues] = useState(true);

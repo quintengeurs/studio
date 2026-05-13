@@ -64,8 +64,21 @@ export default function Dashboard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const { profile, isAdmin, isManagement, currentUserRoles, permissions, effectiveOrgId } = useUserContext();
-  const { allUsers, allIssues, allParks } = useDataContext();
+  const { allUsers, allParks, getIssues } = useDataContext();
+  const [allIssues, setAllIssues] = useState<Issue[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        const data = await getIssues();
+        setAllIssues(data);
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+      }
+    };
+    fetchIssues();
+  }, [getIssues]);
 
   useEffect(() => {
     // Safety cleanup for navigation locks

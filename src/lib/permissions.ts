@@ -1,4 +1,4 @@
-import { User, AccessPermissions, Role } from "./types";
+import { User, AccessPermissions, Role, RoleTemplate } from "./types";
 
 const ALL_FALSE: AccessPermissions = {
   viewDashboard: false,
@@ -257,42 +257,70 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
 }
 
 /**
+ * Merges multiple AccessPermissions objects into one.
+ * Uses 'OR' logic: if any permission set has a 'true' value for a key, the result is 'true'.
+ */
+export function mergePermissions(permissionSets: (AccessPermissions | undefined)[]): AccessPermissions {
+  const result = { ...ALL_FALSE };
+  const validSets = permissionSets.filter((s): s is AccessPermissions => !!s);
+  
+  if (validSets.length === 0) return result;
+  
+  const keys = Object.keys(ALL_FALSE) as (keyof AccessPermissions)[];
+  
+  keys.forEach(key => {
+    (result as any)[key] = validSets.some(set => !!set[key]);
+  });
+  
+  return result;
+}
+
+/**
  * Calculates the final, effective permission set for a user by merging role defaults 
  * with any custom overrides stored in their user profile.
  */
 export function getEffectivePermissions(
   user: User | null | undefined, 
   isMobile: boolean,
-  fallbackEmail?: string | null
+  fallbackEmail?: string | null,
+  templates: RoleTemplate[] = []
 ): AccessPermissions {
-  // 1. Get the base defaults for the current platform
-  const defaults = isMobile 
-    ? getDefaultMobilePermissionsForUser(user) 
-    : getDefaultPermissionsForUser(user, fallbackEmail);
-
-  // 2. Determine if the user is a system admin (special override that always gets full access)
+  // 1. Determine if the user is a system admin (special override that always gets full access)
   const isSystemAdmin = 
     user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' || 
     fallbackEmail?.toLowerCase() === 'quinten.geurs@gmail.com' ||
     (user?.roles || []).includes('Admin');
 
   if (isSystemAdmin) {
-    // Return full desktop permissions regardless of platform for system admins to ensure they are never locked out
     return getDefaultPermissionsForUser(null, 'quinten.geurs@gmail.com');
   }
 
-  // 3. Extract custom overrides from the user profile
+  // 2. Get the base defaults (hardcoded fallback)
+  const hardcodedDefaults = isMobile 
+    ? getDefaultMobilePermissionsForUser(user) 
+    : getDefaultPermissionsForUser(user, fallbackEmail);
+
+  // 3. If templates are provided, use them to calculate the base
+  let base: AccessPermissions;
+  if (templates.length > 0) {
+    const templatePerms = templates.map(t => isMobile ? (t.mobilePermissions || t.permissions) : t.permissions);
+    base = mergePermissions([hardcodedDefaults, ...templatePerms]);
+  } else {
+    base = hardcodedDefaults;
+  }
+
+  // 4. Extract custom overrides from the user profile
   const overrides = isMobile ? user?.mobilePermissions : user?.permissions;
 
-  // 4. Merge defaults with overrides (if any exist)
+  // 5. Merge base with overrides (if any exist)
   if (overrides && Object.keys(overrides).length > 0) {
     return {
-      ...defaults,
+      ...base,
       ...overrides
     };
   }
 
-  return defaults;
+  return base;
 }
 
 /**

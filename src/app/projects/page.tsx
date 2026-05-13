@@ -57,7 +57,20 @@ import Link from "next/link";
 export default function ProjectsPage() {
   const { toast } = useToast();
   const { effectiveOrgId, profile, isAdmin } = useUserContext();
-  const { allParks, allAssets, registryConfig, loading: parksLoading } = useDataContext();
+  const { allParks, getAssets, registryConfig, loading: parksLoading } = useDataContext();
+  const [allAssets, setAllAssets] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAssets = async () => {
+      try {
+        const data = await getAssets();
+        setAllAssets(data);
+      } catch (err) {
+        console.error("Projects fetch error:", err);
+      }
+    };
+    fetchAssets();
+  }, [getAssets]);
   const { user } = useUser();
   const db = useFirestore();
 

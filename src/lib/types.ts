@@ -79,6 +79,18 @@ export interface Organization {
   createdAt: string;
 }
 
+export interface RoleTemplate {
+  id: string; // Typically a slug like 'head-gardener'
+  orgId: string;
+  name: string;
+  description: string;
+  isSystemRole?: boolean;
+  permissions: AccessPermissions;
+  mobilePermissions?: AccessPermissions;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 export interface User {
   id: string;
   orgId?: string; // Link to organization
@@ -86,6 +98,7 @@ export interface User {
   email: string;
   roles: Role[];
   role?: Role; // Legacy fallback
+  roleIds?: string[]; // IDs for the dynamic role templates
   depot: string; // Primary depot
   depots?: string[]; // Multiple assigned depots
   assignedRoles?: AssignedRole[];
@@ -105,6 +118,7 @@ export interface User {
   registeredAt?: string;
   hasCompletedOnboarding?: boolean;
   hasCompletedVolunteerOnboarding?: boolean;
+  lastActive?: string;
   seenAnnouncementIds?: string[];
 }
 

@@ -83,13 +83,13 @@ export default function CalendarPage() {
   }, [allActivities, selectedPark, typeFilter]);
 
   // Calendar Logic
-  const { calendarDays, title, monthStart } = useMemo(() => {
+  const { calendarDays, title, currentMonthStart } = useMemo(() => {
     const mStart = startOfMonth(currentDate);
     if (viewMode === 'day') {
       return {
         calendarDays: [currentDate],
         title: format(currentDate, "MMMM d, yyyy"),
-        monthStart: mStart
+        currentMonthStart: mStart
       };
     }
     
@@ -99,7 +99,7 @@ export default function CalendarPage() {
       return {
         calendarDays: eachDayOfInterval({ start: weekStart, end: weekEnd }),
         title: `Week of ${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`,
-        monthStart: mStart
+        currentMonthStart: mStart
       };
     }
 
@@ -111,7 +111,7 @@ export default function CalendarPage() {
     return {
       calendarDays: eachDayOfInterval({ start: startDate, end: endDate }),
       title: format(currentDate, "MMMM yyyy"),
-      monthStart: mStart
+      currentMonthStart: mStart
     };
   }, [currentDate, viewMode]);
 
@@ -245,7 +245,7 @@ export default function CalendarPage() {
           )}>
             {calendarDays.map((day, idx) => {
               const dayActivities = getActivitiesForDay(day);
-              const isCurrentMonth = isSameMonth(day, monthStart);
+              const isCurrentMonth = isSameMonth(day, currentMonthStart);
               const isToday = isSameDay(day, new Date());
 
               return (
@@ -304,7 +304,7 @@ export default function CalendarPage() {
                                <span className="truncate">{activity.title}</span>
                                {viewMode === 'day' && (
                                  <span className="text-[10px] opacity-60 font-medium flex items-center gap-1 mt-1">
-                                   <MapPin className="h-3 w-3" /> {activity.park}
+                                   <MapPin className="h-3 w-3" /> {activity.parkId}
                                  </span>
                                )}
                              </div>

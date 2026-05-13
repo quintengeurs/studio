@@ -22,30 +22,39 @@ service cloud.firestore {
     function matchOrgId(data) {
       return isAuth() && (
         isMaster() || 
-        (data.orgId != null && data.orgId == getUserData().orgId) || 
-        // Fallback: If document has no orgId, allow access for the primary 'hackney-council' tenant admins
-        (!('orgId' in data) && getUserData().orgId == 'hackney-council')
+        (data.orgId != null && data.orgId == getUserData().orgId)
       );
     }
 
     // Rules for user management
     match /users/{userId} {
       allow read: if isAuth() && (isMaster() || request.auth.uid == userId || resource.data.orgId == getUserData().orgId);
-      allow create: if true; 
-      allow update, delete: if isAuth() && (isMaster() || request.auth.uid == userId || resource.data.orgId == getUserData().orgId);
+      allow create: if true; // Registration flow handles this
+      allow update, delete: if isAuth() && (isMaster() || request.auth.uid == userId || (resource.data.orgId == getUserData().orgId && getUserData().role == 'Admin'));
     }
 
     // Rules for organizations
     match /organizations/{orgId} {
-      allow read: if true; // Public branding info
+      allow read: if isAuth() && (getUserData().orgId == orgId || isMaster());
       allow write: if isMaster();
+
+      match /role_templates/{roleId} {
+        allow read: if isAuth() && (getUserData().orgId == orgId || isMaster());
+        allow write: if isAuth() && (getUserData().orgId == orgId && getUserData().role == 'Admin') || isMaster();
+      }
+    }
+
+    // Rules for park_activities (Centralized Registry)
+    match /park_activities/{activityId} {
+      allow read: if isAuth() && matchOrgId(resource.data);
+      allow create: if isAuth() && matchOrgId(request.resource.data);
+      allow update, delete: if isAuth() && matchOrgId(resource.data);
     }
 
     // Rules for settings/registry
     match /settings/{orgId} {
       allow read, write: if isAuth() && (getUserData().orgId == orgId || isMaster());
       
-      // Allow sub-documents (e.g. settings/hackney-council/config/park_permissions)
       match /{allPaths=**} {
         allow read, write: if isAuth() && (getUserData().orgId == orgId || isMaster());
       }
@@ -110,7 +119,7 @@ service cloud.firestore {
     }
 
     match /info_items/{itemId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && matchOrgId(resource.data);
       allow create, update, delete: if isAuth() && matchOrgId(resource.data);
     }
 
@@ -118,7 +127,7 @@ service cloud.firestore {
     match /action_logs/{logId} {
       allow read: if isAuth() && (isMaster() || resource.data.orgId == getUserData().orgId);
       allow create: if isAuth(); 
-      allow update, delete: if false; // Logs are immutable
+      allow update, delete: if false; 
     }
 
     // Catch-all rule for System Master

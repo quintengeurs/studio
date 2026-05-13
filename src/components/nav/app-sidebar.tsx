@@ -28,7 +28,8 @@ import {
   Construction,
   Compass,
   Wrench,
-  Trophy
+  Trophy,
+  Settings2
 } from "lucide-react";
 import {
   Sidebar,
@@ -79,6 +80,7 @@ const navItems = [
   { title: "Sports & Leisure", icon: Trophy, href: "/sports" },
   { title: "Master Calendar", icon: CalendarDays, href: "/calendar" },
   { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
+  { title: "System Management", icon: Settings2, href: "/system", isMasterOnly: true },
 ];
 
 export function AppSidebar() {
@@ -95,6 +97,8 @@ export function AppSidebar() {
 
   const filteredNavItems = useMemo(() => {
     return navItems.filter(item => {
+      if (item.isMasterOnly) return isMaster;
+
       switch(item.title) {
         case "Dashboard": return permissions.viewDashboard;
         case "My Tasks": return permissions.viewMyTasks;
@@ -116,10 +120,11 @@ export function AppSidebar() {
         case "Operational": return permissions.viewOperational;
         case "Sports & Leisure": return permissions.viewSports;
         case "Master Calendar": return permissions.viewCalendar;
+        case "System Management": return isMaster;
         default: return false;
       }
     });
-  }, [permissions]);
+  }, [permissions, isMaster]);
 
   const showNewRequest = useMemo(() => {
     const hasFeature = organization?.activeFeatures?.includes('requests');

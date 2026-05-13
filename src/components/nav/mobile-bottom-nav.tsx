@@ -18,7 +18,13 @@ import {
   LayoutGrid,
   Megaphone,
   BrainCircuit,
-  Heart
+  Heart,
+  Calendar,
+  Construction,
+  Compass,
+  Wrench,
+  Trophy,
+  CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useMemo } from "react";
@@ -40,6 +46,12 @@ const items = [
   { title: "Users", icon: Users, href: "/users" },
   { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
   { title: "Volunteering", icon: Heart, href: "/volunteering" },
+  { title: "Events", icon: Calendar, href: "/events" },
+  { title: "Projects", icon: Construction, href: "/projects" },
+  { title: "Development", icon: Compass, href: "/development" },
+  { title: "Operational", icon: Wrench, href: "/operational" },
+  { title: "Sports & Leisure", icon: Trophy, href: "/sports" },
+  { title: "Master Calendar", icon: CalendarDays, href: "/calendar" },
 ];
 
 export function MobileBottomNav() {
@@ -51,8 +63,8 @@ export function MobileBottomNav() {
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       switch(item.title) {
-          case "Dashboard": return true;
-          case "My Tasks": return true; 
+          case "Dashboard": return permissions.viewDashboard;
+          case "My Tasks": return permissions.viewMyTasks; 
           case "Asset Register": return permissions.viewAssets;
           case "Parks": return permissions.viewParks;
           case "Parks Map": return permissions.viewMap;
@@ -65,6 +77,12 @@ export function MobileBottomNav() {
           case "Info Corner": return permissions.viewInfoCorner;
           case "Smart Tasking": return permissions.viewSmartTasking;
           case "Volunteering": return permissions.viewVolunteering;
+          case "Events": return permissions.viewEvents;
+          case "Projects": return permissions.viewProjects;
+          case "Development": return permissions.viewDevelopment;
+          case "Operational": return permissions.viewOperational;
+          case "Sports & Leisure": return permissions.viewSports;
+          case "Master Calendar": return permissions.viewCalendar;
           default: return false;
       }
     });

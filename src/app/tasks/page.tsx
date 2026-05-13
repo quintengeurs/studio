@@ -87,7 +87,20 @@ export default function TasksPage() {
   const volunteerImageRef = useRef<HTMLInputElement>(null);
 
   const { profile, permissions, isAdmin, currentUserRoles, effectiveOrgId } = useUserContext();
-  const { allUsers: users, allParks: allDetails, allIssues, registryConfig: contextRegistry } = useDataContext();
+  const { allUsers: users, allParks: allDetails, getIssues, registryConfig: contextRegistry } = useDataContext();
+  const [allIssues, setAllIssues] = useState<Issue[]>([]);
+
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        const data = await getIssues();
+        setAllIssues(data);
+      } catch (err) {
+        console.error("Tasks issues fetch error:", err);
+      }
+    };
+    fetchIssues();
+  }, [getIssues]);
 
   const [taskLimit, setTaskLimit] = useState(25);
   const [archivedLimit, setArchivedLimit] = useState(25);

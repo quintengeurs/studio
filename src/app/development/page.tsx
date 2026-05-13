@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
@@ -52,12 +53,24 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 export default function DevelopmentPage() {
   const { toast } = useToast();
   const { effectiveOrgId, profile, isAdmin } = useUserContext();
-  const { allParks, allAssets, registryConfig, loading: parksLoading } = useDataContext();
+  const { allParks, getAssets, registryConfig, loading: parksLoading } = useDataContext();
+  const [allAssets, setAllAssets] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAssets = async () => {
+      try {
+        const data = await getAssets();
+        setAllAssets(data);
+      } catch (err) {
+        console.error("Development fetch error:", err);
+      }
+    };
+    fetchAssets();
+  }, [getAssets]);
   const { user } = useUser();
   const db = useFirestore();
 
@@ -417,10 +430,10 @@ export default function DevelopmentPage() {
                         View Park <ExternalLink className="h-2.5 w-2.5" />
                       </Link>
                     </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/5">
              <Compass className="h-16 w-16 mb-6 opacity-10" />

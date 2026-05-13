@@ -75,7 +75,24 @@ function IssuesContent() {
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers: users, allParks: allDetails, allIssues, loading: issuesLoading } = useDataContext();
+  const { allUsers: users, allParks: allDetails, getIssues, loading: contextLoading } = useDataContext();
+  const [allIssues, setAllIssues] = useState<Issue[]>([]);
+  const [issuesLoading, setIssuesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchIssues = async () => {
+      setIssuesLoading(true);
+      try {
+        const data = await getIssues();
+        setAllIssues(data);
+      } catch (err) {
+        console.error("Failed to fetch issues:", err);
+      } finally {
+        setIssuesLoading(false);
+      }
+    };
+    fetchIssues();
+  }, [getIssues]);
   const isOperative = !permissions.assignTask;
 
   useEffect(() => {
@@ -305,7 +322,7 @@ function IssuesContent() {
     if (!db || !selectedIssueId || !assignment.operativeId || isSubmitting) return;
     setIsSubmitting(true);
 
-    const issue = issues.find(i => i.id === selectedIssueId);
+    const issue = allIssues.find(i => i.id === selectedIssueId);
     const operative = users.find(o => o.id === assignment.operativeId);
     if (!issue || !operative) {
         toast({ title: "Error", description: "Invalid issue or operative.", variant: "destructive" });

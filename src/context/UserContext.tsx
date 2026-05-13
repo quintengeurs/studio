@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 import { doc, collection, query, where, updateDoc } from 'firebase/firestore';
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { User, Organization, AccessPermissions, MANAGEMENT_ROLES } from '@/lib/types';
+import { User, Organization, AccessPermissions, MANAGEMENT_ROLES, RoleTemplate } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getDefaultPermissionsForUser, getEffectivePermissions, applyFeatureGating } from '@/lib/permissions';
 
@@ -106,12 +106,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [db, effectiveOrgId]);
   const { data: organization, loading: loadingOrg } = useDoc<Organization>(orgRef as any);
 
-  const loading = authLoading || (loadingUid && loadingEmailId) || (!!effectiveOrgId && loadingOrg);
+  // 4. Role Templates Fetching
+  const rolesQuery = useMemoFirebase(() => 
+    (db && effectiveOrgId) ? query(collection(db, "organizations", effectiveOrgId, "role_templates")) : null, 
+  [db, effectiveOrgId]);
+  const { data: allRoleTemplates = [], loading: loadingRoles } = useCollection<RoleTemplate>(rolesQuery as any);
+
+  const loading = authLoading || (loadingUid && loadingEmailId) || (!!effectiveOrgId && (loadingOrg || loadingRoles));
 
   const permissions = useMemo(() => {
-    const base = getEffectivePermissions(profile, isMobile, user?.email);
+    const userRoleIds = profile?.roleIds || [];
+    // Match templates by ID or by Role name (for legacy support)
+    const matchedTemplates = allRoleTemplates.filter(t => 
+      userRoleIds.includes(t.id) || 
+      currentUserRoles.includes(t.name)
+    );
+
+    const base = getEffectivePermissions(profile, isMobile, user?.email, matchedTemplates);
     return applyFeatureGating(base, organization?.activeFeatures);
-  }, [profile, isMobile, user?.email, organization?.activeFeatures]);
+  }, [profile, isMobile, user?.email, organization?.activeFeatures, allRoleTemplates, currentUserRoles]);
 
   // Heartbeat / Presence System
   React.useEffect(() => {

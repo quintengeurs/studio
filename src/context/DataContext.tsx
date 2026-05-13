@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useMemo, ReactNode } from 'react';
-import { collection, query, orderBy, where } from 'firebase/firestore';
+import { collection, query, orderBy, where, getDocs } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { User, ParkDetail, RegistryConfig, Asset, Issue } from '@/lib/types';
 import { doc } from 'firebase/firestore';
@@ -10,11 +10,13 @@ import { useUserContext } from './UserContext';
 interface DataContextType {
   allUsers: User[];
   allParks: ParkDetail[];
-  allAssets: Asset[];
-  allIssues: Issue[];
   registryConfig: RegistryConfig | null;
   loading: boolean;
   configLoading: boolean;
+  // Lazy-loaded data getters
+  getIssues: () => Promise<Issue[]>;
+  getAssets: () => Promise<Asset[]>;
+  getActivities: (category?: string) => Promise<any[]>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -36,27 +38,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
   [db, canAccessRestricted, orgId]);
   const { data: allParksRaw, loading: loadingParks } = useCollection<ParkDetail>(parksQuery as any);
   const allParks = allParksRaw || [];
+
   const registryRef = useMemo(() => (db && canAccessRestricted && orgId) ? doc(db, "settings", orgId) : null, [db, canAccessRestricted, orgId]);
   const { data: registryConfig, loading: configLoading } = useDoc<RegistryConfig>(registryRef as any);
 
-  const assetsQuery = useMemoFirebase(() => 
-    (db && canAccessRestricted && orgId) ? query(collection(db, "assets"), where("orgId", "==", orgId), orderBy("name", "asc")) : null, 
-  [db, canAccessRestricted, orgId]);
-  const { data: allAssets = [], loading: loadingAssets } = useCollection<Asset>(assetsQuery as any);
+  // Lazy loaders
+  const getIssues = async () => {
+    if (!db || !orgId) return [];
+    const q = query(collection(db, "issues"), where("orgId", "==", orgId), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Issue));
+  };
 
-  const issuesQuery = useMemoFirebase(() => 
-    (db && canAccessRestricted && orgId) ? query(collection(db, "issues"), where("orgId", "==", orgId), orderBy("createdAt", "desc")) : null, 
-  [db, canAccessRestricted, orgId]);
-  const { data: allIssues = [], loading: loadingIssues } = useCollection<Issue>(issuesQuery as any);
+  const getAssets = async () => {
+    if (!db || !orgId) return [];
+    const q = query(collection(db, "assets"), where("orgId", "==", orgId), orderBy("name", "asc"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Asset));
+  };
+
+  const getActivities = async (category?: string) => {
+    if (!db || !orgId) return [];
+    let q = query(collection(db, "park_activities"), where("orgId", "==", orgId), orderBy("updatedAt", "desc"));
+    if (category) {
+      q = query(collection(db, "park_activities"), where("orgId", "==", orgId), where("category", "==", category), orderBy("updatedAt", "desc"));
+    }
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id }));
+  };
 
   const value = {
     allUsers,
     allParks,
-    allAssets,
-    allIssues,
     registryConfig,
-    loading: loadingUsers || loadingParks || loadingAssets || loadingIssues,
-    configLoading
+    loading: loadingUsers || loadingParks,
+    configLoading,
+    getIssues,
+    getAssets,
+    getActivities
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
