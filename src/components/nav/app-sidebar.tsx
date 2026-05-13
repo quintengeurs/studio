@@ -22,7 +22,11 @@ import {
   Megaphone,
   BrainCircuit,
   ShieldCheck,
-  Globe
+  Globe,
+  Calendar,
+  CalendarDays,
+  Construction,
+  Compass
 } from "lucide-react";
 import {
   Sidebar,
@@ -66,6 +70,10 @@ const navItems = [
   { title: "All Tasks", icon: CheckSquare, href: "/tasks" },
   { title: "Users", icon: Users, href: "/users" },
   { title: "Volunteering", icon: Users, href: "/volunteering" },
+  { title: "Events", icon: Calendar, href: "/events" },
+  { title: "Projects", icon: Construction, href: "/projects" },
+  { title: "Development", icon: Compass, href: "/development" },
+  { title: "Master Calendar", icon: CalendarDays, href: "/calendar" },
   { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
 ];
 
@@ -98,6 +106,10 @@ export function AppSidebar() {
         case "Info Corner": return permissions.viewInfoCorner;
         case "Smart Tasking": return permissions.viewSmartTasking;
         case "Volunteering": return permissions.viewVolunteering;
+        case "Events": return permissions.viewEvents;
+        case "Projects": return permissions.viewProjects;
+        case "Development": return permissions.viewDevelopment;
+        case "Master Calendar": return permissions.viewCalendar;
         default: return false;
       }
     });

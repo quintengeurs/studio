@@ -30,6 +30,10 @@ const ALL_FALSE: AccessPermissions = {
   manageInfoCorner: false,
   viewSmartTasking: false,
   viewVolunteering: false,
+  viewEvents: false,
+  viewProjects: false,
+  viewDevelopment: false,
+  viewCalendar: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
@@ -96,6 +100,10 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       manageInfoCorner: true,
       viewSmartTasking: true,
       viewVolunteering: true,
+      viewEvents: true,
+      viewProjects: true,
+      viewDevelopment: true,
+      viewCalendar: true,
     };
   }
 
@@ -139,6 +147,10 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewInfoCorner: true,
       viewVolunteering: true,
       manageInfoCorner: roles.some(r => ['Area Manager', 'Operations Manager'].includes(r)),
+      viewEvents: true,
+      viewProjects: true,
+      viewDevelopment: true,
+      viewCalendar: true,
     };
   }
 
@@ -299,6 +311,10 @@ export function applyFeatureGating(permissions: AccessPermissions, activeFeature
     viewSmartTasking: permissions.viewSmartTasking && activeFeatures.includes('smart_tasking'),
     viewInfoCorner: permissions.viewInfoCorner && activeFeatures.includes('info_corner'),
     viewMap: permissions.viewMap && activeFeatures.includes('map'),
+    viewEvents: permissions.viewEvents && activeFeatures.includes('events'),
+    viewProjects: permissions.viewProjects && activeFeatures.includes('projects'),
+    viewDevelopment: permissions.viewDevelopment && activeFeatures.includes('development'),
+    viewCalendar: permissions.viewCalendar && activeFeatures.includes('calendar'),
   };
 }
 

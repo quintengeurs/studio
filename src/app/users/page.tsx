@@ -1280,6 +1280,10 @@ export default function UserManagement() {
                       { key: 'viewMap', label: 'Map' },
                       { key: 'viewInfoCorner', label: 'Info Corner' },
                       { key: 'viewSmartTasking', label: 'Smart Tasking' },
+                      { key: 'viewEvents', label: 'Events' },
+                      { key: 'viewProjects', label: 'Projects' },
+                      { key: 'viewDevelopment', label: 'Development' },
+                      { key: 'viewCalendar', label: 'Master Calendar' },
                     ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
                       <div key={item.key} className="grid grid-cols-[1fr_80px_80px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">
                         <div className="px-3 py-2 text-xs font-medium">{item.label}</div>
@@ -1779,6 +1783,10 @@ export default function UserManagement() {
                         { key: 'viewMap', label: 'Map' },
                         { key: 'viewInfoCorner', label: 'Info Corner' },
                         { key: 'viewSmartTasking', label: 'Smart Tasking' },
+                        { key: 'viewEvents', label: 'Events' },
+                        { key: 'viewProjects', label: 'Projects' },
+                        { key: 'viewDevelopment', label: 'Development' },
+                        { key: 'viewCalendar', label: 'Master Calendar' },
                       ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
                         <div key={item.key} className="grid grid-cols-[1fr_100px_100px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">
                           <div className="px-4 py-2.5 text-sm font-medium">{item.label}</div>

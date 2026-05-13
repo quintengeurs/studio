@@ -51,6 +51,10 @@ export interface AccessPermissions {
   editParkDevelopment: boolean; // Just projects/groups
   editDepotsFull: boolean;
   viewMap: boolean;
+  viewEvents: boolean;
+  viewProjects: boolean;
+  viewDevelopment: boolean;
+  viewCalendar: boolean;
 }
 
 export type FeatureKey = 'dashboard' | 'assets' | 'parks' | 'depots' | 'inspections' | 'issues' | 'requests' | 'tasks' | 'users' | 'volunteering' | 'smart_tasking' | 'info_corner' | 'map';
@@ -239,6 +243,28 @@ export interface MaterialRequest {
   createdAt: string;
   managerNote?: string;
   updatedBy?: string;
+  updatedAt?: string;
+}
+
+export type ActivityType = 'Event' | 'Project' | 'Development' | 'Volunteering' | 'Sports' | 'UserGroup' | 'Operational' | 'TreeWorks' | 'Biodiversity' | 'ContractorWorks' | 'Maintenance';
+
+export interface ParkActivity {
+  id: string;
+  orgId?: string;
+  parkId: string;
+  depotId: string;
+  type: ActivityType;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  status: 'Draft' | 'Confirmed' | 'Archived';
+  impactLevel: 'Low' | 'Medium' | 'High';
+  impactTags?: string[];
+  linkedAssetId?: string;
+  linkedAssetCategory?: string;
+  createdAt: string;
+  createdBy: string;
   updatedAt?: string;
 }
 

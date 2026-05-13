@@ -1,6 +1,6 @@
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-import { DailyCondition, User, SmartRule, RuleCondition, Machinery } from './types';
+import { DailyCondition, User, SmartRule, RuleCondition, Machinery, ParkActivity } from './types';
 
 function evaluateCondition(conditionValue: any, ruleCondition: RuleCondition): boolean {
   const value = Number(ruleCondition.value);
@@ -71,17 +71,44 @@ export function simulateConditions(condition: DailyCondition, rules: SmartRule[]
 }
 
 export async function evaluateAndApplyConditions(condition: DailyCondition, user: User, rules: SmartRule[], allMachinery?: Machinery[]) {
-  // 1. Save the daily condition
-  // The backend Cloud Function (onConditionLogged) will detect this new document,
-  // run the simulation engine on the secure server, and automatically generate the tasks.
-  await addDoc(collection(db, 'daily_conditions'), {
+  // 1. Fetch active activities for this park to inject as "Virtual Tags"
+  const activitiesRef = collection(db, "park_activities");
+  const q = query(
+    activitiesRef, 
+    where("orgId", "==", condition.orgId || "hackney-council"),
+    where("parkId", "==", condition.parkId),
+    where("status", "==", "Confirmed")
+  );
+  
+  const querySnapshot = await getDocs(q);
+  const activities = querySnapshot.docs.map(doc => doc.data() as ParkActivity);
+  
+  // Filter for activities active today
+  const today = new Date().toISOString().split('T')[0];
+  const activeToday = activities.filter(a => {
+    const start = a.startDate.split('T')[0];
+    const end = (a.endDate || a.startDate).split('T')[0];
+    return today >= start && today <= end;
+  });
+
+  // Inject tags based on active activities
+  const virtualTags = activeToday.map(a => a.type.toLowerCase());
+  const impactTags = activeToday.filter(a => a.impactLevel === 'High').map(a => `${a.type.toLowerCase()}_high_impact`);
+  
+  const mergedCondition = {
     ...condition,
+    tags: Array.from(new Set([...(condition.tags || []), ...virtualTags, ...impactTags]))
+  };
+
+  // 2. Save the daily condition
+  await addDoc(collection(db, 'daily_conditions'), {
+    ...mergedCondition,
     createdAt: new Date().toISOString(),
     loggedBy: user.id || user.email || 'Unknown',
   });
 
   // Calculate what was passed off to the server for UI feedback
-  const generatedTasks = simulateConditions(condition, rules, allMachinery);
+  const generatedTasks = simulateConditions(mergedCondition, rules, allMachinery);
 
-  return `Logged successfully. The backend engine is generating ${generatedTasks.length} smart tasks.`;
+  return `Logged successfully. The engine detected ${activeToday.length} active registry items and is generating ${generatedTasks.length} smart tasks.`;
 }

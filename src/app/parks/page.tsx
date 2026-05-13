@@ -92,6 +92,15 @@ export default function ParksPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [newFeature, setNewFeature] = useState("");
 
+  const activitiesQuery = useMemoFirebase(() => 
+    (db && effectiveOrgId && selectedParkName) ? query(
+      collection(db, "park_activities"), 
+      where("orgId", "==", effectiveOrgId),
+      where("parkId", "==", selectedParkName)
+    ) : null, 
+  [db, effectiveOrgId, selectedParkName]);
+  const { data: parkActivities = [] } = useCollection<ParkActivity>(activitiesQuery as any);
+
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [currentUpdateType, setCurrentUpdateType] = useState<string>("");
   const [updateForm, setUpdateForm] = useState<Partial<ParkUpdate>>({});
@@ -284,24 +293,60 @@ export default function ParksPage() {
 
   const renderUpdates = (type: string, canEditRaw: boolean) => {
     const canEdit = isMobile ? false : canEditRaw;
-    const sectionUpdates = (selectedParkDetail.updates || []).filter(u => u.type === type && !u.isArchived);
+    
+    // Merge legacy updates with new activity registry items
+    const legacyUpdates = (selectedParkDetail.updates || []).filter(u => u.type === type && !u.isArchived);
+    const registryActivities = parkActivities.filter(a => a.type === type && a.status !== 'Archived');
+
+    // Combine and sort by date (newest first)
+    const allSectionUpdates = [
+      ...legacyUpdates.map(u => ({ ...u, isLegacy: true })),
+      ...registryActivities.map(a => ({
+        id: a.id,
+        title: a.title,
+        description: a.description,
+        startDate: a.startDate,
+        endDate: a.endDate,
+        createdAt: a.createdAt,
+        createdBy: a.createdBy,
+        isLegacy: false,
+        status: a.status
+      }))
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return (
       <div className="space-y-4">
-        {sectionUpdates.length > 0 ? (
+        {allSectionUpdates.length > 0 ? (
           <div className="grid gap-3">
-            {sectionUpdates.map(u => (
-              <div key={u.id} className="p-4 bg-muted/20 border rounded-xl flex flex-col gap-2 relative group">
+            {allSectionUpdates.map(u => (
+              <div key={u.id} className={cn(
+                "p-4 border rounded-xl flex flex-col gap-2 relative group transition-all",
+                u.isLegacy ? "bg-muted/20" : "bg-primary/5 border-primary/10 shadow-sm"
+              )}>
                   <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-sm tracking-tight">{u.title}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm tracking-tight">{u.title}</h4>
+                      {!u.isLegacy && <Badge variant="outline" className="text-[7px] h-3 px-1 uppercase font-bold border-primary/20 text-primary">Registry</Badge>}
+                      {u.status === 'Draft' && <Badge variant="secondary" className="text-[7px] h-3 px-1 uppercase font-bold">Draft</Badge>}
+                    </div>
                     {canEdit && (
                        <div className="flex gap-1 transition-opacity">
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleOpenUpdateModal(type, u)}>
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
-                          <Button variant="outline" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleArchiveUpdate(u.id)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {u.isLegacy ? (
+                            <>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleOpenUpdateModal(type, u as any)}>
+                                <Edit3 className="h-3 w-3" />
+                              </Button>
+                              <Button variant="outline" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleArchiveUpdate(u.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                              <Link href={`/${type.toLowerCase() === 'development' ? 'development' : type.toLowerCase() + 's'}`}>
+                                <ExternalLink className="h-3 w-3" />
+                              </Link>
+                            </Button>
+                          )}
                        </div>
                     )}
                   </div>
@@ -324,7 +369,7 @@ export default function ParksPage() {
         
         {canEdit && (
           <Button variant="outline" size="sm" className="w-full font-bold border-dashed mt-2 border-2 text-primary" onClick={() => handleOpenUpdateModal(type)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Entry to {type}
+            <Plus className="mr-2 h-4 w-4" /> Add Quick Entry to {type}
           </Button>
         )}
       </div>
