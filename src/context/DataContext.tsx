@@ -57,11 +57,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return snap.docs.map(d => ({ ...d.data(), id: d.id } as Asset));
   };
 
-  const getActivities = async (category?: string) => {
+  const getActivities = async (type?: string) => {
     if (!db || !orgId) return [];
-    let q = query(collection(db, "park_activities"), where("orgId", "==", orgId), orderBy("updatedAt", "desc"));
-    if (category) {
-      q = query(collection(db, "park_activities"), where("orgId", "==", orgId), where("category", "==", category), orderBy("updatedAt", "desc"));
+    let q = query(collection(db, "park_activities"), where("orgId", "==", orgId), orderBy("createdAt", "desc"));
+    if (type) {
+      q = query(collection(db, "park_activities"), where("orgId", "==", orgId), where("type", "==", type), orderBy("createdAt", "desc"));
     }
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ ...d.data(), id: d.id }));

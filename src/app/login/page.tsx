@@ -49,16 +49,18 @@ export default function LoginPage() {
     if (org) setUrlOrgId(org);
   }, []);
 
-  // Proactive Redirect: If already staff, go home
+  // Proactive Redirect: If already staff, go home (or platform for master)
   useEffect(() => {
     if (!userLoading && !authLoading && user && profile && isManagement) {
-      router.push("/");
+      const isMasterEmail = user.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+      router.push(isMasterEmail ? "/platform" : "/");
     }
   }, [profile, isManagement, userLoading, authLoading, user, router]);
 
   // Proactive Redirect: If already volunteer, go to Hub
   useEffect(() => {
-    if (!userLoading && !authLoading && user && profile && !isManagement && (profile.roles?.includes('Volunteer') || profile.isVolunteer)) {
+    const isMasterEmail = user?.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+    if (!userLoading && !authLoading && user && profile && !isManagement && !isMasterEmail && (profile.roles?.includes('Volunteer') || profile.isVolunteer)) {
       router.push(`/hub/${effectiveOrgId || 'hackney-council'}`);
     }
   }, [profile, isManagement, userLoading, authLoading, user, router, effectiveOrgId]);
@@ -89,9 +91,10 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       localStorage.removeItem('impersonatedOrgId');
-      router.push("/");
+      const isMasterEmail = userCredential.user.email?.toLowerCase() === 'quinten.geurs@gmail.com';
+      router.push(isMasterEmail ? "/platform" : "/");
     } catch (err: any) {
       console.error("Login Error:", err);
       let message = "Please check your credentials.";

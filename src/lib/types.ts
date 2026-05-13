@@ -109,6 +109,7 @@ export interface User {
   password?: string;
   allowDesktopView?: boolean;
   isArchived?: boolean;
+  isVolunteer?: boolean;
   createdAt?: string;
   permissions?: AccessPermissions;
   mobilePermissions?: AccessPermissions;
