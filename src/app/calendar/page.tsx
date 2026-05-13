@@ -43,6 +43,14 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { History, Calendar as CalendarDaysIcon, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 const ACTIVITY_COLORS: Record<string, { bg: string, text: string, dot: string }> = {
@@ -62,6 +70,8 @@ export default function CalendarPage() {
   const [selectedPark, setSelectedPark] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
+  const [selectedActivity, setSelectedActivity] = useState<ParkActivity | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Query for all activities
   const activitiesQuery = useMemoFirebase(() => 
@@ -288,11 +298,14 @@ export default function CalendarPage() {
                     {dayActivities.slice(0, viewMode === 'day' ? 20 : 4).map(activity => {
                       const colors = ACTIVITY_COLORS[activity.type] || ACTIVITY_COLORS.Maintenance;
                       return (
-                        <Link 
+                        <button 
                           key={activity.id}
-                          href={`/${activity.type.toLowerCase() === 'development' ? 'development' : activity.type.toLowerCase() + 's'}`}
+                          onClick={() => {
+                            setSelectedActivity(activity);
+                            setIsDetailsModalOpen(true);
+                          }}
                           className={cn(
-                            "block px-1.5 py-0.5 rounded text-[9px] font-bold truncate transition-transform hover:scale-105",
+                            "block w-full text-left px-1.5 py-0.5 rounded text-[9px] font-bold truncate transition-transform hover:scale-105",
                             colors.bg,
                             colors.text,
                             viewMode === 'day' && "p-4 text-sm"
@@ -309,7 +322,7 @@ export default function CalendarPage() {
                                )}
                              </div>
                           </div>
-                        </Link>
+                        </button>
                       );
                     })}
                     {dayActivities.length > (viewMode === 'day' ? 20 : 4) && (
@@ -334,6 +347,72 @@ export default function CalendarPage() {
            ))}
         </div>
       </div>
+      
+      {/* Details Dialog */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge className={cn("text-[10px] font-bold uppercase", ACTIVITY_COLORS[selectedActivity?.type || '']?.bg, ACTIVITY_COLORS[selectedActivity?.type || '']?.text)}>
+                {selectedActivity?.type}
+              </Badge>
+              {selectedActivity?.status && (
+                <Badge variant="outline" className="text-[10px] font-bold uppercase opacity-60">
+                  {selectedActivity.status}
+                </Badge>
+              )}
+            </div>
+            <DialogTitle className="text-xl font-headline font-bold">{selectedActivity?.title}</DialogTitle>
+            <DialogDescription className="text-xs">
+              {selectedActivity?.description || "No description provided."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Park Location</span>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  {selectedActivity?.parkId}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Scheduled Dates</span>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CalendarDaysIcon className="h-4 w-4 text-primary" />
+                  {selectedActivity?.startDate ? format(parseISO(selectedActivity.startDate), "MMM d") : ""}
+                  {selectedActivity?.endDate && ` - ${format(parseISO(selectedActivity.endDate), "MMM d, yyyy")}`}
+                </div>
+              </div>
+            </div>
+
+            {selectedActivity?.updates && selectedActivity.updates.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Recent Progress Updates</span>
+                </div>
+                <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
+                  {selectedActivity.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((u, i) => (
+                    <div key={i} className="bg-muted/30 p-3 rounded-xl border-l-4 border-primary/30">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] font-bold text-primary">{u.createdBy}</span>
+                        <span className="text-[9px] text-muted-foreground">{format(parseISO(u.date), "MMM d, HH:mm")}</span>
+                      </div>
+                      <p className="text-xs leading-relaxed">{u.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2 border-t">
+            <Button onClick={() => setIsDetailsModalOpen(false)} className="font-bold">Close Details</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardShell>
   );
 }
