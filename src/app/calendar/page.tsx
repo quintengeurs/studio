@@ -104,8 +104,8 @@ export default function CalendarPage() {
     }
     
     if (viewMode === 'week') {
-      const weekStart = startOfWeek(currentDate);
-      const weekEnd = endOfWeek(currentDate);
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
       return {
         calendarDays: eachDayOfInterval({ start: weekStart, end: weekEnd }),
         title: `Week of ${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`,
@@ -115,8 +115,8 @@ export default function CalendarPage() {
 
     // Month view (default)
     const monthEnd = endOfMonth(mStart);
-    const startDate = startOfWeek(mStart);
-    const endDate = endOfWeek(monthEnd);
+    const startDate = startOfWeek(mStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
     
     return {
       calendarDays: eachDayOfInterval({ start: startDate, end: endDate }),
@@ -232,7 +232,7 @@ export default function CalendarPage() {
           {/* Weekday Headers */}
           {viewMode !== 'day' && (
             <div className="grid grid-cols-7 border-b bg-muted/30">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                 <div key={day} className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                   {day}
                 </div>
