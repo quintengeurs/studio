@@ -16,7 +16,13 @@ import {
   ClipboardList,
   ListTodo,
   ClipboardCheck,
-  Building2
+  Building2,
+  Calendar,
+  Construction,
+  Compass,
+  Wrench,
+  Trophy,
+  CalendarDays
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -361,29 +367,40 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Management Section */}
-            {(permissions.viewAllTasks || permissions.viewIssues || isAdmin) && (
+            {/* Management Hubs Section */}
+            {(permissions.viewEvents || permissions.viewProjects || permissions.viewDevelopment || permissions.viewOperational || permissions.viewSports) && (
               <div className="space-y-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Strategic Management</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight ml-1 leading-none">Operational Hubs</span>
                 <div className="grid grid-cols-2 gap-3">
-                  {permissions.viewAllTasks && (
+                  {permissions.viewOperational && (
                     <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
-                      <Link href="/tasks">
-                        <ListTodo className="h-6 w-6 text-primary" />
-                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">All Tasks</span>
+                      <Link href="/operational">
+                        <Wrench className="h-6 w-6 text-orange-600" />
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Operational</span>
                       </Link>
                     </Button>
                   )}
-                  {permissions.viewIssues && (
-                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 shadow-sm relative overflow-visible">
-                      <Link href="/issues?tab=unassigned">
-                        <AlertTriangle className="h-6 w-6 text-destructive" />
-                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Unassigned Issues</span>
-                        {unassignedCount > 0 && (
-                          <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-lg animate-bounce">
-                            {unassignedCount}
-                          </span>
-                        )}
+                  {permissions.viewSports && (
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                      <Link href="/sports">
+                        <Trophy className="h-6 w-6 text-emerald-600" />
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Sports</span>
+                      </Link>
+                    </Button>
+                  )}
+                  {permissions.viewEvents && (
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                      <Link href="/events">
+                        <Calendar className="h-6 w-6 text-indigo-600" />
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Events</span>
+                      </Link>
+                    </Button>
+                  )}
+                  {permissions.viewProjects && (
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                      <Link href="/projects">
+                        <Construction className="h-6 w-6 text-blue-600" />
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Projects</span>
                       </Link>
                     </Button>
                   )}
@@ -573,6 +590,82 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className="text-[10px] text-muted-foreground uppercase font-bold text-destructive/80">Awaiting Allocation</div>
+                  </div>
+                </Button>
+              </Link>
+            )}
+          </>
+        )}
+
+        {/* Operational Hubs Desktop */}
+        {(permissions.viewOperational || permissions.viewSports || permissions.viewEvents || permissions.viewProjects) && (
+          <>
+            <div className="col-span-full mt-4 mb-2">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                  <Wrench className="h-3 w-3" /> Operational Management Hubs
+                </h3>
+            </div>
+            {permissions.viewOperational && (
+              <Link href="/operational" className="block">
+                <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                  <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <Wrench className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Operational Hub</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Maintenance & Contractor Works</div>
+                  </div>
+                </Button>
+              </Link>
+            )}
+            {permissions.viewSports && (
+              <Link href="/sports" className="block">
+                <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                  <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                    <Trophy className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Sports & Leisure</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Fixtures & Bookings</div>
+                  </div>
+                </Button>
+              </Link>
+            )}
+            {permissions.viewEvents && (
+              <Link href="/events" className="block">
+                <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                  <div className="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                    <Calendar className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Events Hub</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Community & Licensed Events</div>
+                  </div>
+                </Button>
+              </Link>
+            )}
+            {permissions.viewProjects && (
+              <Link href="/projects" className="block">
+                <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                  <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Construction className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Projects Hub</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure & Capital Works</div>
+                  </div>
+                </Button>
+              </Link>
+            )}
+            {permissions.viewCalendar && (
+               <Link href="/calendar" className="block">
+                <Button variant="outline" className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm">
+                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                    <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Master Calendar</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Borough-Wide Schedule</div>
                   </div>
                 </Button>
               </Link>
