@@ -312,7 +312,8 @@ export default function ParksPage() {
         createdAt: a.createdAt,
         createdBy: a.createdBy,
         isLegacy: false,
-        status: a.status
+        status: a.status,
+        updates: (a as any).updates
       }))
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -358,6 +359,20 @@ export default function ParksPage() {
                     </div>
                   )}
                   <p className="text-sm text-foreground/80 whitespace-pre-wrap mt-1">{u.description}</p>
+                  
+                  {/* Activity Timeline Updates */}
+                  {u.updates && u.updates.length > 0 && (
+                    <div className="mt-3 ml-4 pl-4 border-l-2 border-primary/20 space-y-2">
+                      {u.updates.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((upd: any) => (
+                        <div key={upd.id} className="text-xs">
+                          <span className="font-bold text-primary">update: </span>
+                          <span className="text-foreground/70">{upd.content}</span>
+                          <span className="text-[10px] text-muted-foreground ml-2 opacity-60">({new Date(upd.date).toLocaleDateString()})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="text-[9px] text-muted-foreground flex justify-between mt-2 pt-2 border-t">
                      <span>Added by {u.createdBy}</span>
                      <span>{new Date(u.createdAt).toLocaleDateString()}</span>

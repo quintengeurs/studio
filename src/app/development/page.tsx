@@ -25,7 +25,9 @@ import {
   TrendingUp,
   Target,
   Database,
-  Layers
+  Layers,
+  MessageSquare,
+  History
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,9 @@ export default function DevelopmentPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingActivity, setEditingActivity] = useState<ParkActivity | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [selectedActivityForUpdate, setSelectedActivityForUpdate] = useState<ParkActivity | null>(null);
+  const [updateContent, setUpdateContent] = useState("");
 
   // Filter assets based on user's assigned depots (if not admin)
   const userDepots = useMemo(() => {
@@ -165,6 +170,35 @@ export default function DevelopmentPage() {
     } catch (error) {
       console.error("Error saving dev update:", error);
       toast({ title: "Error", description: "Could not save. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddUpdate = async () => {
+    if (!db || !selectedActivityForUpdate || !updateContent || !user) return;
+    setIsSubmitting(true);
+    try {
+      const newUpdate = {
+        id: Math.random().toString(36).substr(2, 9),
+        content: updateContent,
+        date: new Date().toISOString(),
+        createdBy: profile?.name || user.email || "Unknown"
+      };
+
+      const existingUpdates = selectedActivityForUpdate.updates || [];
+      await updateDoc(doc(db, "park_activities", selectedActivityForUpdate.id), {
+        updates: [...existingUpdates, newUpdate],
+        updatedAt: new Date().toISOString()
+      });
+
+      toast({ title: "Update Added", description: "The development update has been saved." });
+      setIsUpdateModalOpen(false);
+      setUpdateContent("");
+      setSelectedActivityForUpdate(null);
+    } catch (error) {
+      console.error("Error adding update:", error);
+      toast({ title: "Error", description: "Could not save update.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -370,17 +404,19 @@ export default function DevelopmentPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex items-center gap-2">
-                       <Badge variant="outline" className={cn(
-                         "text-[9px] uppercase font-bold border-purple-500 text-purple-600 bg-purple-50"
-                       )}>
-                         Development Update
-                       </Badge>
+                    <div className="flex items-center justify-between gap-2 border-t pt-4">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 gap-2 text-[10px] font-bold uppercase text-purple-600 hover:bg-purple-50" 
+                        onClick={() => { setSelectedActivityForUpdate(entry); setIsUpdateModalOpen(true); }}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" /> Add Update
+                      </Button>
+                      <Link href={`/parks?name=${encodeURIComponent(entry.parkId)}`} className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 hover:underline hover:text-purple-600">
+                        View Park <ExternalLink className="h-2.5 w-2.5" />
+                      </Link>
                     </div>
-                    <Link href={`/parks?name=${encodeURIComponent(entry.parkId)}`} className="text-[10px] font-bold text-purple-600 flex items-center gap-1 hover:underline">
-                      View Park <ExternalLink className="h-2.5 w-2.5" />
-                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -541,6 +577,52 @@ export default function DevelopmentPage() {
             <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
             <Button onClick={handleSave} disabled={isSubmitting} className="bg-purple-600 hover:bg-purple-700 text-white">
               {isSubmitting ? "Saving..." : (editingActivity ? "Update Entry" : "Post Update")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Update Modal */}
+      <Dialog open={isUpdateModalOpen} onOpenChange={(open) => { setIsUpdateModalOpen(open); if (!open) { setUpdateContent(""); setSelectedActivityForUpdate(null); } }}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-purple-600" /> Add Development Update
+            </DialogTitle>
+            <DialogDescription>
+              Post a progress update for <span className="font-bold text-foreground">"{selectedActivityForUpdate?.title}"</span>. This will show on the relevant Parks page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-widest opacity-60">Update Message</Label>
+              <Textarea 
+                placeholder="e.g. Masterplan draft finalized. Public consultation period begins next month." 
+                className="min-h-[120px] bg-muted/20 border-none focus-visible:ring-1 focus-visible:ring-purple-600"
+                value={updateContent}
+                onChange={e => setUpdateContent(e.target.value)}
+              />
+            </div>
+            {selectedActivityForUpdate?.updates && selectedActivityForUpdate.updates.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest opacity-60">Activity History</Label>
+                <div className="max-h-[150px] overflow-y-auto space-y-2 pr-2">
+                  {selectedActivityForUpdate.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(u => (
+                    <div key={u.id} className="p-2 rounded-lg bg-muted/30 border text-[11px]">
+                      <div className="flex justify-between mb-1 opacity-60 font-bold uppercase tracking-tighter">
+                        <span>{u.createdBy}</span>
+                        <span>{new Date(u.date).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-foreground/80">{u.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpdateModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button onClick={handleAddUpdate} disabled={isSubmitting || !updateContent.trim()} className="bg-purple-600 hover:bg-purple-700">
+              {isSubmitting ? "Posting..." : "Post Update"}
             </Button>
           </DialogFooter>
         </DialogContent>

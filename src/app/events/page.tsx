@@ -22,7 +22,9 @@ import {
   Edit3,
   Trash2,
   ExternalLink,
-  Info
+  Info,
+  MessageSquare,
+  History
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,9 @@ export default function EventsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingActivity, setEditingActivity] = useState<ParkActivity | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [selectedActivityForUpdate, setSelectedActivityForUpdate] = useState<ParkActivity | null>(null);
+  const [updateContent, setUpdateContent] = useState("");
 
   const [form, setForm] = useState<Partial<ParkActivity>>({
     title: "",
@@ -327,21 +332,19 @@ export default function EventsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-2">
-                       <span className="text-[10px] font-bold text-muted-foreground">Impact:</span>
-                       <Badge variant="outline" className={cn(
-                         "text-[9px] uppercase font-bold",
-                         event.impactLevel === 'High' ? "border-red-500 text-red-600 bg-red-50" :
-                         event.impactLevel === 'Medium' ? "border-amber-500 text-amber-600 bg-amber-50" :
-                         "border-blue-500 text-blue-600 bg-blue-50"
-                       )}>
-                         {event.impactLevel}
-                       </Badge>
+                    <div className="flex items-center justify-between gap-2 border-t pt-4">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 gap-2 text-[10px] font-bold uppercase text-primary hover:bg-primary/5" 
+                        onClick={() => { setSelectedActivityForUpdate(event); setIsUpdateModalOpen(true); }}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" /> Add Update
+                      </Button>
+                      <Link href={`/parks?name=${encodeURIComponent(event.parkId)}`} className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 hover:underline hover:text-primary">
+                        View Park <ExternalLink className="h-2.5 w-2.5" />
+                      </Link>
                     </div>
-                    <Link href={`/parks?name=${encodeURIComponent(event.parkId)}`} className="text-[10px] font-bold text-primary flex items-center gap-1 hover:underline">
-                      View Park <ExternalLink className="h-2.5 w-2.5" />
-                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -462,6 +465,52 @@ export default function EventsPage() {
             <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
             <Button onClick={handleSave} disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : (editingActivity ? "Update Event" : "Register Event")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Update Modal */}
+      <Dialog open={isUpdateModalOpen} onOpenChange={(open) => { setIsUpdateModalOpen(open); if (!open) { setUpdateContent(""); setSelectedActivityForUpdate(null); } }}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" /> Add Activity Update
+            </DialogTitle>
+            <DialogDescription>
+              Post a progress update for <span className="font-bold text-foreground">"{selectedActivityForUpdate?.title}"</span>. This will show on the relevant Parks page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-widest opacity-60">Update Message</Label>
+              <Textarea 
+                placeholder="e.g. Stage setup complete. Sound checks starting at 2pm." 
+                className="min-h-[120px] bg-muted/20 border-none focus-visible:ring-1 focus-visible:ring-primary"
+                value={updateContent}
+                onChange={e => setUpdateContent(e.target.value)}
+              />
+            </div>
+            {selectedActivityForUpdate?.updates && selectedActivityForUpdate.updates.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest opacity-60">Recent Updates</Label>
+                <div className="max-h-[150px] overflow-y-auto space-y-2 pr-2">
+                  {selectedActivityForUpdate.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(u => (
+                    <div key={u.id} className="p-2 rounded-lg bg-muted/30 border text-[11px]">
+                      <div className="flex justify-between mb-1 opacity-60 font-bold uppercase tracking-tighter">
+                        <span>{u.createdBy}</span>
+                        <span>{new Date(u.date).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-foreground/80">{u.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpdateModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button onClick={handleAddUpdate} disabled={isSubmitting || !updateContent.trim()}>
+              {isSubmitting ? "Posting..." : "Post Update"}
             </Button>
           </DialogFooter>
         </DialogContent>

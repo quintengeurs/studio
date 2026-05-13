@@ -248,6 +248,13 @@ export interface MaterialRequest {
 
 export type ActivityType = 'Event' | 'Project' | 'Development' | 'Volunteering' | 'Sports' | 'UserGroup' | 'Operational' | 'TreeWorks' | 'Biodiversity' | 'ContractorWorks' | 'Maintenance';
 
+export interface ActivityUpdate {
+  id: string;
+  content: string;
+  date: string;
+  createdBy: string;
+}
+
 export interface ParkActivity {
   id: string;
   orgId?: string;
@@ -263,6 +270,7 @@ export interface ParkActivity {
   impactTags?: string[];
   linkedAssetId?: string;
   linkedAssetCategory?: string;
+  updates?: ActivityUpdate[];
   createdAt: string;
   createdBy: string;
   updatedAt?: string;
