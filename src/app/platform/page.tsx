@@ -71,7 +71,7 @@ export default function PlatformAdmin() {
   const [newOrgForm, setNewOrgForm] = useState({
     name: "",
     slug: "",
-    features: ['dashboard', 'assets', 'parks', 'issues', 'tasks', 'users'] as FeatureKey[]
+    features: ['dashboard', 'assets', 'parks', 'issues', 'tasks', 'users', 'events', 'projects', 'development', 'operational', 'sports', 'calendar'] as FeatureKey[]
   });
 
   const orgsQuery = useMemoFirebase(() => 
@@ -124,7 +124,7 @@ export default function PlatformAdmin() {
         setNewOrgForm({
             name: "",
             slug: "",
-            features: ['dashboard', 'assets', 'parks', 'issues', 'tasks', 'users']
+            features: ['dashboard', 'assets', 'parks', 'issues', 'tasks', 'users', 'events', 'projects', 'development', 'operational', 'sports', 'calendar']
         });
     } catch (error) {
         toast({ title: "Error", description: "Failed to create organization.", variant: "destructive" });
@@ -380,7 +380,7 @@ export default function PlatformAdmin() {
                     <div className="space-y-3">
                         <Label className="text-[10px] font-bold uppercase tracking-widest">Initial Features</Label>
                         <div className="grid grid-cols-2 gap-2">
-                            {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map'] as FeatureKey[]).map(feature => (
+                            {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map', 'events', 'projects', 'development', 'operational', 'sports', 'calendar'] as FeatureKey[]).map(feature => (
                                 <div key={feature} className="flex items-center gap-2 p-2 rounded-lg border bg-muted/20 text-xs">
                                     <Checkbox 
                                         checked={newOrgForm.features.includes(feature)}
@@ -492,8 +492,8 @@ export default function PlatformAdmin() {
                     {/* Feature Entitlements */}
                     <div className="space-y-4">
                         <Label className="text-[11px] font-bold uppercase tracking-widest text-primary">Feature Entitlements</Label>
-                        <div className="grid grid-cols-2 gap-3">
-                            {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map'] as FeatureKey[]).map(feature => {
+                        <div className="grid grid-cols-2 gap-3 pb-8">
+                            {(['dashboard', 'assets', 'parks', 'depots', 'inspections', 'issues', 'requests', 'tasks', 'users', 'volunteering', 'smart_tasking', 'info_corner', 'map', 'events', 'projects', 'development', 'operational', 'sports', 'calendar'] as FeatureKey[]).map(feature => {
                                 const isEnabled = currentEditingOrg?.activeFeatures.includes(feature);
                                 return (
                                     <div key={feature} className="flex items-center justify-between p-2 rounded-lg border bg-background text-xs">

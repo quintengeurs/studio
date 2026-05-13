@@ -317,11 +317,11 @@ export function applyFeatureGating(permissions: AccessPermissions, activeFeature
     viewSmartTasking: permissions.viewSmartTasking && activeFeatures.includes('smart_tasking'),
     viewInfoCorner: permissions.viewInfoCorner && activeFeatures.includes('info_corner'),
     viewMap: permissions.viewMap && activeFeatures.includes('map'),
-    viewEvents: permissions.viewEvents,
-    viewProjects: permissions.viewProjects,
-    viewDevelopment: permissions.viewDevelopment,
-    viewOperational: permissions.viewOperational,
-    viewSports: permissions.viewSports,
-    viewCalendar: permissions.viewCalendar,
+    viewEvents: permissions.viewEvents && activeFeatures.includes('events'),
+    viewProjects: permissions.viewProjects && activeFeatures.includes('projects'),
+    viewDevelopment: permissions.viewDevelopment && activeFeatures.includes('development'),
+    viewOperational: permissions.viewOperational && activeFeatures.includes('operational'),
+    viewSports: permissions.viewSports && activeFeatures.includes('sports'),
+    viewCalendar: permissions.viewCalendar && activeFeatures.includes('calendar'),
   };
 }

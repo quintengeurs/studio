@@ -59,7 +59,7 @@ export interface AccessPermissions {
   viewCalendar: boolean;
 }
 
-export type FeatureKey = 'dashboard' | 'assets' | 'parks' | 'depots' | 'inspections' | 'issues' | 'requests' | 'tasks' | 'users' | 'volunteering' | 'smart_tasking' | 'info_corner' | 'map';
+export type FeatureKey = 'dashboard' | 'assets' | 'parks' | 'depots' | 'inspections' | 'issues' | 'requests' | 'tasks' | 'users' | 'volunteering' | 'smart_tasking' | 'info_corner' | 'map' | 'events' | 'projects' | 'development' | 'operational' | 'sports' | 'calendar';
 
 export interface Organization {
   id: string;
