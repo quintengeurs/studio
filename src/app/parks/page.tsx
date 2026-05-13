@@ -296,7 +296,7 @@ export default function ParksPage() {
     
     // Merge legacy updates with new activity registry items
     const legacyUpdates = (selectedParkDetail.updates || []).filter(u => u.type === type && !u.isArchived);
-    const registryActivities = parkActivities.filter(a => a.type === type && a.status !== 'Archived');
+    const registryActivities = parkActivities.filter(a => a.type === type && a.status === 'Confirmed');
 
     // Combine and sort by date (newest first)
     const allSectionUpdates = [
