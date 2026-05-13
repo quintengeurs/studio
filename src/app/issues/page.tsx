@@ -74,25 +74,18 @@ function IssuesContent() {
   const db = useFirestore();
   const { user } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { profile, permissions, isAdmin, currentUserRoles } = useUserContext();
-  const { allUsers: users, allParks: allDetails, getIssues, loading: contextLoading } = useDataContext();
-  const [allIssues, setAllIssues] = useState<Issue[]>([]);
-  const [issuesLoading, setIssuesLoading] = useState(true);
+  const { profile, permissions, isAdmin, currentUserRoles, effectiveOrgId } = useUserContext();
+  const { allUsers: users, allParks: allDetails, loading: contextLoading } = useDataContext();
 
-  useEffect(() => {
-    const fetchIssues = async () => {
-      setIssuesLoading(true);
-      try {
-        const data = await getIssues();
-        setAllIssues(data);
-      } catch (err) {
-        console.error("Failed to fetch issues:", err);
-      } finally {
-        setIssuesLoading(false);
-      }
-    };
-    fetchIssues();
-  }, [getIssues]);
+  const issuesQuery = useMemoFirebase(() => 
+    (db && effectiveOrgId) ? query(
+      collection(db, "issues"), 
+      where("orgId", "==", effectiveOrgId), 
+      orderBy("createdAt", "desc")
+    ) : null, 
+  [db, effectiveOrgId]);
+
+  const { data: allIssues = [], loading: issuesLoading } = useCollection<Issue>(issuesQuery as any);
   const isOperative = !permissions.assignTask;
 
   useEffect(() => {
