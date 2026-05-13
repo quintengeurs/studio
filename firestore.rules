@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     function isMaster() {
-      return isAuth() && request.auth.token.email == 'quinten.geurs@gmail.com';
+      return isAuth() && request.auth.token.email.matches('(?i)quinten.geurs@gmail.com');
     }
 
     function getUserData() {
@@ -35,12 +35,12 @@ service cloud.firestore {
 
     // Rules for organizations
     match /organizations/{orgId} {
-      allow read: if isAuth() && (getUserData().orgId == orgId || isMaster());
+      allow read: if isAuth() && (isMaster() || getUserData().orgId == orgId);
       allow write: if isMaster();
 
       match /role_templates/{roleId} {
-        allow read: if isAuth() && (getUserData().orgId == orgId || isMaster());
-        allow write: if isAuth() && (getUserData().orgId == orgId && getUserData().role == 'Admin') || isMaster();
+        allow read: if isAuth() && (isMaster() || getUserData().orgId == orgId);
+        allow write: if isAuth() && (isMaster() || (getUserData().orgId == orgId && getUserData().role == 'Admin'));
       }
     }
 
