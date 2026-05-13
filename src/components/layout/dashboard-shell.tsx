@@ -8,9 +8,33 @@ import { Separator } from "@/components/ui/separator";
 import { MobileBottomNav } from "@/components/nav/mobile-bottom-nav";
 import { MobileTopHeader } from "@/components/nav/mobile-top-header";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useUser } from "@/firebase";
+import { 
+  Shield,
+  Settings,
+  CreditCard,
+  Bell,
+  User as UserIcon,
+  ChevronsUpDown,
+  Sparkles,
+  BadgeCheck,
+  LogOut,
+  UserCircle,
+  Loader2
+} from "lucide-react";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuGroup, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { useUserContext } from "@/context/UserContext";
 import dynamic from "next/dynamic";
@@ -37,8 +61,14 @@ interface DashboardShellProps {
 export function DashboardShell({ children, title, description, actions, isPublic, hideHeader }: DashboardShellProps) {
   const isMobile = useIsMobile();
   const { user, loading } = useUser();
+  const auth = useAuth();
   const router = useRouter();
   const { shouldShowTour, markTourComplete } = useOnboarding();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
 
   useEffect(() => {
     if (!loading && !user && !isPublic) {
@@ -64,8 +94,8 @@ export function DashboardShell({ children, title, description, actions, isPublic
     return () => clearTimeout(timer);
   }, [title]); // Trigger on every page title change (navigation)
 
-  const { profile, loading: profileLoading } = useUserContext();
-  const isVolunteer = profile?.roles?.includes('Volunteer') || profile?.isVolunteer;
+  const { profile, loading: profileLoading, isMaster } = useUserContext();
+  const isVolunteer = (profile?.roles?.includes('Volunteer') || profile?.isVolunteer) && !isMaster;
   const showNav = !!user && !isPublic && !isVolunteer;
 
   if (loading || profileLoading) {
@@ -116,6 +146,42 @@ export function DashboardShell({ children, title, description, actions, isPublic
             </div>
             <div className="flex items-center gap-3">
               {actions}
+              <div className="ml-auto flex items-center gap-4">
+                {user && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-10 w-10 rounded-full border-2 border-primary/10 p-0 hover:border-primary/30 transition-all">
+                        <Avatar className="h-full w-full">
+                          <AvatarImage src={user?.photoURL || undefined} />
+                          <AvatarFallback className="bg-primary/5 text-primary font-bold">
+                            {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-bold leading-none">{user?.displayName || user?.email?.split('@')[0] || 'User'}</p>
+                          <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem disabled>
+                          <UserCircle className="mr-2 h-4 w-4" />
+                          <span>Profile Settings</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer font-bold">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
           </header>
         ) : null}
