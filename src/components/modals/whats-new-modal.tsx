@@ -14,9 +14,10 @@ export function WhatsNewModal() {
   const db = useFirestore();
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState<Announcement[]>([]);
+  const [hasDismissedInSession, setHasDismissedInSession] = useState(false);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || hasDismissedInSession) return;
     
     // Don't overwhelm brand new users who haven't even finished the tour, unless they are admins
     if (!isAdmin && profile.hasCompletedOnboarding === undefined) {
@@ -32,26 +33,31 @@ export function WhatsNewModal() {
       const timer = setTimeout(() => setOpen(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [profile, isAdmin]);
+  }, [profile, isAdmin, hasDismissedInSession]);
 
   const handleDismiss = async () => {
     setOpen(false);
+    setHasDismissedInSession(true);
     if (!profile || !db) return;
     try {
       const seen = profile.seenAnnouncementIds || [];
       const newlySeen = unseen.map(a => a.id);
+      
+      // Update local set of seen IDs to avoid re-triggering if the context refreshes
+      const updatedSeen = Array.from(new Set([...seen, ...newlySeen]));
+      
       await updateDoc(doc(db, "users", profile.id), {
-        seenAnnouncementIds: [...seen, ...newlySeen]
+        seenAnnouncementIds: updatedSeen
       });
     } catch (e) {
       console.warn("Could not save seen announcements", e);
     }
   };
 
-  if (!unseen.length) return null;
+  if (!unseen.length || hasDismissedInSession) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(val) => { if (!val) handleDismiss(); else setOpen(val); }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-headline text-primary">
