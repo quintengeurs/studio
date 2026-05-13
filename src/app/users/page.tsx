@@ -2168,13 +2168,13 @@ export default function UserManagement() {
       </AlertDialog>
       {/* Role Editor Dialog */}
       <Dialog open={isRoleEditorOpen} onOpenChange={setIsRoleEditorOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-0">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] h-[800px] flex flex-col p-0 overflow-hidden shadow-2xl border-none">
+          <DialogHeader className="p-6 pb-0 shrink-0">
             <DialogTitle className="font-headline text-xl">Role Template Editor</DialogTitle>
             <DialogDescription>Define baseline permissions for all users assigned to this role.</DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 p-6 pt-4">
+          <ScrollArea className="flex-1 min-h-0 px-6 py-4">
             {selectedRole && (
               <div className="space-y-8">
                 <div className="grid gap-6">
@@ -2259,7 +2259,7 @@ export default function UserManagement() {
             )}
           </ScrollArea>
 
-          <DialogFooter className="p-6 bg-muted/30 border-t">
+          <DialogFooter className="p-6 bg-muted/30 border-t shrink-0">
             <Button variant="ghost" onClick={() => setIsRoleEditorOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveRole} disabled={isConfigSubmitting}>
               {isConfigSubmitting && <Clock className="mr-2 h-4 w-4 animate-spin" />}
