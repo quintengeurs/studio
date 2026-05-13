@@ -46,7 +46,7 @@ import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { useUserContext } from "@/context/UserContext";
 import { doc, setDoc, getDocs, getDoc, collection, query, where, limit, orderBy, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { Task } from "@/lib/types";
+import { Task, ParkActivity } from "@/lib/types";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -216,6 +216,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
 
   // Public Portal Data - Using manual fetch to avoid permission-denied noise in console
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [registryActivities, setRegistryActivities] = useState<ParkActivity[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const { shouldShowTour, markTourComplete } = useVolunteerOnboarding();
 
@@ -253,6 +254,16 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
         .slice(0, 50);
         
       setTasks(activeTasks);
+
+      // Fetch registry activities of type Volunteering
+      const aq = query(
+        collection(db, "park_activities"),
+        where("orgId", "==", effectiveOrgId),
+        where("type", "==", "Volunteering"),
+        where("status", "==", "Confirmed")
+      );
+      const aSnap = await getDocs(aq);
+      setRegistryActivities(aSnap.docs.map(d => ({ id: d.id, ...d.data() } as ParkActivity)));
     } catch (err) {
       console.error("Public tasks fetch error:", err);
       setTasks([]);
@@ -1351,6 +1362,56 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                         >
                           {volunteerEmail ? (task.doingByVolunteers?.includes(volunteerEmail) ? "IN PROGRESS" : "START TASK") : "REGISTER TO HELP"}
                           <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+
+                  {/* Registry Activities */}
+                  {registryActivities.map(activity => (
+                    <Card key={activity.id} className="group relative overflow-hidden border-2 border-orange-500/10 hover:border-orange-500/30 transition-all shadow-md flex flex-col hover:shadow-orange-500/5 hover:-translate-y-1 bg-white rounded-[2rem]">
+                      <div className="absolute top-0 right-0 p-4">
+                        <Badge className="bg-orange-500 text-white shadow-lg text-[9px] uppercase font-bold tracking-widest px-2 py-1">Activity Registry</Badge>
+                      </div>
+                      <CardHeader className="pb-3 pt-8 px-8">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <Badge variant="outline" className="text-[10px] font-bold text-orange-600 border-orange-200 uppercase tracking-widest bg-orange-50">{activity.parkId}</Badge>
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 text-[10px] font-bold text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            {activity.startDate || 'Scheduled'}
+                          </div>
+                        </div>
+                        <CardTitle className="font-headline text-2xl group-hover:text-orange-600 transition-colors leading-tight">{activity.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="pb-6 px-8 flex-1">
+                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-6">{activity.description}</p>
+                        
+                        <div className="grid grid-cols-2 gap-4 mt-auto">
+                           <div className="flex flex-col gap-1">
+                              <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter opacity-50">Points</span>
+                              <div className="flex items-center gap-1.5 text-orange-600 font-black">
+                                <Sparkles className="h-4 w-4" />
+                                <span className="text-lg">Event</span>
+                              </div>
+                           </div>
+                           <div className="flex flex-col gap-1 items-end">
+                              <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter opacity-50 text-right">Team</span>
+                              <div className="flex items-center gap-1.5 text-blue-600 font-black">
+                                <Users className="h-4 w-4" />
+                                <span className="text-lg">Community</span>
+                              </div>
+                           </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="pt-0 pb-8 px-8">
+                        <Button 
+                          className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold h-12 rounded-2xl shadow-lg shadow-orange-500/20 group-hover:scale-[1.02] transition-transform"
+                          asChild
+                        >
+                          <a href={`/hub/${effectiveOrgId}?tab=news`}>
+                            LEARN MORE & REGISTER
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </a>
                         </Button>
                       </CardFooter>
                     </Card>
