@@ -343,6 +343,25 @@ export default function SportsPage() {
                     {activity.endDate && ` - ${new Date(activity.endDate).toLocaleDateString()}`}
                   </div>
 
+                  {activity.updates && activity.updates.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                        <History className="h-2.5 w-2.5 text-emerald-500" /> Recent Timeline
+                      </p>
+                      <div className="space-y-2 max-h-[80px] overflow-y-auto pr-2 scrollbar-none">
+                        {activity.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 2).map((u, i) => (
+                          <div key={i} className="bg-muted/30 p-2 rounded-lg border-l-2 border-emerald-500/50">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[9px] font-bold text-emerald-700">{u.createdBy}</span>
+                              <span className="text-[8px] text-muted-foreground">{new Date(u.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                            <p className="text-[10px] leading-snug line-clamp-2 italic">{u.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between gap-2 border-t pt-4">
                     <Button 
                       variant="ghost" 
