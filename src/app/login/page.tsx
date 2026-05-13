@@ -9,7 +9,7 @@ import { Leaf, Loader2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 import { db } from "@/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -40,7 +40,7 @@ export default function LoginPage() {
   const [urlOrgId, setUrlOrgId] = useState<string | null>(null);
   const [orgData, setOrgData] = useState<{ name: string; slug: string } | null>(null);
 
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useUser();
   const { profile, isManagement, effectiveOrgId, loading: userLoading } = useUserContext();
 
   useEffect(() => {
