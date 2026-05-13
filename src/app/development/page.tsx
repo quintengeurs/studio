@@ -417,7 +417,6 @@ export default function DevelopmentPage() {
                         View Park <ExternalLink className="h-2.5 w-2.5" />
                       </Link>
                     </div>
-                  </div>
                 </CardContent>
               </Card>
             ))}
