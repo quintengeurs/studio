@@ -29,7 +29,9 @@ import {
   Compass,
   Wrench,
   Trophy,
-  Settings2
+  Settings2,
+  Hammer,
+  Zap
 } from "lucide-react";
 import {
   Sidebar,
