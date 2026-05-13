@@ -34,7 +34,8 @@ import {
   Lock,
   Shield,
   Edit3,
-  Compass
+  Compass,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
@@ -42,11 +43,12 @@ import { collection, doc, setDoc, arrayUnion, arrayRemove, query, where, limit }
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
-import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate, ParkPermissionsConfig, PARK_SECTIONS, ParkSectionKey } from "@/lib/types";
+import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate, ParkPermissionsConfig, PARK_SECTIONS, ParkSectionKey, ParkActivity } from "@/lib/types";
 import { getDefaultPermissionsForUser } from "@/lib/permissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
+import Link from "next/link";
 
 export default function ParksPage() {
   const { toast } = useToast();
@@ -108,10 +110,10 @@ export default function ParksPage() {
 
   const currentUserRoles = contextRoles;
   const isAdmin = contextIsAdmin;
-  const isManagement = useMemo(() => currentUserRoles.some((r: Role) => MANAGEMENT_ROLES.includes(r)), [currentUserRoles]);
+  const isManagement = useMemo(() => (currentUserRoles as string[]).some((r: string) => MANAGEMENT_ROLES.includes(r as any)), [currentUserRoles]);
 
   const filteredParks = useMemo(() => {
-    const isGlobalRole = currentUserRoles.some((r: Role) => [
+    const isGlobalRole = (currentUserRoles as string[]).some((r: string) => [
       'Area Manager', 
       'Assistant Area Manager', 
       'Operations Manager', 
@@ -327,7 +329,7 @@ export default function ParksPage() {
                     <div className="flex items-center gap-2">
                       <h4 className="font-bold text-sm tracking-tight">{u.title}</h4>
                       {!u.isLegacy && <Badge variant="outline" className="text-[7px] h-3 px-1 uppercase font-bold border-primary/20 text-primary">Registry</Badge>}
-                      {u.status === 'Draft' && <Badge variant="secondary" className="text-[7px] h-3 px-1 uppercase font-bold">Draft</Badge>}
+                      {(!u.isLegacy && (u as any).status === 'Draft') && <Badge variant="secondary" className="text-[7px] h-3 px-1 uppercase font-bold">Draft</Badge>}
                     </div>
                     {canEdit && (
                        <div className="flex gap-1 transition-opacity">
