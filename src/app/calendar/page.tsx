@@ -240,8 +240,8 @@ export default function CalendarPage() {
 
           {/* Days Grid */}
           <div className={cn(
-            "grid auto-rows-[120px] md:auto-rows-[160px]",
-            viewMode === 'day' ? "grid-cols-1" : "grid-cols-7"
+            "grid",
+            viewMode === 'day' ? "grid-cols-1 auto-rows-auto" : "grid-cols-7 auto-rows-[120px] md:auto-rows-[160px]"
           )}>
             {calendarDays.map((day, idx) => {
               const dayActivities = getActivitiesForDay(day);
@@ -252,10 +252,10 @@ export default function CalendarPage() {
                 <div 
                   key={idx} 
                   className={cn(
-                    "border-r border-b p-2 transition-colors hover:bg-muted/10 overflow-hidden",
+                    "border-r border-b p-2 transition-colors hover:bg-muted/10",
                     viewMode === 'month' && !isCurrentMonth && "bg-muted/5 opacity-40",
                     isToday && "bg-primary/5 ring-1 ring-inset ring-primary/20",
-                    viewMode === 'day' && "md:auto-rows-auto p-6"
+                    viewMode === 'day' ? "p-8 min-h-[400px]" : "overflow-hidden"
                   )}
                 >
                   <div className="flex justify-between items-start mb-2">
