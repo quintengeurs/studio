@@ -83,11 +83,13 @@ export default function CalendarPage() {
   }, [allActivities, selectedPark, typeFilter]);
 
   // Calendar Logic
-  const { calendarDays, title } = useMemo(() => {
+  const { calendarDays, title, monthStart } = useMemo(() => {
+    const mStart = startOfMonth(currentDate);
     if (viewMode === 'day') {
       return {
         calendarDays: [currentDate],
-        title: format(currentDate, "MMMM d, yyyy")
+        title: format(currentDate, "MMMM d, yyyy"),
+        monthStart: mStart
       };
     }
     
@@ -96,19 +98,20 @@ export default function CalendarPage() {
       const weekEnd = endOfWeek(currentDate);
       return {
         calendarDays: eachDayOfInterval({ start: weekStart, end: weekEnd }),
-        title: `Week of ${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`
+        title: `Week of ${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`,
+        monthStart: mStart
       };
     }
 
     // Month view (default)
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart);
+    const monthEnd = endOfMonth(mStart);
+    const startDate = startOfWeek(mStart);
     const endDate = endOfWeek(monthEnd);
     
     return {
       calendarDays: eachDayOfInterval({ start: startDate, end: endDate }),
-      title: format(currentDate, "MMMM yyyy")
+      title: format(currentDate, "MMMM yyyy"),
+      monthStart: mStart
     };
   }, [currentDate, viewMode]);
 
@@ -250,7 +253,7 @@ export default function CalendarPage() {
                   key={idx} 
                   className={cn(
                     "border-r border-b p-2 transition-colors hover:bg-muted/10 overflow-hidden",
-                    viewMode === 'month' && !isSameMonth(day, startOfMonth(currentDate)) && "bg-muted/5 opacity-40",
+                    viewMode === 'month' && !isCurrentMonth && "bg-muted/5 opacity-40",
                     isToday && "bg-primary/5 ring-1 ring-inset ring-primary/20",
                     viewMode === 'day' && "md:auto-rows-auto p-6"
                   )}
