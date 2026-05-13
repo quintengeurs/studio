@@ -25,8 +25,11 @@ import {
   Users,
   Dumbbell,
   MessageSquare,
-  History
+  History,
+  Archive,
+  Inbox
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,7 +187,22 @@ export default function SportsPage() {
       await deleteDoc(doc(db, "park_activities", id));
       toast({ title: "Entry Deleted" });
     } catch (error) {
+      console.error("Delete error:", error);
       toast({ title: "Error", variant: "destructive" });
+    }
+  };
+
+  const handleArchive = async (id: string) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, "park_activities", id), { 
+        status: "Archived",
+        updatedAt: new Date().toISOString()
+      });
+      toast({ title: "Entry Archived", description: "Moved to the sports archive." });
+    } catch (error) {
+      console.error("Archive error:", error);
+      toast({ title: "Error", description: "Could not archive entry.", variant: "destructive" });
     }
   };
 
@@ -268,124 +286,191 @@ export default function SportsPage() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-2xl border shadow-sm">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by fixture or park..." 
-              className="pl-10 bg-muted/20"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4 opacity-50" />
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Confirmed">Confirmed</SelectItem>
-                <SelectItem value="Draft">Draft</SelectItem>
-                <SelectItem value="Archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <Tabs defaultValue="active" className="w-full">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
+            <TabsList>
+              <TabsTrigger value="active" className="flex items-center gap-2">
+                <Inbox className="h-4 w-4" /> Active Sports
+              </TabsTrigger>
+              <TabsTrigger value="archived" className="flex items-center gap-2">
+                <Archive className="h-4 w-4" /> Archive Log
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Grid */}
-        {activitiesLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-             <CircleDashed className="h-10 w-10 animate-spin opacity-20 mb-4" />
-             <p className="font-bold uppercase tracking-widest text-[10px]">Loading Sports Registry...</p>
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center flex-1 justify-end w-full">
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search sports..." 
+                  className="pl-10 bg-muted/20"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[160px]">
+                  <Filter className="mr-2 h-4 w-4 opacity-50" />
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Confirmed">Confirmed</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        ) : filteredActivities.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredActivities.map(activity => (
-              <Card key={activity.id} className="group hover:shadow-xl transition-all duration-300 border-2 border-muted overflow-hidden">
-                <CardHeader className="pb-3 bg-muted/5">
-                  <div className="flex justify-between items-start">
-                    <Badge variant={activity.status === 'Confirmed' ? 'default' : 'secondary'} className={cn(
-                      "font-bold uppercase text-[9px] px-2",
-                      activity.status === 'Confirmed' ? "bg-emerald-600" : ""
-                    )}>
-                      {activity.status}
-                    </Badge>
-                    <div className="flex gap-1">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(activity)}>
-                         <Edit3 className="h-3.5 w-3.5" />
-                       </Button>
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => handleDelete(activity.id)}>
-                         <Trash2 className="h-3.5 w-3.5" />
-                       </Button>
-                    </div>
-                  </div>
-                  <CardTitle className="text-lg mt-2 line-clamp-1">{activity.title}</CardTitle>
-                  <CardDescription className="line-clamp-2 text-xs h-8">{activity.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-xs font-bold">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-emerald-600" />
-                      {activity.parkId}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      {activity.depotId}
-                    </div>
-                  </div>
-                  
-                  <div className="p-3 bg-muted/20 rounded-xl border text-xs font-bold flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-emerald-600" />
-                    {new Date(activity.startDate).toLocaleDateString()}
-                    {activity.endDate && ` - ${new Date(activity.endDate).toLocaleDateString()}`}
-                  </div>
 
-                  {activity.updates && activity.updates.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                        <History className="h-2.5 w-2.5 text-emerald-500" /> Recent Timeline
-                      </p>
-                      <div className="space-y-2 max-h-[80px] overflow-y-auto pr-2 scrollbar-none">
-                        {activity.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 2).map((u, i) => (
-                          <div key={i} className="bg-muted/30 p-2 rounded-lg border-l-2 border-emerald-500/50">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[9px] font-bold text-emerald-700">{u.createdBy}</span>
-                              <span className="text-[8px] text-muted-foreground">{new Date(u.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
-                            </div>
-                            <p className="text-[10px] leading-snug line-clamp-2 italic">{u.content}</p>
-                          </div>
-                        ))}
+          <TabsContent value="active">
+            {activitiesLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                 <CircleDashed className="h-10 w-10 animate-spin opacity-20 mb-4" />
+                 <p className="font-bold uppercase tracking-widest text-[10px]">Loading Registry...</p>
+              </div>
+            ) : filteredActivities.filter(e => e.status !== 'Archived').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredActivities.filter(e => e.status !== 'Archived').map(activity => (
+                  <Card key={activity.id} className="group hover:shadow-xl transition-all duration-300 border-2 border-muted overflow-hidden">
+                    <CardHeader className="pb-3 bg-muted/5">
+                      <div className="flex justify-between items-start">
+                        <Badge variant={activity.status === 'Confirmed' ? 'default' : 'secondary'} className={cn(
+                          "font-bold uppercase text-[9px] px-2",
+                          activity.status === 'Confirmed' ? "bg-emerald-600" : ""
+                        )}>
+                          {activity.status}
+                        </Badge>
+                        <div className="flex gap-1">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(activity)}>
+                             <Edit3 className="h-3.5 w-3.5" />
+                           </Button>
+                           {activity.status !== 'Archived' && (
+                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-slate-700" onClick={() => handleArchive(activity.id)}>
+                               <Archive className="h-3.5 w-3.5" />
+                             </Button>
+                           )}
+                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => handleDelete(activity.id)}>
+                             <Trash2 className="h-3.5 w-3.5" />
+                           </Button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                      <CardTitle className="text-lg mt-2 line-clamp-1">{activity.title}</CardTitle>
+                      <CardDescription className="line-clamp-2 text-xs h-8">{activity.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-4 text-xs font-bold">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                          {activity.parkId}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          {activity.depotId}
+                        </div>
+                      </div>
+                      
+                      <div className="p-3 bg-muted/20 rounded-xl border text-xs font-bold flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-emerald-600" />
+                        {new Date(activity.startDate).toLocaleDateString()}
+                        {activity.endDate && ` - ${new Date(activity.endDate).toLocaleDateString()}`}
+                      </div>
 
-                  <div className="flex items-center justify-between gap-2 border-t pt-4">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 gap-2 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-50" 
-                      onClick={() => { setSelectedActivityForUpdate(activity); setIsUpdateModalOpen(true); }}
-                    >
-                      <MessageSquare className="h-3.5 w-3.5" /> Add Update
-                    </Button>
-                    <Link href={`/parks?name=${encodeURIComponent(activity.parkId)}`} className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 hover:underline hover:text-emerald-600">
-                      View Park <ExternalLink className="h-2.5 w-2.5" />
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/5">
-             <Trophy className="h-16 w-16 mb-6 opacity-10" />
-             <h3 className="text-xl font-bold">No Sports Entries</h3>
-             <p className="text-sm max-w-xs text-center mt-2">Manage sports bookings and coaching sessions across the park network.</p>
-          </div>
-        )}
+                      {activity.updates && activity.updates.length > 0 && (
+                        <div className="space-y-2 pt-2 border-t">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <History className="h-2.5 w-2.5 text-emerald-500" /> Recent Timeline
+                          </p>
+                          <div className="space-y-2 max-h-[80px] overflow-y-auto pr-2 scrollbar-none">
+                            {activity.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 2).map((u, i) => (
+                              <div key={i} className="bg-muted/30 p-2 rounded-lg border-l-2 border-emerald-500/50">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-[9px] font-bold text-emerald-700">{u.createdBy}</span>
+                                  <span className="text-[8px] text-muted-foreground">{new Date(u.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                                </div>
+                                <p className="text-[10px] leading-snug line-clamp-2 italic">{u.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 border-t pt-4">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 gap-2 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-50" 
+                          onClick={() => { setSelectedActivityForUpdate(activity); setIsUpdateModalOpen(true); }}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" /> Add Update
+                        </Button>
+                        <Link href={`/parks?name=${encodeURIComponent(activity.parkId)}`} className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 hover:underline hover:text-emerald-600">
+                          View Park <ExternalLink className="h-2.5 w-2.5" />
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/5">
+                 <Trophy className="h-16 w-16 mb-6 opacity-10" />
+                 <h3 className="text-xl font-bold">No Active Entries</h3>
+                 <p className="text-sm max-w-xs text-center mt-2">All sports entries are either archived or haven't been posted yet.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="archived">
+            {filteredActivities.filter(e => e.status === 'Archived').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredActivities.filter(e => e.status === 'Archived').map(activity => (
+                  <Card key={activity.id} className="opacity-75 grayscale-[0.5] border-dashed border-2 hover:grayscale-0 transition-all">
+                    <CardHeader className="pb-3 bg-muted/5">
+                      <div className="flex justify-between items-start">
+                        <Badge variant="outline" className="font-bold uppercase text-[9px] px-2">
+                          Archived
+                        </Badge>
+                        <div className="flex gap-1">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-destructive" onClick={() => handleDelete(activity.id)}>
+                             <Trash2 className="h-3.5 w-3.5" />
+                           </Button>
+                        </div>
+                      </div>
+                      <CardTitle className="text-lg mt-2 line-clamp-1">{activity.title}</CardTitle>
+                      <CardDescription className="line-clamp-2 text-xs h-8">{activity.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                       <div className="text-[10px] bg-muted p-2 rounded text-muted-foreground font-medium italic">
+                         Entry archived on {activity.updatedAt ? new Date(activity.updatedAt).toLocaleDateString() : 'Unknown date'}.
+                       </div>
+                       <div className="grid grid-cols-2 gap-4 opacity-60">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Park</p>
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {activity.parkId}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Depot</p>
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <Building2 className="h-3.5 w-3.5" />
+                            {activity.depotId}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl">
+                 <Archive className="h-16 w-16 mb-6 opacity-10" />
+                 <p className="text-sm font-bold">Archive is Empty</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Modal */}

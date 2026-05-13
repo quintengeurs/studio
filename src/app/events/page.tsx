@@ -24,8 +24,11 @@ import {
   ExternalLink,
   Info,
   MessageSquare,
-  History
+  History,
+  Archive,
+  Inbox
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,7 +156,22 @@ export default function EventsPage() {
       await deleteDoc(doc(db, "park_activities", id));
       toast({ title: "Event Deleted" });
     } catch (error) {
+      console.error("Delete error:", error);
       toast({ title: "Error", description: "Could not delete event.", variant: "destructive" });
+    }
+  };
+
+  const handleArchive = async (id: string) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, "park_activities", id), { 
+        status: "Archived",
+        updatedAt: new Date().toISOString()
+      });
+      toast({ title: "Event Archived", description: "Moved to the archive log." });
+    } catch (error) {
+      console.error("Archive error:", error);
+      toast({ title: "Error", description: "Could not archive event.", variant: "destructive" });
     }
   };
 
@@ -266,144 +284,211 @@ export default function EventsPage() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-2xl border shadow-sm">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by title or park..." 
-              className="pl-10 bg-muted/20"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4 opacity-50" />
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Confirmed">Confirmed</SelectItem>
-                <SelectItem value="Draft">Draft</SelectItem>
-                <SelectItem value="Archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <Tabs defaultValue="active" className="w-full">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
+            <TabsList>
+              <TabsTrigger value="active" className="flex items-center gap-2">
+                <Inbox className="h-4 w-4" /> Active Events
+              </TabsTrigger>
+              <TabsTrigger value="archived" className="flex items-center gap-2">
+                <Archive className="h-4 w-4" /> Archive Log
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Events Grid */}
-        {eventsLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-             <CircleDashed className="h-10 w-10 animate-spin opacity-20 mb-4" />
-             <p className="font-bold uppercase tracking-widest text-[10px]">Loading Registry...</p>
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center flex-1 justify-end w-full">
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search events..." 
+                  className="pl-10 bg-muted/20"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[160px]">
+                  <Filter className="mr-2 h-4 w-4 opacity-50" />
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Confirmed">Confirmed</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        ) : filteredEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map(event => (
-              <Card key={event.id} className={cn(
-                "group hover:shadow-xl transition-all duration-300 border-2 overflow-hidden",
-                event.status === 'Confirmed' ? "border-green-500/10 hover:border-green-500/30" : "border-muted hover:border-primary/20"
-              )}>
-                <CardHeader className="pb-3 bg-muted/5">
-                  <div className="flex justify-between items-start">
-                    <Badge variant={event.status === 'Confirmed' ? 'default' : 'secondary'} className={cn(
-                      "font-bold uppercase text-[9px] px-2",
-                      event.status === 'Confirmed' ? "bg-green-600" : ""
-                    )}>
-                      {event.status}
-                    </Badge>
-                    <div className="flex gap-1">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(event)}>
-                         <Edit3 className="h-3.5 w-3.5" />
-                       </Button>
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => handleDelete(event.id)}>
-                         <Trash2 className="h-3.5 w-3.5" />
-                       </Button>
-                    </div>
-                  </div>
-                  <CardTitle className="text-lg mt-2 line-clamp-1">{event.title}</CardTitle>
-                  <CardDescription className="line-clamp-2 text-xs h-8">{event.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Park Location</p>
-                      <div className="flex items-center gap-2 text-sm font-semibold">
-                        <MapPin className="h-3.5 w-3.5 text-primary" />
-                        {event.parkId}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Attached Depot</p>
-                      <div className="flex items-center gap-2 text-sm font-semibold">
-                        <Building2 className="h-3.5 w-3.5 text-blue-500" />
-                        {event.depotId}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 p-3 bg-muted/20 rounded-xl border">
-                    <div className="flex-1">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Start Date</p>
-                      <div className="flex items-center gap-2 text-xs font-bold">
-                        <Clock className="h-3 w-3 text-primary" />
-                        {new Date(event.startDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                      </div>
-                    </div>
-                    <div className="flex-1 border-l pl-4">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">End Date</p>
-                      <div className="flex items-center gap-2 text-xs font-bold">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        {event.endDate ? new Date(event.endDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Same Day'}
-                      </div>
-                    </div>
-                  </div>
 
-                  {event.updates && event.updates.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                        <History className="h-2.5 w-2.5 text-primary" /> Recent Timeline
-                      </p>
-                      <div className="space-y-2 max-h-[80px] overflow-y-auto pr-2 scrollbar-none">
-                        {event.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 2).map((u, i) => (
-                          <div key={i} className="bg-muted/30 p-2 rounded-lg border-l-2 border-primary/50">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[9px] font-bold text-primary">{u.createdBy}</span>
-                              <span className="text-[8px] text-muted-foreground">{new Date(u.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
-                            </div>
-                            <p className="text-[10px] leading-snug line-clamp-2 italic">{u.content}</p>
+          <TabsContent value="active">
+            {eventsLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                 <CircleDashed className="h-10 w-10 animate-spin opacity-20 mb-4" />
+                 <p className="font-bold uppercase tracking-widest text-[10px]">Loading Events...</p>
+              </div>
+            ) : filteredEvents.filter(e => e.status !== 'Archived').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredEvents.filter(e => e.status !== 'Archived').map(event => (
+                  <Card key={event.id} className={cn(
+                    "group hover:shadow-xl transition-all duration-300 border-2 overflow-hidden",
+                    event.status === 'Confirmed' ? "border-green-500/10 hover:border-green-500/30" : "border-muted hover:border-primary/20"
+                  )}>
+                    <CardHeader className="pb-3 bg-muted/5">
+                      <div className="flex justify-between items-start">
+                        <Badge variant={event.status === 'Confirmed' ? 'default' : 'secondary'} className={cn(
+                          "font-bold uppercase text-[9px] px-2",
+                          event.status === 'Confirmed' ? "bg-green-600" : ""
+                        )}>
+                          {event.status}
+                        </Badge>
+                        <div className="flex gap-1">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(event)}>
+                             <Edit3 className="h-3.5 w-3.5" />
+                           </Button>
+                           {event.status !== 'Archived' && (
+                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-slate-700" onClick={() => handleArchive(event.id)}>
+                               <Archive className="h-3.5 w-3.5" />
+                             </Button>
+                           )}
+                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => handleDelete(event.id)}>
+                             <Trash2 className="h-3.5 w-3.5" />
+                           </Button>
+                        </div>
+                      </div>
+                      <CardTitle className="text-lg mt-2 line-clamp-1">{event.title}</CardTitle>
+                      <CardDescription className="line-clamp-2 text-xs h-8">{event.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Park Location</p>
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <MapPin className="h-3.5 w-3.5 text-primary" />
+                            {event.parkId}
                           </div>
-                        ))}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Attached Depot</p>
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <Building2 className="h-3.5 w-3.5 text-blue-500" />
+                            {event.depotId}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                      
+                      <div className="flex items-center gap-4 p-3 bg-muted/20 rounded-xl border">
+                        <div className="flex-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Start Date</p>
+                          <div className="flex items-center gap-2 text-xs font-bold">
+                            <Clock className="h-3 w-3 text-primary" />
+                            {new Date(event.startDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                          </div>
+                        </div>
+                        <div className="flex-1 border-l pl-4">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">End Date</p>
+                          <div className="flex items-center gap-2 text-xs font-bold">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            {event.endDate ? new Date(event.endDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Same Day'}
+                          </div>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between gap-2 border-t pt-4">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 gap-2 text-[10px] font-bold uppercase text-primary hover:bg-primary/5" 
-                        onClick={() => { setSelectedActivityForUpdate(event); setIsUpdateModalOpen(true); }}
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" /> Add Update
-                      </Button>
-                      <Link href={`/parks?name=${encodeURIComponent(event.parkId)}`} className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 hover:underline hover:text-primary">
-                        View Park <ExternalLink className="h-2.5 w-2.5" />
-                      </Link>
-                    </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/5">
-             <Calendar className="h-16 w-16 mb-6 opacity-10" />
-             <h3 className="text-xl font-bold">No Events Found</h3>
-             <p className="text-sm max-w-xs text-center mt-2">Start by registering your first event using the button in the header.</p>
-          </div>
-        )}
+                      {event.updates && event.updates.length > 0 && (
+                        <div className="space-y-2 pt-2 border-t">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <History className="h-2.5 w-2.5 text-primary" /> Recent Timeline
+                          </p>
+                          <div className="space-y-2 max-h-[80px] overflow-y-auto pr-2 scrollbar-none">
+                            {event.updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 2).map((u, i) => (
+                              <div key={i} className="bg-muted/30 p-2 rounded-lg border-l-2 border-primary/50">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-[9px] font-bold text-primary">{u.createdBy}</span>
+                                  <span className="text-[8px] text-muted-foreground">{new Date(u.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                                </div>
+                                <p className="text-[10px] leading-snug line-clamp-2 italic">{u.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 border-t pt-4">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 gap-2 text-[10px] font-bold uppercase text-primary hover:bg-primary/5" 
+                            onClick={() => { setSelectedActivityForUpdate(event); setIsUpdateModalOpen(true); }}
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" /> Add Update
+                          </Button>
+                          <Link href={`/parks?name=${encodeURIComponent(event.parkId)}`} className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 hover:underline hover:text-primary">
+                            View Park <ExternalLink className="h-2.5 w-2.5" />
+                          </Link>
+                        </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/5">
+                 <Calendar className="h-16 w-16 mb-6 opacity-10" />
+                 <h3 className="text-xl font-bold">No Active Events</h3>
+                 <p className="text-sm max-w-xs text-center mt-2">All events are either archived or haven't been registered yet.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="archived">
+            {filteredEvents.filter(e => e.status === 'Archived').length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredEvents.filter(e => e.status === 'Archived').map(event => (
+                  <Card key={event.id} className="opacity-75 grayscale-[0.5] border-dashed border-2 hover:grayscale-0 transition-all">
+                    <CardHeader className="pb-3 bg-muted/5">
+                      <div className="flex justify-between items-start">
+                        <Badge variant="outline" className="font-bold uppercase text-[9px] px-2">
+                          Archived
+                        </Badge>
+                        <div className="flex gap-1">
+                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-destructive" onClick={() => handleDelete(event.id)}>
+                             <Trash2 className="h-3.5 w-3.5" />
+                           </Button>
+                        </div>
+                      </div>
+                      <CardTitle className="text-lg mt-2 line-clamp-1">{event.title}</CardTitle>
+                      <CardDescription className="line-clamp-2 text-xs h-8">{event.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                       <div className="text-[10px] bg-muted p-2 rounded text-muted-foreground font-medium italic">
+                         Event completed or archived on {event.updatedAt ? new Date(event.updatedAt).toLocaleDateString() : 'Unknown date'}.
+                       </div>
+                       <div className="grid grid-cols-2 gap-4 opacity-60">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Park</p>
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {event.parkId}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Depot</p>
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <Building2 className="h-3.5 w-3.5" />
+                            {event.depotId}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl">
+                 <Archive className="h-16 w-16 mb-6 opacity-10" />
+                 <p className="text-sm font-bold">Archive is Empty</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Register/Edit Modal */}
