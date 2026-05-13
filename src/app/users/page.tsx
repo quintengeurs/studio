@@ -1283,6 +1283,8 @@ export default function UserManagement() {
                       { key: 'viewEvents', label: 'Events' },
                       { key: 'viewProjects', label: 'Projects' },
                       { key: 'viewDevelopment', label: 'Development' },
+                      { key: 'viewOperational', label: 'Operational' },
+                      { key: 'viewSports', label: 'Sports & Leisure' },
                       { key: 'viewCalendar', label: 'Master Calendar' },
                     ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
                       <div key={item.key} className="grid grid-cols-[1fr_80px_80px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">
@@ -1786,6 +1788,8 @@ export default function UserManagement() {
                         { key: 'viewEvents', label: 'Events' },
                         { key: 'viewProjects', label: 'Projects' },
                         { key: 'viewDevelopment', label: 'Development' },
+                        { key: 'viewOperational', label: 'Operational' },
+                        { key: 'viewSports', label: 'Sports & Leisure' },
                         { key: 'viewCalendar', label: 'Master Calendar' },
                       ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
                         <div key={item.key} className="grid grid-cols-[1fr_100px_100px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">

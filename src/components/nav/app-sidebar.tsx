@@ -26,7 +26,9 @@ import {
   Calendar,
   CalendarDays,
   Construction,
-  Compass
+  Compass,
+  Wrench,
+  Trophy
 } from "lucide-react";
 import {
   Sidebar,
@@ -73,6 +75,8 @@ const navItems = [
   { title: "Events", icon: Calendar, href: "/events" },
   { title: "Projects", icon: Construction, href: "/projects" },
   { title: "Development", icon: Compass, href: "/development" },
+  { title: "Operational", icon: Wrench, href: "/operational" },
+  { title: "Sports & Leisure", icon: Trophy, href: "/sports" },
   { title: "Master Calendar", icon: CalendarDays, href: "/calendar" },
   { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
 ];
@@ -109,6 +113,8 @@ export function AppSidebar() {
         case "Events": return permissions.viewEvents;
         case "Projects": return permissions.viewProjects;
         case "Development": return permissions.viewDevelopment;
+        case "Operational": return permissions.viewOperational;
+        case "Sports & Leisure": return permissions.viewSports;
         case "Master Calendar": return permissions.viewCalendar;
         default: return false;
       }

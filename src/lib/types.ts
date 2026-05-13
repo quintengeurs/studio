@@ -54,6 +54,8 @@ export interface AccessPermissions {
   viewEvents: boolean;
   viewProjects: boolean;
   viewDevelopment: boolean;
+  viewOperational: boolean;
+  viewSports: boolean;
   viewCalendar: boolean;
 }
 

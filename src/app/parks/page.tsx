@@ -1161,9 +1161,10 @@ export default function ParksPage() {
                   {sectionPerms.operationalGuidance.view && (
                     <div>
                       <h3 className="text-lg font-bold mb-4 font-headline border-b pb-2 flex items-center gap-2">4. Operational Guidance</h3>
-                      <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/30 p-4 rounded-lg border">
+                      <div className="text-sm whitespace-pre-wrap text-muted-foreground bg-muted/30 p-4 rounded-lg border mb-4">
                         {selectedParkDetail.operationalGuidance || "No operational guidance listed."}
                       </div>
+                      {renderUpdates('Operational', canEditOperational)}
                     </div>
                   )}
 
