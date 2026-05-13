@@ -157,6 +157,35 @@ export default function EventsPage() {
     }
   };
 
+  const handleAddUpdate = async () => {
+    if (!db || !selectedActivityForUpdate || !updateContent || !user) return;
+    setIsSubmitting(true);
+    try {
+      const newUpdate = {
+        id: Math.random().toString(36).substr(2, 9),
+        content: updateContent,
+        date: new Date().toISOString(),
+        createdBy: profile?.name || user.email || "Unknown"
+      };
+
+      const existingUpdates = selectedActivityForUpdate.updates || [];
+      await updateDoc(doc(db, "park_activities", selectedActivityForUpdate.id), {
+        updates: [...existingUpdates, newUpdate],
+        updatedAt: new Date().toISOString()
+      });
+
+      toast({ title: "Update Added" });
+      setIsUpdateModalOpen(false);
+      setUpdateContent("");
+      setSelectedActivityForUpdate(null);
+    } catch (error) {
+      console.error("Error adding update:", error);
+      toast({ title: "Error", description: "Could not save update.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const resetForm = () => {
     setForm({
       title: "",
