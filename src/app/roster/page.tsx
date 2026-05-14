@@ -296,9 +296,9 @@ export default function RosterPage() {
         </div>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-12 pt-8">
         {/* Coverage Header Summary */}
-        <div className="grid grid-cols-7 gap-1 px-[200px]">
+        <div className="grid grid-cols-7 gap-1 px-[200px] mb-4">
            {weekDays.map(day => {
               const dayShifts = shifts.filter(s => s.date === format(day, 'yyyy-MM-dd'));
               const hasOpen = dayShifts.some(s => s.shiftTypeId === 'open');
