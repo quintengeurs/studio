@@ -23,7 +23,9 @@ import {
   XCircle,
   ArrowLeftRight,
   PhoneCall,
-  Coffee
+  Coffee,
+  Users,
+  Trash2
 } from "lucide-react";
 import { 
   format, 
@@ -59,6 +61,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { StaffShift, ShiftType, ShiftPattern, User } from "@/lib/types";
 
