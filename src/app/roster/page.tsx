@@ -62,15 +62,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { StaffShift, ShiftType, ShiftPattern, User } from "@/lib/types";
 
 // Default Shift Types
 const DEFAULT_SHIFT_TYPES: ShiftType[] = [
   { id: 'open', name: 'Opening', startTime: '06:00', endTime: '10:00', color: 'bg-sky-500', icon: 'Sun' },
-  { id: 'day', name: 'Day Shift', startTime: '08:00', endTime: '16:30', color: 'bg-amber-500', icon: 'Briefcase' },
-  { id: 'late', name: 'Locking', startTime: '16:30', endTime: '21:00', color: 'bg-indigo-600', icon: 'Moon' },
-  { id: 'standby', name: 'Standby', startTime: '00:00', endTime: '23:59', color: 'bg-purple-500', icon: 'PhoneCall' },
+  { id: 'daytime', name: 'Daytime', startTime: '08:00', endTime: '16:30', color: 'bg-amber-500', icon: 'Briefcase' },
+  { id: 'locking', name: 'Locking', startTime: '16:30', endTime: '21:00', color: 'bg-indigo-600', icon: 'Moon' },
+  { id: 'stand-by', name: 'Stand-by', startTime: '00:00', endTime: '23:59', color: 'bg-purple-500', icon: 'PhoneCall' },
 ];
 
 export default function RosterPage() {
@@ -128,12 +134,12 @@ export default function RosterPage() {
   };
 
   const openAddShift = (userId: string, userName: string, date: Date) => {
-    const type = DEFAULT_SHIFT_TYPES.find(t => t.id === 'day');
+    const type = DEFAULT_SHIFT_TYPES.find(t => t.id === 'daytime');
     setSelectedShift({
       userId,
       userName,
       date: format(date, 'yyyy-MM-dd'),
-      shiftTypeId: 'day',
+      shiftTypeId: 'daytime',
       startTime: type?.startTime,
       endTime: type?.endTime,
       status: 'Confirmed',
@@ -210,7 +216,7 @@ export default function RosterPage() {
            {weekDays.map(day => {
               const dayShifts = shifts.filter(s => s.date === format(day, 'yyyy-MM-dd'));
               const hasOpen = dayShifts.some(s => s.shiftTypeId === 'open');
-              const hasClose = dayShifts.some(s => s.shiftTypeId === 'late');
+              const hasClose = dayShifts.some(s => s.shiftTypeId === 'locking');
               const totalCount = dayShifts.length;
 
               return (
@@ -292,39 +298,62 @@ export default function RosterPage() {
                             >
                               <div className="flex flex-col gap-1 h-full">
                                 {userShifts.length > 0 ? (
-                                  userShifts.map(shift => {
-                                    const type = DEFAULT_SHIFT_TYPES.find(t => t.id === shift.shiftTypeId);
-                                    return (
-                                      <button
-                                        key={shift.id}
-                                        onClick={() => {
-                                          setSelectedShift(shift);
-                                          setIsShiftModalOpen(true);
-                                        }}
-                                        className={cn(
-                                          "flex flex-col p-1.5 rounded-lg text-left transition-all border shadow-sm group/shift",
-                                          type?.color || "bg-muted",
-                                          shift.status === 'Sick' && "opacity-50 grayscale border-red-500 border-2"
-                                        )}
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[9px] font-bold text-white uppercase tracking-tighter truncate">
-                                            {type?.name}
-                                          </span>
-                                          {shift.isStandby && <PhoneCall className="h-2 w-2 text-white" />}
-                                          {shift.status === 'Sick' && <AlertCircle className="h-2 w-2 text-white" />}
-                                        </div>
-                                        <span className="text-[8px] text-white/80 font-medium">
-                                          {shift.startTime || type?.startTime} - {shift.endTime || type?.endTime}
-                                        </span>
-                                        {shift.parkId && (
-                                          <span className="text-[7px] text-white font-bold truncate mt-0.5 flex items-center gap-0.5">
-                                            <CalendarIcon className="h-1.5 w-1.5" /> {shift.parkId}
-                                          </span>
-                                        )}
-                                      </button>
-                                    );
-                                  })
+                                  <TooltipProvider>
+                                    {userShifts.map(shift => {
+                                      const type = DEFAULT_SHIFT_TYPES.find(t => t.id === shift.shiftTypeId);
+                                      return (
+                                        <Tooltip key={shift.id}>
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              onClick={() => {
+                                                setSelectedShift(shift);
+                                                setIsShiftModalOpen(true);
+                                              }}
+                                              className={cn(
+                                                "flex flex-col p-1.5 rounded-lg text-left transition-all border shadow-sm group/shift",
+                                                type?.color || "bg-muted",
+                                                shift.status === 'Sick' && "opacity-50 grayscale border-red-500 border-2"
+                                              )}
+                                            >
+                                              <div className="flex items-center justify-between">
+                                                <span className="text-[9px] font-bold text-white uppercase tracking-tighter truncate">
+                                                  {type?.name}
+                                                </span>
+                                                {shift.isStandby && <PhoneCall className="h-2 w-2 text-white" />}
+                                                {shift.status === 'Sick' && <AlertCircle className="h-2 w-2 text-white" />}
+                                              </div>
+                                              <span className="text-[8px] text-white/80 font-medium">
+                                                {shift.startTime || type?.startTime} - {shift.endTime || type?.endTime}
+                                              </span>
+                                              {shift.parkId && (
+                                                <span className="text-[7px] text-white font-bold truncate mt-0.5 flex items-center gap-0.5">
+                                                  <CalendarIcon className="h-1.5 w-1.5" /> {shift.parkId}
+                                                </span>
+                                              )}
+                                            </button>
+                                          </TooltipTrigger>
+                                          {(shift.notes || shift.status !== 'Confirmed') && (
+                                            <TooltipContent className="bg-popover/95 backdrop-blur border shadow-xl p-3 max-w-[250px] z-[100]">
+                                              <div className="space-y-2">
+                                                <div className="flex items-center justify-between border-b pb-1">
+                                                  <span className="text-[10px] font-bold uppercase text-primary">{type?.name} Shift</span>
+                                                  <Badge variant="outline" className="text-[8px] h-4">{shift.status}</Badge>
+                                                </div>
+                                                {shift.notes && (
+                                                  <p className="text-[11px] leading-relaxed italic text-muted-foreground">&quot;{shift.notes}&quot;</p>
+                                                )}
+                                                {!shift.notes && shift.status === 'Sick' && (
+                                                  <p className="text-[11px] text-destructive font-bold flex items-center gap-1">
+                                                    <AlertCircle className="h-3 w-3" /> Staff reported absence
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </TooltipContent>
+                                          )}
+                                        </Tooltip>
+                                      );
+                                    })}
+                                  </TooltipProvider>
                                 ) : (
                                   isManagement && (
                                     <button 
@@ -409,6 +438,7 @@ export default function RosterPage() {
                   <Label>Start Time</Label>
                   <Input 
                     type="time" 
+                    step="900"
                     value={selectedShift.startTime || ""} 
                     onChange={e => setSelectedShift({...selectedShift, startTime: e.target.value})} 
                   />
@@ -417,6 +447,7 @@ export default function RosterPage() {
                   <Label>End Time</Label>
                   <Input 
                     type="time" 
+                    step="900"
                     value={selectedShift.endTime || ""} 
                     onChange={e => setSelectedShift({...selectedShift, endTime: e.target.value})} 
                   />
