@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { compressImage } from "@/lib/image-compress";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { 
@@ -622,46 +622,88 @@ export default function UserManagement() {
     });
   };
 
-  const handleSeedDefaultRoles = async () => {
+  const handleSyncAllRoles = useCallback(async () => {
     if (!db || !effectiveOrgId || isSeedingRoles) return;
     setIsSeedingRoles(true);
     try {
-      const { writeBatch } = await import("firebase/firestore");
       const batch = writeBatch(db);
-      const rolesToSeed = [
-        { id: 'admin', name: 'Admin', description: 'Full administrative access to all features' },
-        { id: 'head-gardener', name: 'Head Gardener', description: 'Operational lead for a specific depot' },
-        { id: 'gardener', name: 'Gardener', description: 'Standard operational staff' },
-        { id: 'contractor', name: 'Contractor', description: 'External maintenance partner' },
-        { id: 'area-manager', name: 'Area Manager', description: 'Senior operational management' },
-        { id: 'events-manager', name: 'Events Manager', description: 'Focus on community and licensed events' },
-        { id: 'volunteer-coordinator', name: 'Volunteer Coordinator', description: 'Manages public engagement and volunteering' }
-      ];
+      const allSystemRoles: Role[] = [...OPERATIVE_ROLES, ...MANAGEMENT_ROLES, 'Volunteer'];
+      
+      // Get existing template names/IDs
+      const existingRoleNames = new Set(allRoleTemplates.map(t => t.name));
+      
+      let addedCount = 0;
 
-      for (const r of rolesToSeed) {
-        const docRef = doc(db, "organizations", effectiveOrgId, "role_templates", r.id);
-        const tempUser = { roles: [r.name as Role] } as User;
-        const perms = getDefaultPermissionsForUser(tempUser);
-        const mobilePerms = getDefaultMobilePermissionsForUser(tempUser);
+      for (const roleName of allSystemRoles) {
+        if (existingRoleNames.has(roleName)) continue;
+
+        const roleId = roleName.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+        const docRef = doc(db, "organizations", effectiveOrgId, "role_templates", roleId);
+        
+        // Define baseline "Standard" permissions as requested
+        const baselinePermissions: AccessPermissions = {
+          ...getDefaultPermissionsForUser({ roles: [roleName] } as User),
+          viewDashboard: true,
+          viewMyTasks: true,
+          viewParks: true,
+          viewDepots: true,
+          viewInfoCorner: true,
+          viewIssues: true,
+          viewInspections: true,
+          viewAssets: true,
+          viewEvents: true,
+          viewProjects: true,
+          viewOperational: true,
+          viewSports: true,
+          viewCalendar: true,
+        };
+
+        const baselineMobilePermissions: AccessPermissions = {
+          ...getDefaultMobilePermissionsForUser({ roles: [roleName] } as User),
+          viewDashboard: true,
+          viewMyTasks: true,
+          viewParks: true,
+          viewDepots: true,
+          viewInfoCorner: true,
+        };
         
         batch.set(docRef, {
-          ...r,
+          id: roleId,
+          name: roleName,
+          description: `Standard baseline for ${roleName} accounts.`,
           orgId: effectiveOrgId,
-          permissions: perms,
-          mobilePermissions: mobilePerms,
+          permissions: baselinePermissions,
+          mobilePermissions: baselineMobilePermissions,
           isSystemRole: true,
           updatedAt: new Date().toISOString(),
-          updatedBy: profile?.name || 'System'
+          updatedBy: profile?.name || 'System Sync'
         });
+        addedCount++;
       }
-      await batch.commit();
-      toast({ title: "Roles Seeded", description: "Default role templates have been created for your organization." });
+
+      if (addedCount > 0) {
+        await batch.commit();
+        toast({ title: "Roles Synchronized", description: `${addedCount} new role templates have been added with baseline permissions.` });
+      }
     } catch (e) {
-      toast({ title: "Error", description: "Failed to seed roles.", variant: "destructive" });
+      console.error("Sync Error:", e);
     } finally {
       setIsSeedingRoles(false);
     }
-  };
+  }, [db, effectiveOrgId, isSeedingRoles, allRoleTemplates, profile?.name, toast]);
+
+  // Auto-sync missing roles when admin visits
+  useEffect(() => {
+    if (isAdmin && allRoleTemplates.length > 0 && effectiveOrgId && !isSeedingRoles) {
+      const allSystemRoles = [...OPERATIVE_ROLES, ...MANAGEMENT_ROLES, 'Volunteer'];
+      const existingRoleNames = new Set(allRoleTemplates.map(t => t.name));
+      const hasMissing = allSystemRoles.some(r => !existingRoleNames.has(r));
+      
+      if (hasMissing) {
+        handleSyncAllRoles();
+      }
+    }
+  }, [isAdmin, allRoleTemplates.length, effectiveOrgId, handleSyncAllRoles, isSeedingRoles]);
 
   const handleSaveRole = async () => {
     if (!db || !effectiveOrgId || !selectedRole) return;
@@ -1087,12 +1129,10 @@ export default function UserManagement() {
                   <p className="text-xs text-muted-foreground font-medium">Define base permissions that automatically apply to staff types</p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                  {allRoleTemplates.length === 0 && (
-                    <Button variant="outline" className="flex-1 sm:flex-none font-bold text-xs" onClick={handleSeedDefaultRoles} disabled={isSeedingRoles}>
-                      {isSeedingRoles ? <Clock className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-2 h-3.5 w-3.5" />}
-                      Seed Defaults
-                    </Button>
-                  )}
+                  <Button variant="outline" className="flex-1 sm:flex-none font-bold text-xs" onClick={handleSyncAllRoles} disabled={isSeedingRoles}>
+                    {isSeedingRoles ? <Clock className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="mr-2 h-3.5 w-3.5" />}
+                    Sync All Role Templates
+                  </Button>
                   <Button className="flex-1 sm:flex-none font-headline font-bold" onClick={() => {
                     const newRole: RoleTemplate = {
                       id: `role-${Date.now()}`,
