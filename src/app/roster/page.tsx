@@ -80,6 +80,7 @@ export default function RosterPage() {
   const [selectedShift, setSelectedShift] = useState<Partial<StaffShift> | null>(null);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isPatternModalOpen, setIsPatternModalOpen] = useState(false);
+  const [isManageStaffOpen, setIsManageStaffOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Date Logic
@@ -102,11 +103,11 @@ export default function RosterPage() {
   [db, effectiveOrgId]);
   const { data: patterns = [] } = useCollection<ShiftPattern>(patternsQuery as any);
 
-  // Group users by Depot
+  // Group users by Depot (only those on roster)
   const usersByDepot = useMemo(() => {
     const groups: Record<string, User[]> = {};
     allUsers.forEach(u => {
-      if (u.isArchived) return;
+      if (u.isArchived || !u.isOnRoster) return;
       const depot = u.depot || u.depots?.[0] || 'Unassigned';
       if (!groups[depot]) groups[depot] = [];
       groups[depot].push(u);
@@ -185,9 +186,14 @@ export default function RosterPage() {
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextWeek}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           {isManagement && (
-            <Button size="sm" className="font-bold" onClick={() => setIsPatternModalOpen(true)}>
-              <Settings2 className="mr-2 h-4 w-4" /> Patterns
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="font-bold" onClick={() => setIsManageStaffOpen(true)}>
+                <Users className="mr-2 h-4 w-4" /> Manage Staff
+              </Button>
+              <Button size="sm" className="font-bold" onClick={() => setIsPatternModalOpen(true)}>
+                <Settings2 className="mr-2 h-4 w-4" /> Patterns
+              </Button>
+            </div>
           )}
         </div>
       }
@@ -471,6 +477,54 @@ export default function RosterPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => setIsPatternModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Staff Modal */}
+      <Dialog open={isManageStaffOpen} onOpenChange={setIsManageStaffOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Manage Roster Staff</DialogTitle>
+            <DialogDescription>Toggle which staff members are visible on the roster grid.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-2">
+                {allUsers.filter(u => !u.isArchived).sort((a, b) => a.name.localeCompare(b.name)).map(user => (
+                  <div key={user.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                        {user.name.charAt(0)}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold">{user.name}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold">{user.role || (user.roles?.[0])}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mr-2">
+                        {user.isOnRoster ? 'Active' : 'Hidden'}
+                      </span>
+                      <Switch 
+                        checked={user.isOnRoster || false}
+                        onCheckedChange={async (val) => {
+                          if (!db) return;
+                          try {
+                            await setDoc(doc(db, "users", user.id), { isOnRoster: val }, { merge: true });
+                          } catch (e) {
+                            toast({ title: "Error", variant: "destructive" });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsManageStaffOpen(false)}>Finished</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

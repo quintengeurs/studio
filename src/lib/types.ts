@@ -123,6 +123,7 @@ export interface User {
   hasCompletedVolunteerOnboarding?: boolean;
   lastActive?: string;
   seenAnnouncementIds?: string[];
+  isOnRoster?: boolean;
 }
 
 export interface Asset {

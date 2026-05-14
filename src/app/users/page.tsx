@@ -1465,6 +1465,17 @@ export default function UserManagement() {
               </div>
             </div>
 
+            <div className="p-4 border rounded-xl bg-primary/5 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold">Include on Staff Roster</Label>
+                <p className="text-[10px] text-muted-foreground italic">If enabled, this user will appear in the shift planning grid.</p>
+              </div>
+              <Switch 
+                checked={newUser.isOnRoster || false} 
+                onCheckedChange={(v) => setNewUser({...newUser, isOnRoster: v})} 
+              />
+            </div>
+
             {/* Access & Permissions Section */}
             <div className="grid gap-3">
               <div className="flex items-center gap-2">
@@ -1714,6 +1725,18 @@ export default function UserManagement() {
                         </div>
                       </div>
                     )}
+
+                    <div className="p-4 border rounded-xl bg-primary/5 flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-bold">Include on Staff Roster</Label>
+                        <p className="text-[10px] text-muted-foreground italic">Enable to show this user in the visual shift planning grid.</p>
+                      </div>
+                      <Switch 
+                        checked={selectedUser?.isOnRoster || false} 
+                        onCheckedChange={(v) => isEditing && setSelectedUser({...selectedUser, isOnRoster: v})} 
+                        disabled={!isEditing}
+                      />
+                    </div>
                     
                     <Separator className="my-2" />
 
