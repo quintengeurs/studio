@@ -91,6 +91,7 @@ export default function RosterPage() {
   const { allUsers, allParks } = useDataContext();
   
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedShift, setSelectedShift] = useState<Partial<StaffShift> | null>(null);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isPatternModalOpen, setIsPatternModalOpen] = useState(false);
   const [isManageStaffOpen, setIsManageStaffOpen] = useState(false);
