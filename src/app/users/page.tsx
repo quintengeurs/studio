@@ -1196,8 +1196,8 @@ export default function UserManagement() {
                    </div>
                    <h4 className="font-bold font-headline text-lg mb-1">No Role Templates</h4>
                    <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-6">Create templates to manage permissions for multiple staff members at once.</p>
-                   <Button variant="outline" onClick={handleSeedDefaultRoles} className="font-bold shadow-sm">
-                      <RotateCcw className="mr-2 h-4 w-4" /> Seed System Defaults
+                   <Button variant="outline" onClick={handleSyncAllRoles} className="font-bold shadow-sm">
+                      <RotateCcw className="mr-2 h-4 w-4" /> Sync All Role Templates
                    </Button>
                 </div>
               )}
