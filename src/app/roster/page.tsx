@@ -77,7 +77,9 @@ const DEFAULT_SHIFT_TYPES: ShiftType[] = [
   { id: 'daytime', name: 'Daytime', startTime: '08:00', endTime: '16:30', color: 'bg-amber-500', icon: 'Briefcase' },
   { id: 'locking', name: 'Locking', startTime: '16:30', endTime: '21:00', color: 'bg-indigo-600', icon: 'Moon' },
   { id: 'stand-by', name: 'Stand-by', startTime: '00:00', endTime: '23:59', color: 'bg-purple-500', icon: 'PhoneCall' },
+  { id: 'rest', name: 'Rest Day', startTime: '00:00', endTime: '00:00', color: 'bg-slate-400', icon: 'Coffee' },
 ];
+ Riverside Roster Logic: Updated types to opening, locking, daytime, stand-by, rest day.
 
 export default function RosterPage() {
   const { toast } = useToast();
@@ -409,7 +411,7 @@ export default function RosterPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {DEFAULT_SHIFT_TYPES.map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name} ({t.startTime}-{t.endTime})</SelectItem>
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
