@@ -301,10 +301,12 @@ export function getEffectivePermissions(
     : getDefaultPermissionsForUser(user, fallbackEmail);
 
   // 3. If templates are provided, use them to calculate the base
+  // We no longer merge with hardcodedDefaults if templates exist, 
+  // as templates are now the single source of truth.
   let base: AccessPermissions;
   if (templates.length > 0) {
     const templatePerms = templates.map(t => isMobile ? (t.mobilePermissions || t.permissions) : t.permissions);
-    base = mergePermissions([hardcodedDefaults, ...templatePerms]);
+    base = mergePermissions(templatePerms);
   } else {
     base = hardcodedDefaults;
   }
@@ -313,7 +315,9 @@ export function getEffectivePermissions(
   const overrides = isMobile ? user?.mobilePermissions : user?.permissions;
 
   // 5. Merge base with overrides (if any exist)
-  if (overrides && Object.keys(overrides).length > 0) {
+  // CRITICAL: We only apply individual overrides if NO templates are assigned.
+  // This enforces the "Role Templates as the driver" rule.
+  if (templates.length === 0 && overrides && Object.keys(overrides).length > 0) {
     return {
       ...base,
       ...overrides
