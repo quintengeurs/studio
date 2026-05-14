@@ -440,7 +440,7 @@ export default function UserManagement() {
       roles: selectedUser.assignedRoles?.map(ar => ar.role) || selectedUser.roles || [],
       depots: Array.from(new Set(selectedUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
       depot: selectedUser.assignedRoles?.[0]?.depotIds?.[0] || "",
-      orgId: selectedUser.orgId || effectiveOrgId,
+      orgId: selectedUser.orgId || effectiveOrgId || undefined,
       permissions: editDesktopPerms || undefined,
       mobilePermissions: editMobilePerms || undefined,
       allowDesktopView: editDesktopPerms ? Object.values(editDesktopPerms).some(v => v === true) : true,
@@ -1528,6 +1528,7 @@ export default function UserManagement() {
                       { key: 'viewOperational', label: 'Operational' },
                       { key: 'viewSports', label: 'Sports & Leisure' },
                       { key: 'viewCalendar', label: 'Master Calendar' },
+                      { key: 'viewRoster', label: 'Staff Roster' },
                     ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
                       <div key={item.key} className="grid grid-cols-[1fr_80px_80px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">
                         <div className="px-3 py-2 text-xs font-medium">{item.label}</div>
@@ -2152,6 +2153,7 @@ export default function UserManagement() {
                         { key: 'viewOperational', label: 'Operational Hub' },
                         { key: 'viewSports', label: 'Sports & Leisure' },
                         { key: 'viewCalendar', label: 'Master Calendar' },
+                        { key: 'viewRoster', label: 'Staff Roster' },
                         { key: 'viewSmartTasking', label: 'Smart Tasking' },
                         { key: 'viewVolunteering', label: 'Volunteering Portal' },
                         { key: 'createTask', label: 'Create Tasks' },

@@ -81,6 +81,7 @@ const navItems = [
   { title: "Operational", icon: Wrench, href: "/operational" },
   { title: "Sports & Leisure", icon: Trophy, href: "/sports" },
   { title: "Master Calendar", icon: CalendarDays, href: "/calendar" },
+  { title: "Staff Roster", icon: CalendarDays, href: "/roster" },
   { title: "Smart Tasking", icon: BrainCircuit, href: "/smart-tasking" },
   { title: "System Management", icon: Settings2, href: "/system", isMasterOnly: true },
 ];
@@ -122,6 +123,7 @@ export function AppSidebar() {
         case "Operational": return permissions.viewOperational;
         case "Sports & Leisure": return permissions.viewSports;
         case "Master Calendar": return permissions.viewCalendar;
+        case "Staff Roster": return permissions.viewRoster;
         case "System Management": return isMaster;
         default: return false;
       }

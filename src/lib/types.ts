@@ -57,6 +57,7 @@ export interface AccessPermissions {
   viewOperational: boolean;
   viewSports: boolean;
   viewCalendar: boolean;
+  viewRoster: boolean;
 }
 
 export type FeatureKey = 'dashboard' | 'assets' | 'parks' | 'depots' | 'inspections' | 'issues' | 'requests' | 'tasks' | 'users' | 'volunteering' | 'smart_tasking' | 'info_corner' | 'map' | 'events' | 'projects' | 'development' | 'operational' | 'sports' | 'calendar';
@@ -476,4 +477,36 @@ export const PARK_SECTIONS: { key: ParkSectionKey; label: string; number: number
   { key: 'contractorWorks', label: 'Contractor Works', number: 12 },
   { key: 'maintenanceWork', label: 'Recent Maintenance Work', number: 13 },
 ];
+
+export interface ShiftType {
+  id: string;
+  name: string;
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  color: string; // Tailwind hex or class
+  icon?: string;
+}
+
+export interface StaffShift {
+  id: string;
+  orgId: string;
+  userId: string;
+  userName: string;
+  date: string; // YYYY-MM-DD
+  shiftTypeId: string;
+  parkId?: string; // If site-specific
+  depotId?: string;
+  status: 'Confirmed' | 'Sick' | 'Covered' | 'Swap Requested';
+  notes?: string;
+  isStandby?: boolean;
+  createdAt: string;
+}
+
+export interface ShiftPattern {
+  id: string;
+  orgId: string;
+  name: string;
+  days: ('Work' | 'Rest')[]; // e.g. ['Work', 'Work', 'Work', 'Work', 'Rest', 'Rest']
+  description?: string;
+}
 

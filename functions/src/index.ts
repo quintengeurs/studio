@@ -35,136 +35,146 @@ export const manualProcessRules = functions.https.onCall(async (data, context) =
 /**
  * Core Rule Processing Logic
  */
+/**
+ * Core Rule Processing Logic
+ * Fetches weather for all parks and evaluates against all active smart rules
+ */
 async function processAllRules() {
-  const stats = { rulesProcessed: 0, matchesFound: 0, tasksProposed: 0, errors: 0 };
+  const stats = { rulesProcessed: 0, matchesFound: 0, tasksProposed: 0, errors: 0, parksChecked: 0 };
   
   try {
-    // 1. Fetch all active weather-based rules
-    const rulesSnap = await db.collection("SmartRules")
-      .where("isActive", "==", true)
-      .where("triggerType", "==", "weather")
-      .get();
+    // 1. Fetch all organizations to process separately (Multi-tenancy support)
+    const orgsSnap = await db.collection("organizations").get();
+    
+    for (const orgDoc of orgsSnap.docs) {
+      const orgId = orgDoc.id;
+      
+      // 2. Fetch all active dynamic rules for this org
+      const rulesSnap = await db.collection("smart_rules")
+        .where("orgId", "==", orgId)
+        .where("isActive", "==", true)
+        .get();
 
-    if (rulesSnap.empty) {
-      console.log("No active weather rules found.");
-      return { status: "success", message: "No active rules.", stats };
-    }
+      if (rulesSnap.empty) continue;
 
-    // 2. Group rules by park to minimize API calls
-    const rulesByPark: Record<string, any[]> = {};
-    rulesSnap.forEach(doc => {
-      const data = doc.data();
-      const parkId = data.parkId;
-      if (!rulesByPark[parkId]) rulesByPark[parkId] = [];
-      rulesByPark[parkId].push({ id: doc.id, ...data });
-    });
+      const rules: any[] = [];
+      rulesSnap.forEach(doc => rules.push({ id: doc.id, ...doc.data() }));
 
-    // 3. Process each park
-    for (const parkId of Object.keys(rulesByPark)) {
-      try {
-        // Get park coordinates
-        const parkDoc = await db.collection("parks_details").doc(parkId).get();
+      // 3. Fetch all parks for this org to get coordinates
+      const parksSnap = await db.collection("parks_details")
+        .where("orgId", "==", orgId)
+        .get();
+      
+      for (const parkDoc of parksSnap.docs) {
         const parkData = parkDoc.data();
-        
-        if (!parkData || !parkData.latitude || !parkData.longitude) {
-          console.warn(`Park ${parkId} missing coordinates. Skipping.`);
+        const parkId = parkDoc.id; // or parkData.name
+
+        if (!parkData.latitude || !parkData.longitude) {
+          console.warn(`Park ${parkId} in org ${orgId} missing coordinates. Skipping.`);
           continue;
         }
 
-        // Fetch Weather Forecast (24h)
-        const weatherResponse = await axios.get("https://api.open-meteo.com/v1/forecast", {
-          params: {
-            latitude: parkData.latitude,
-            longitude: parkData.longitude,
-            daily: "temperature_2m_max,precipitation_sum",
-            timezone: "Europe/London",
-            forecast_days: 1
-          }
-        });
+        stats.parksChecked++;
 
-        const forecast = weatherResponse.data.daily;
-        const currentContext = {
-          temp: forecast.temperature_2m_max[0],
-          rain: forecast.precipitation_sum[0]
-        };
-
-        console.log(`Weather for ${parkId}: ${currentContext.temp}°C, ${currentContext.rain}mm rain`);
-
-        // Evaluate Rules for this park
-        for (const rule of rulesByPark[parkId]) {
-          stats.rulesProcessed++;
-          let isMatch = true;
-
-          // Simple AND logic for all conditions
-          for (const cond of rule.conditions) {
-            const actualValue = currentContext[cond.field as keyof typeof currentContext];
-            if (actualValue === undefined) continue;
-
-            const operator = cond.operator;
-            const target = cond.value;
-
-            if (operator === ">" && !(actualValue > target)) isMatch = false;
-            if (operator === "<" && !(actualValue < target)) isMatch = false;
-            if (operator === "==" && !(actualValue === target)) isMatch = false;
-            if (operator === ">=" && !(actualValue >= target)) isMatch = false;
-            if (operator === "<=" && !(actualValue <= target)) isMatch = false;
-            
-            if (!isMatch) break;
-          }
-
-          if (isMatch) {
-            stats.matchesFound++;
-            
-            // Check Cooldown: Has this task already been proposed or completed today?
-            const todayStr = format(new Date(), "yyyy-MM-dd");
-            const existingProposal = await db.collection("proposed_tasks")
-              .where("ruleId", "==", rule.id)
-              .where("suggestedDate", "==", todayStr)
-              .limit(1)
-              .get();
-
-            if (!existingProposal.empty) {
-              console.log(`Rule ${rule.id} already triggered today for ${parkId}. Cooldown active.`);
-              continue;
+        try {
+          // 4. Fetch Weather Forecast
+          const weatherResponse = await axios.get("https://api.open-meteo.com/v1/forecast", {
+            params: {
+              latitude: parkData.latitude,
+              longitude: parkData.longitude,
+              daily: "temperature_2m_max,precipitation_sum,wind_speed_10m_max",
+              timezone: "Europe/London",
+              forecast_days: 1
             }
+          });
 
-            // Also check for active tasks from this rule
-            const activeTasks = await db.collection("tasks")
-              .where("ruleId", "==", rule.id)
-              .where("status", "!=", "Completed")
-              .limit(1)
-              .get();
+          const forecast = weatherResponse.data.daily;
+          const currentContext: any = {
+            temperature: forecast.temperature_2m_max[0],
+            rain: forecast.precipitation_sum[0],
+            windSpeed: forecast.wind_speed_10m_max[0],
+            tags: [] // Daily tags like 'rainy' could be added here based on thresholds
+          };
 
-            if (!activeTasks.empty) {
-              console.log(`Active task already exists for rule ${rule.id} at ${parkId}. Skipping.`);
-              continue;
-            }
+          // Logic-based tags
+          if (currentContext.rain > 2) currentContext.tags.push("rain");
+          if (currentContext.temperature > 25) currentContext.tags.push("sunny");
+          if (currentContext.windSpeed > 20) currentContext.tags.push("windy");
 
-            // Create Proposed Task
-            const action = rule.actions[0]; // Take first action
-            const proposalId = `prop_${Date.now()}_${rule.id}`;
+          // 5. Evaluate Rules
+          for (const rule of rules) {
+            stats.rulesProcessed++;
             
-            await db.collection("proposed_tasks").doc(proposalId).set({
-              id: proposalId,
-              ruleId: rule.id,
-              ruleName: rule.name,
-              title: action.title || `Automated: ${rule.name}`,
-              objective: action.objective || `Suggested by smart rule based on ${currentContext.temp}°C / ${currentContext.rain}mm rain.`,
-              park: parkId,
-              assignedTo: action.assigneeRole || "Unassigned",
-              suggestedDate: todayStr,
-              createdAt: new Date().toISOString(),
-              status: "pending",
-              triggerData: currentContext
+            const evaluations = (rule.conditions || []).map((c: any) => {
+              const actualValue = currentContext[c.field];
+              if (actualValue === undefined) return false;
+              
+              if (c.operator === 'contains') {
+                return Array.isArray(actualValue) ? actualValue.includes(c.value) : false;
+              }
+              
+              const numVal = Number(actualValue);
+              const targetVal = Number(c.value);
+              
+              if (c.operator === ">") return numVal > targetVal;
+              if (c.operator === "<") return numVal < targetVal;
+              if (c.operator === "==") return numVal === targetVal;
+              if (c.operator === ">=") return numVal >= targetVal;
+              if (c.operator === "<=") return numVal <= targetVal;
+              return false;
             });
 
-            stats.tasksProposed++;
-            console.log(`Proposed task created: ${proposalId} for ${parkId}`);
+            let isMatch = false;
+            if (rule.conditionLogic === 'AND') {
+              isMatch = evaluations.length > 0 && evaluations.every((v: boolean) => v === true);
+            } else {
+              isMatch = evaluations.some((v: boolean) => v === true);
+            }
+
+            if (isMatch) {
+              stats.matchesFound++;
+              
+              // Cooldown Check
+              const todayStr = format(new Date(), "yyyy-MM-dd");
+              const existingProposal = await db.collection("proposed_tasks")
+                .where("ruleId", "==", rule.id)
+                .where("park", "==", parkData.name || parkId)
+                .where("suggestedDate", "==", todayStr)
+                .limit(1)
+                .get();
+
+              if (!existingProposal.empty) continue;
+
+              // Create Proposed Tasks
+              for (const taskTemplate of (rule.tasksToGenerate || [])) {
+                const proposalId = `prop_${Date.now()}_${rule.id}_${Math.floor(Math.random() * 1000)}`;
+                
+                await db.collection("proposed_tasks").doc(proposalId).set({
+                  id: proposalId,
+                  ruleId: rule.id,
+                  orgId: orgId,
+                  ruleName: rule.name,
+                  title: taskTemplate.title,
+                  objective: taskTemplate.objective,
+                  park: parkData.name || parkId,
+                  assignedTo: taskTemplate.assignedTo,
+                  suggestedDate: todayStr,
+                  createdAt: new Date().toISOString(),
+                  status: "pending",
+                  triggerData: {
+                    temp: currentContext.temperature,
+                    rain: currentContext.rain,
+                    wind: currentContext.windSpeed
+                  }
+                });
+                stats.tasksProposed++;
+              }
+            }
           }
+        } catch (err: any) {
+          console.error(`Weather error for ${parkId}:`, err.message);
+          stats.errors++;
         }
-      } catch (err: any) {
-        console.error(`Error processing park ${parkId}:`, err.message);
-        stats.errors++;
       }
     }
 

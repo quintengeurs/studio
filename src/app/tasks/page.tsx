@@ -168,13 +168,21 @@ export default function TasksPage() {
     const userDepots = profile?.depots || (profile?.depot ? [profile.depot] : []);
     
     currentUserRoles.forEach((r: any) => {
+      // 1. Depot-level groups
       userDepots.forEach(d => {
         if (d?.trim?.()) list.push(`Group: ${r} @ ${d.trim()}`);
       });
+      
+      // 2. Park-level groups for all parks in user's depots
+      allDetails.forEach(p => {
+        if (p.depot && userDepots.includes(p.depot)) {
+          list.push(`Group: ${r} @ ${p.name}`);
+        }
+      });
     });
     
-    return Array.from(new Set(list)).slice(0, 10);
-  }, [currentUserName, user?.email, user?.displayName, profile, currentUserRoles]);
+    return Array.from(new Set(list)).slice(0, 50); // Increased slice for more group permutations
+  }, [currentUserName, user?.email, user?.displayName, profile, currentUserRoles, allDetails]);
 
   const filteredTasksForUser = useMemo(() => {
     if (isAdmin) return tasks;
@@ -191,8 +199,13 @@ export default function TasksPage() {
       );
       if (isDirectlyAssigned) return true;
 
-      // 2. Smart Tasks (Role-based broadcast)
-      // Smart tasks assigned to a general role (e.g., "Keeper") are visible to everyone with that role in the depot.
+      // 2. Group Assignment (Role @ Park or Role @ Depot)
+      const isGroupAssigned = identities.some(ident => 
+        t.assignedTo === ident || t.assignedTo?.toLowerCase() === ident.toLowerCase()
+      );
+      if (isGroupAssigned) return true;
+
+      // 3. Smart Tasks (Role-based broadcast)
       if (t.source === 'smart-engine') {
         const hasMatchingRole = roles.includes(t.assignedTo as any);
         if (hasMatchingRole) {
@@ -201,10 +214,10 @@ export default function TasksPage() {
         }
       }
 
-      // 3. Global Management (Sees everything)
+      // 4. Global Management (Sees everything)
       if (isGlobalMgmt) return true;
 
-      // 4. Depot Management (Sees all in their depots)
+      // 5. Depot Management (Sees all in their depots)
       if (isDepotMgmt) {
         const parkDetail = allDetails.find(d => d.name === t.park);
         if (parkDetail?.depot && userDepots.includes(parkDetail.depot)) return true;
@@ -769,14 +782,20 @@ export default function TasksPage() {
                           <SelectItem value="Litter Picker">Litter Pickers</SelectItem>
                           <SelectItem value="Bin Run">Bin Run Team</SelectItem>
                           <SelectItem value="Volunteer">Volunteers</SelectItem>
+                          <SelectItem value="Head Gardener">Head Gardeners</SelectItem>
+                          <SelectItem value="Area Manager">Area Managers</SelectItem>
+                          <SelectItem value="Contractor">Contractors</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="grid gap-2">
-                      <Label className="text-xs">Location / Depot</Label>
+                      <Label className="text-xs">Park or Depot Hub</Label>
                       <Select value={groupPark} onValueChange={v => setGroupPark(v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Select Depot" /></SelectTrigger>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select Location" /></SelectTrigger>
                         <SelectContent>
+                          <div className="p-2 text-[10px] font-bold uppercase text-muted-foreground bg-muted/30">Depot Hubs</div>
+                          {(registryConfig?.teams || []).map(t => <SelectItem key={t} value={t}>{t} (Depot)</SelectItem>)}
+                          <div className="p-2 text-[10px] font-bold uppercase text-muted-foreground bg-muted/30 border-t">Individual Parks</div>
                           {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                         </SelectContent>
                       </Select>
@@ -1368,29 +1387,74 @@ export default function TasksPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 mt-2">
-                {assignableStaff.map(user => (
-                  <div key={user.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleAssign(user.name)}>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold">{user.name}</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted font-bold text-muted-foreground uppercase">{user.role || (user.roles?.[0])}</span>
-                            <span className="text-[9px] text-muted-foreground truncate max-w-[150px]">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <UserPlus className="h-4 w-4 text-muted-foreground" />
+              <div className="space-y-4 pt-4 border-t mt-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-bold">Assign to Group / Role</Label>
+                    <p className="text-[10px] text-muted-foreground italic">Broadcast to all staff with this role at this site</p>
                   </div>
-                ))}
-                {assignableStaff.length === 0 && (
-                    <div className="text-center py-6 border-2 border-dashed rounded-xl">
-                        <p className="text-xs text-muted-foreground italic mb-2">No staff found {showAllStaff ? '' : `for ${targetDepot}`}</p>
-                        {!showAllStaff && (
-                            <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold" onClick={() => setShowAllStaff(true)}>Show All Staff</Button>
-                        )}
+                  <Switch checked={isGroupAssign} onCheckedChange={setIsGroupAssign} />
+                </div>
+
+                {isGroupAssign ? (
+                  <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-primary/5 border animate-in zoom-in-95 duration-200">
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Role</Label>
+                      <Select value={groupRole} onValueChange={(v: Role) => setGroupRole(v)}>
+                        <SelectTrigger className="h-9 font-medium"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Keeper">Keepers</SelectItem>
+                          <SelectItem value="Gardener">Gardeners</SelectItem>
+                          <SelectItem value="Litter Picker">Litter Pickers</SelectItem>
+                          <SelectItem value="Bin Run">Bin Run Team</SelectItem>
+                          <SelectItem value="Head Gardener">Head Gardeners</SelectItem>
+                          <SelectItem value="Area Manager">Area Managers</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Site / Park</Label>
+                      <Select value={groupPark} onValueChange={v => setGroupPark(v)}>
+                        <SelectTrigger className="h-9 font-medium"><SelectValue placeholder="Select Park" /></SelectTrigger>
+                        <SelectContent>
+                          {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      className="col-span-2 h-10 font-bold mt-2" 
+                      onClick={() => handleAssign(`Group: ${groupRole} @ ${groupPark}`)}
+                      disabled={!groupRole || !groupPark || isSubmitting}
+                    >
+                      {isSubmitting ? "Reassigning..." : `Assign to All ${groupRole}s @ ${groupPark}`}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                    {assignableStaff.map(user => (
+                      <div key={user.id} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleAssign(user.name)}>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8 border"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold">{user.name}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted font-bold text-muted-foreground uppercase">{user.role || (user.roles?.[0])}</span>
+                                <span className="text-[9px] text-muted-foreground truncate max-w-[150px]">{user.depots?.length ? user.depots.join(', ') : user.depot}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <UserPlus className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    ))}
+                    {assignableStaff.length === 0 && (
+                        <div className="text-center py-6 border-2 border-dashed rounded-xl">
+                            <p className="text-xs text-muted-foreground italic mb-2">No staff found {showAllStaff ? '' : `for ${targetDepot}`}</p>
+                            {!showAllStaff && (
+                                <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold" onClick={() => setShowAllStaff(true)}>Show All Staff</Button>
+                            )}
+                        </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

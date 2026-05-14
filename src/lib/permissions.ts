@@ -1,4 +1,4 @@
-import { User, AccessPermissions, Role, RoleTemplate } from "./types";
+import { User, AccessPermissions, Role, RoleTemplate, ParkPermissionsConfig, RoleParkPermissions } from "./types";
 
 const ALL_FALSE: AccessPermissions = {
   viewDashboard: false,
@@ -36,6 +36,7 @@ const ALL_FALSE: AccessPermissions = {
   viewOperational: false,
   viewSports: false,
   viewCalendar: false,
+  viewRoster: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
@@ -108,6 +109,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewOperational: true,
       viewSports: true,
       viewCalendar: true,
+      viewRoster: true,
     };
   }
 
@@ -152,11 +154,11 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewVolunteering: true,
       manageInfoCorner: roles.some(r => ['Area Manager', 'Operations Manager'].includes(r)),
       viewEvents: true,
-      viewProjects: true,
       viewDevelopment: true,
       viewOperational: true,
       viewSports: true,
       viewCalendar: true,
+      viewRoster: true,
     };
   }
 
