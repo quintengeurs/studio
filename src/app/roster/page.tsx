@@ -82,7 +82,7 @@ const DEFAULT_SHIFT_TYPES: ShiftType[] = [
   { id: 'stand-by', name: 'Stand-by', startTime: '00:00', endTime: '23:59', color: 'bg-purple-500', icon: 'PhoneCall' },
   { id: 'rest', name: 'Rest Day', startTime: '00:00', endTime: '00:00', color: 'bg-slate-400', icon: 'Coffee' },
 ];
- Riverside Roster Logic: Updated types to opening, locking, daytime, stand-by, rest day.
+
 
 export default function RosterPage() {
   const { toast } = useToast();
@@ -258,7 +258,6 @@ export default function RosterPage() {
       setIsArchiving(false);
     }
   };
- Riverside Roster Logic: Added PDF and Archive functions.
 
   return (
     <DashboardShell
@@ -296,7 +295,6 @@ export default function RosterPage() {
         </div>
       }
     >
- Riverside Roster Logic: Added History, PDF, and Archive Week buttons.
       <div className="space-y-6">
         {/* Coverage Header Summary */}
         <div className="grid grid-cols-7 gap-1 px-[200px]">
@@ -322,7 +320,6 @@ export default function RosterPage() {
         </div>
 
         <Card id="roster-grid-capture" className="overflow-hidden border-none shadow-xl bg-background/50 backdrop-blur-md">
- Riverside Roster Logic: Added ID for PDF capture.
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
