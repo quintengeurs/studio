@@ -505,6 +505,15 @@ export interface StaffShift {
   createdAt: string;
 }
 
+export interface ArchivedRoster {
+  id: string; // roster_week_starting_YYYY_MM_DD
+  orgId: string;
+  startDate: string; // YYYY-MM-DD
+  archivedAt: string; // ISO string
+  summary: string; // Basic text summary
+  snapshot: StaffShift[]; // All shifts for that week
+}
+
 export interface ShiftPattern {
   id: string;
   orgId: string;

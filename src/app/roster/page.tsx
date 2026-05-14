@@ -69,7 +69,10 @@ import {
   TooltipTrigger 
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { StaffShift, ShiftType, ShiftPattern, User } from "@/lib/types";
+import { StaffShift, ShiftType, ShiftPattern, User, ArchivedRoster } from "@/lib/types";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { Download, Archive, BookOpen } from "lucide-react";
 
 // Default Shift Types
 const DEFAULT_SHIFT_TYPES: ShiftType[] = [
@@ -88,11 +91,13 @@ export default function RosterPage() {
   const { allUsers, allParks } = useDataContext();
   
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedShift, setSelectedShift] = useState<Partial<StaffShift> | null>(null);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isPatternModalOpen, setIsPatternModalOpen] = useState(false);
   const [isManageStaffOpen, setIsManageStaffOpen] = useState(false);
+  const [isArchiveViewerOpen, setIsArchiveViewerOpen] = useState(false);
+  const [selectedArchive, setSelectedArchive] = useState<ArchivedRoster | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   // Date Logic
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -113,6 +118,11 @@ export default function RosterPage() {
     (db && effectiveOrgId) ? query(collection(db, "shift_patterns"), where("orgId", "==", effectiveOrgId)) : null, 
   [db, effectiveOrgId]);
   const { data: patterns = [] } = useCollection<ShiftPattern>(patternsQuery as any);
+
+  const archiveQuery = useMemoFirebase(() => 
+    (db && effectiveOrgId) ? query(collection(db, "archived_rosters"), where("orgId", "==", effectiveOrgId)) : null,
+  [db, effectiveOrgId]);
+  const { data: archivedRosters = [] } = useCollection<ArchivedRoster>(archiveQuery as any);
 
   // Group users by Depot (only those on roster)
   const usersByDepot = useMemo(() => {
@@ -185,12 +195,83 @@ export default function RosterPage() {
     }
   };
 
+  const handleExportPDF = async () => {
+    const element = document.getElementById('roster-grid-capture');
+    if (!element) return;
+    
+    setIsSubmitting(true);
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`Roster_${format(startDate, 'yyyy-MM-dd')}.pdf`);
+      toast({ title: "Export Complete", description: "PDF has been generated." });
+    } catch (e) {
+      toast({ title: "Export Failed", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleArchiveWeek = async () => {
+    if (!db || !effectiveOrgId || shifts.length === 0 || isArchiving) return;
+    
+    setIsArchiving(true);
+    try {
+      const weekId = `roster_${format(startDate, 'yyyy_MM_dd')}`;
+      const summary = shifts.map(s => {
+        const type = DEFAULT_SHIFT_TYPES.find(t => t.id === s.shiftTypeId);
+        return `${s.userName}: ${type?.name} (${s.startTime}-${s.endTime})${s.notes ? ` - Note: ${s.notes}` : ''}`;
+      }).join('\n');
+
+      const archiveData: ArchivedRoster = {
+        id: weekId,
+        orgId: effectiveOrgId,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        archivedAt: new Date().toISOString(),
+        summary,
+        snapshot: shifts
+      };
+
+      await setDoc(doc(db, "archived_rosters", weekId), archiveData);
+      
+      // Clear active shifts for this week to start fresh
+      const deletePromises = shifts.map(s => deleteDoc(doc(db, "staff_shifts", s.id)));
+      await Promise.all(deletePromises);
+
+      toast({ title: "Week Archived & Cleared", description: "This week has been saved and the grid is now fresh." });
+    } catch (e) {
+      toast({ title: "Archival Failed", variant: "destructive" });
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+ Riverside Roster Logic: Added PDF and Archive functions.
+
   return (
     <DashboardShell
       title="Staff Roster"
       description="Manage shifts, rolling patterns, and duty coverage."
       actions={
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsArchiveViewerOpen(true)} className="font-bold">
+            <BookOpen className="mr-2 h-4 w-4" /> History
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isSubmitting} className="font-bold">
+            <Download className="mr-2 h-4 w-4" /> PDF
+          </Button>
           <Button variant="outline" size="sm" onClick={handleToday} className="font-bold">Today</Button>
           <div className="flex items-center bg-muted rounded-lg p-0.5 border">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevWeek}><ChevronLeft className="h-4 w-4" /></Button>
@@ -201,6 +282,9 @@ export default function RosterPage() {
           </div>
           {isManagement && (
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={handleArchiveWeek} disabled={isArchiving}>
+                <Archive className="mr-2 h-4 w-4" /> Archive & Clear
+              </Button>
               <Button variant="outline" size="sm" className="font-bold" onClick={() => setIsManageStaffOpen(true)}>
                 <Users className="mr-2 h-4 w-4" /> Manage Staff
               </Button>
@@ -212,6 +296,7 @@ export default function RosterPage() {
         </div>
       }
     >
+ Riverside Roster Logic: Added History, PDF, and Archive Week buttons.
       <div className="space-y-6">
         {/* Coverage Header Summary */}
         <div className="grid grid-cols-7 gap-1 px-[200px]">
@@ -236,7 +321,8 @@ export default function RosterPage() {
            })}
         </div>
 
-        <Card className="overflow-hidden border-none shadow-xl bg-background/50 backdrop-blur-md">
+        <Card id="roster-grid-capture" className="overflow-hidden border-none shadow-xl bg-background/50 backdrop-blur-md">
+ Riverside Roster Logic: Added ID for PDF capture.
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -591,6 +677,116 @@ export default function RosterPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => setIsManageStaffOpen(false)}>Finished</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive History Viewer */}
+      <Dialog open={isArchiveViewerOpen} onOpenChange={setIsArchiveViewerOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>Roster History Archive</DialogTitle>
+            <DialogDescription>Access historical shift records and weekly summaries.</DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 p-6">
+            <div className="space-y-8">
+              {/* Group archived rosters by month */}
+              {Object.entries(
+                archivedRosters.reduce((acc, roster) => {
+                  const month = format(parseISO(roster.startDate), 'MMMM yyyy');
+                  if (!acc[month]) acc[month] = [];
+                  acc[month].push(roster);
+                  return acc;
+                }, {} as Record<string, ArchivedRoster[]>)
+              ).sort((a, b) => b[0].localeCompare(a[0])).map(([month, items]) => (
+                <div key={month} className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">{month}</h3>
+                  <div className="grid grid-cols-4 gap-3">
+                    {items.sort((a, b) => b.startDate.localeCompare(a.startDate)).map((roster, idx) => (
+                      <Button 
+                        key={roster.id} 
+                        variant="outline" 
+                        className="flex flex-col h-20 items-center justify-center gap-1 hover:bg-primary/5 hover:border-primary/30"
+                        onClick={() => setSelectedArchive(roster)}
+                      >
+                        <span className="text-xs font-bold text-muted-foreground uppercase">Week {items.length - idx}</span>
+                        <span className="text-[10px] font-medium">{format(parseISO(roster.startDate), 'MMM d')}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {archivedRosters.length === 0 && (
+                <div className="py-12 text-center text-muted-foreground italic">
+                  No archived rosters found yet.
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed Archive Pop-up */}
+      <Dialog open={!!selectedArchive} onOpenChange={() => setSelectedArchive(null)}>
+        <DialogContent className="sm:max-w-[700px] max-h-[70vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2 border-b bg-muted/30">
+            <div className="flex justify-between items-start">
+               <div>
+                 <DialogTitle className="text-xl font-headline">Archive: Week starting {selectedArchive && format(parseISO(selectedArchive.startDate), 'MMMM d, yyyy')}</DialogTitle>
+                 <DialogDescription className="text-xs">Generated on {selectedArchive && format(parseISO(selectedArchive.archivedAt), 'PPp')}</DialogDescription>
+               </div>
+               <Badge variant="outline" className="font-bold">HISTORICAL RECORD</Badge>
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 p-6">
+             <div className="space-y-6">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Weekly Shift Summary</h4>
+                  <div className="bg-muted/50 p-4 rounded-xl border font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+                    {selectedArchive?.summary}
+                  </div>
+                </div>
+
+                <div>
+                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Roster Snapshot Grid</h4>
+                   <div className="border rounded-xl overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                           <tr className="bg-muted border-b">
+                              <th className="p-2 text-left border-r font-bold">Staff</th>
+                              <th className="p-2 text-left font-bold">Shift Details & Notes</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           {selectedArchive?.snapshot.sort((a, b) => a.userName.localeCompare(b.userName)).map((s, i) => {
+                             const type = DEFAULT_SHIFT_TYPES.find(t => t.id === s.shiftTypeId);
+                             return (
+                               <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                                 <td className="p-2 border-r font-medium">{s.userName}</td>
+                                 <td className="p-2">
+                                   <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-2">
+                                        <Badge className={cn("text-[8px] h-4 uppercase", type?.color)}>{type?.name}</Badge>
+                                        <span className="text-[10px] font-bold text-muted-foreground">{s.date} • {s.startTime}-{s.endTime}</span>
+                                      </div>
+                                      {s.notes && <p className="italic text-muted-foreground opacity-80">&quot;{s.notes}&quot;</p>}
+                                   </div>
+                                 </td>
+                               </tr>
+                             );
+                           })}
+                        </tbody>
+                      </table>
+                   </div>
+                </div>
+             </div>
+          </ScrollArea>
+          
+          <DialogFooter className="p-4 bg-muted/20 border-t">
+            <Button variant="ghost" onClick={() => setSelectedArchive(null)}>Close Record</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
