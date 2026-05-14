@@ -128,11 +128,14 @@ export default function RosterPage() {
   };
 
   const openAddShift = (userId: string, userName: string, date: Date) => {
+    const type = DEFAULT_SHIFT_TYPES.find(t => t.id === 'day');
     setSelectedShift({
       userId,
       userName,
       date: format(date, 'yyyy-MM-dd'),
       shiftTypeId: 'day',
+      startTime: type?.startTime,
+      endTime: type?.endTime,
       status: 'Confirmed',
       orgId: effectiveOrgId || ""
     });
@@ -312,7 +315,7 @@ export default function RosterPage() {
                                           {shift.status === 'Sick' && <AlertCircle className="h-2 w-2 text-white" />}
                                         </div>
                                         <span className="text-[8px] text-white/80 font-medium">
-                                          {type?.startTime} - {type?.endTime}
+                                          {shift.startTime || type?.startTime} - {shift.endTime || type?.endTime}
                                         </span>
                                         {shift.parkId && (
                                           <span className="text-[7px] text-white font-bold truncate mt-0.5 flex items-center gap-0.5">
@@ -362,7 +365,15 @@ export default function RosterPage() {
                   <Label>Shift Type</Label>
                   <Select 
                     value={selectedShift.shiftTypeId} 
-                    onValueChange={v => setSelectedShift({...selectedShift, shiftTypeId: v})}
+                    onValueChange={v => {
+                      const type = DEFAULT_SHIFT_TYPES.find(t => t.id === v);
+                      setSelectedShift({
+                        ...selectedShift, 
+                        shiftTypeId: v,
+                        startTime: type?.startTime,
+                        endTime: type?.endTime
+                      });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -390,6 +401,25 @@ export default function RosterPage() {
                       <SelectItem value="Swap Requested">Swap Request</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Start Time</Label>
+                  <Input 
+                    type="time" 
+                    value={selectedShift.startTime || ""} 
+                    onChange={e => setSelectedShift({...selectedShift, startTime: e.target.value})} 
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>End Time</Label>
+                  <Input 
+                    type="time" 
+                    value={selectedShift.endTime || ""} 
+                    onChange={e => setSelectedShift({...selectedShift, endTime: e.target.value})} 
+                  />
                 </div>
               </div>
 

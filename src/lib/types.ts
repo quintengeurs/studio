@@ -495,6 +495,8 @@ export interface StaffShift {
   userName: string;
   date: string; // YYYY-MM-DD
   shiftTypeId: string;
+  startTime?: string; // Overrides shiftType.startTime
+  endTime?: string;   // Overrides shiftType.endTime
   parkId?: string; // If site-specific
   depotId?: string;
   status: 'Confirmed' | 'Sick' | 'Covered' | 'Swap Requested';
