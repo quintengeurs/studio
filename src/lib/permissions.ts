@@ -353,3 +353,65 @@ export function applyFeatureGating(permissions: AccessPermissions, activeFeature
     viewCalendar: permissions.viewCalendar && activeFeatures.includes('calendar'),
   };
 }
+
+/**
+ * Calculates the effective park-specific permissions by merging legacy role-based 
+ * defaults with dynamic role template permissions.
+ */
+export function getEffectiveParkPermissions(
+  user: User | null | undefined,
+  templates: RoleTemplate[] = [],
+  legacyConfig: ParkPermissionsConfig | null = null
+): RoleParkPermissions {
+  const result: RoleParkPermissions = {};
+  
+  const parkKeys = [
+    'keyInfo', 'projects', 'events', 'operationalGuidance', 'sportsLeisure', 
+    'volunteering', 'userGroup', 'development', 'treeWorks', 'biodiversity', 
+    'contractorWorks', 'maintenanceWork'
+  ];
+
+  parkKeys.forEach(k => {
+    result[k] = { view: false, edit: false };
+  });
+
+  if (!user) return result;
+
+  // 1. Check Legacy Config (indexed by Role enum)
+  if (legacyConfig?.roles) {
+    const rolesSet = new Set<string>();
+    if (user.role) rolesSet.add(user.role);
+    if (user.roles) user.roles.forEach(r => rolesSet.add(r));
+    if (user.assignedRoles) user.assignedRoles.forEach(ar => rolesSet.add(ar.role));
+
+    Array.from(rolesSet).forEach(roleName => {
+      const rolePerms = legacyConfig.roles[roleName];
+      if (rolePerms) {
+        Object.keys(rolePerms).forEach(k => {
+          if (rolePerms[k].view) result[k].view = true;
+          if (rolePerms[k].edit) result[k].edit = true;
+        });
+      }
+    });
+  }
+
+  // 2. Check Dynamic Templates
+  templates.forEach(template => {
+    if (template.parkPermissions) {
+      Object.keys(template.parkPermissions).forEach(k => {
+        if (template.parkPermissions![k].view) result[k].view = true;
+        if (template.parkPermissions![k].edit) result[k].edit = true;
+      });
+    }
+  });
+
+  // 3. System Admin Override
+  const isAdmin = user.email?.toLowerCase() === 'quinten.geurs@gmail.com' || (user.roles || []).includes('Admin');
+  if (isAdmin) {
+    parkKeys.forEach(k => {
+      result[k] = { view: true, edit: true };
+    });
+  }
+
+  return result;
+}

@@ -44,7 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate, ParkPermissionsConfig, PARK_SECTIONS, ParkSectionKey, ParkActivity } from "@/lib/types";
-import { getDefaultPermissionsForUser } from "@/lib/permissions";
+import { getDefaultPermissionsForUser, getEffectiveParkPermissions } from "@/lib/permissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
@@ -88,6 +88,11 @@ export default function ParksPage() {
     (db && effectiveOrgId) ? doc(db, "settings", effectiveOrgId, "config", "park_permissions") : null, 
   [db, effectiveOrgId]);
   const { data: parkPermsConfig } = useDoc<ParkPermissionsConfig>(parkPermsRef as any);
+
+  const rolesQuery = useMemoFirebase(() => 
+    (db && effectiveOrgId) ? query(collection(db, "role_templates"), where("orgId", "==", effectiveOrgId)) : null, 
+  [db, effectiveOrgId]);
+  const { data: allRoleTemplates = [] } = useCollection<RoleTemplate>(rolesQuery as any);
 
   const [selectedParkName, setSelectedParkName] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -158,63 +163,21 @@ export default function ParksPage() {
   const [editForm, setEditForm] = useState<Partial<ParkDetail>>({});
 
   // Unified Permission Check for Park Sections
-  const getSectionPerms = useMemo(() => (sectionKey: ParkSectionKey) => {
-    if (isAdmin) return { view: true, edit: true };
-    
-    // Normalize user roles for comparison
-    const roles = (currentUserRoles as string[]).map(r => r.trim());
-    
-    // Default if no config document exists at all
-    if (!parkPermsConfig?.roles) {
-      return { view: isManagement, edit: false };
-    }
-
-    let view = false;
-    let edit = false;
-    let roleFoundInConfig = false;
-
-    // Direct match first
-    roles.forEach(role => {
-      const rolePerms = parkPermsConfig.roles[role]?.[sectionKey];
-      if (rolePerms) {
-        roleFoundInConfig = true;
-        if (rolePerms.view) view = true;
-        if (rolePerms.edit) edit = true;
-      }
-    });
-
-    // Case-insensitive fallback if not found directly
-    if (!roleFoundInConfig) {
-      const configRoleKeys = Object.keys(parkPermsConfig.roles);
-      roles.forEach(userRole => {
-        const matchingKey = configRoleKeys.find(k => k.toLowerCase() === userRole.toLowerCase());
-        if (matchingKey) {
-          const rolePerms = parkPermsConfig.roles[matchingKey]?.[sectionKey];
-          if (rolePerms) {
-            roleFoundInConfig = true;
-            if (rolePerms.view) view = true;
-            if (rolePerms.edit) edit = true;
-          }
-        }
-      });
-    }
-
-    // Fallback: If the user is management but their role hasn't been configured in the matrix yet,
-    // allow them to view by default so they don't see an empty page.
-    if (!roleFoundInConfig && isManagement) {
-      return { view: true, edit: false };
-    }
-
-    return { view, edit };
-  }, [isAdmin, parkPermsConfig, currentUserRoles, isManagement]);
-
   const sectionPerms = useMemo(() => {
-    const map: Record<string, { view: boolean, edit: boolean }> = {};
-    PARK_SECTIONS.forEach(s => {
-      map[s.key] = getSectionPerms(s.key);
-    });
-    return map;
-  }, [getSectionPerms]);
+    if (isAdmin) {
+      const map: Record<string, { view: boolean, edit: boolean }> = {};
+      PARK_SECTIONS.forEach(s => {
+        map[s.key] = { view: true, edit: true };
+      });
+      return map;
+    }
+
+    // Get templates assigned to current user
+    const assignedTemplates = allRoleTemplates.filter(t => (currentUserData?.roleIds || []).includes(t.id));
+    
+    // Use the unified permission engine
+    return getEffectiveParkPermissions(currentUserData, assignedTemplates, parkPermsConfig || null);
+  }, [isAdmin, currentUserData, allRoleTemplates, parkPermsConfig]);
 
   const canEditProjects = sectionPerms.projects.edit;
   const canEditEvents = sectionPerms.events.edit;

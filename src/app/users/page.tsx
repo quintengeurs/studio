@@ -69,7 +69,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { User, Role, Task, Issue, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES, ParkDetail, AssignedRole, RoleTemplate, AccessPermissions } from "@/lib/types";
+import { User, Role, Task, Issue, RegistryConfig, OPERATIVE_ROLES, MANAGEMENT_ROLES, ParkDetail, AssignedRole, RoleTemplate, AccessPermissions, PARK_SECTIONS, ParkSectionKey } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -106,7 +106,6 @@ import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, l
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
 import { getDefaultPermissionsForUser, getDefaultMobilePermissionsForUser, mergePermissions, getEffectivePermissions } from "@/lib/permissions";
-import { ParkPermissionsMatrix } from "@/components/users/park-permissions-matrix";
 import { migrateToMultiTenancy } from "@/lib/migration";
 import { Organization, FeatureKey } from "@/lib/types";
 
@@ -694,6 +693,27 @@ export default function UserManagement() {
     });
   };
 
+  const handleUpdateRoleParkPermission = (sectionKey: ParkSectionKey, type: 'view' | 'edit', value: boolean) => {
+    if (!selectedRole) return;
+    const currentParkPerms = selectedRole.parkPermissions || {};
+    const sectionPerms = currentParkPerms[sectionKey] || { view: false, edit: false };
+    
+    const newSectionPerms = { ...sectionPerms, [type]: value };
+    // If edit is true, view must be true
+    if (type === 'edit' && value === true) {
+      newSectionPerms.view = true;
+    }
+    // If view is false, edit must be false
+    if (type === 'view' && value === false) {
+      newSectionPerms.edit = false;
+    }
+
+    setSelectedRole({
+      ...selectedRole,
+      parkPermissions: { ...currentParkPerms, [sectionKey]: newSectionPerms }
+    });
+  };
+
   const openUserProfile = async (user: User) => {
     setSelectedUser(user);
     setIsEditing(false);
@@ -758,7 +778,6 @@ export default function UserManagement() {
       <Tabs defaultValue="registry" className="w-full">
         <TabsList className="mb-6 bg-muted/50 border">
           <TabsTrigger value="registry" className="font-bold">User Registry</TabsTrigger>
-          <TabsTrigger value="park_info" className="font-bold">Park Info</TabsTrigger>
           {isAdmin && <TabsTrigger value="roles" className="font-bold">Role Templates</TabsTrigger>}
           <TabsTrigger value="archived" className="font-bold">Archived Staff</TabsTrigger>
         </TabsList>
@@ -1007,9 +1026,6 @@ export default function UserManagement() {
       </Card>
         </TabsContent>
 
-        <TabsContent value="park_info" className="mt-0 pt-2">
-          <ParkPermissionsMatrix />
-        </TabsContent>
 
         <TabsContent value="archived" className="mt-0 pt-2">
           <Card className="overflow-hidden border-2 mb-6 shadow-sm">
@@ -1601,7 +1617,6 @@ export default function UserManagement() {
               <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Overview</TabsTrigger>
               <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Tasks ({selectedUserTasks.length})</TabsTrigger>
               <TabsTrigger value="issues" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Issues ({selectedUserIssues.length})</TabsTrigger>
-              <TabsTrigger value="access" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent shadow-none px-1 font-bold">Access & Views</TabsTrigger>
             </TabsList>
 
             <ScrollArea className="flex-1 w-full h-full">
@@ -1661,6 +1676,48 @@ export default function UserManagement() {
                     
                     <Separator className="my-2" />
 
+                    {/* Role Template Assignments */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Template Assignments</Label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 p-4 border rounded-xl bg-muted/5">
+                        {allRoleTemplates.map(template => {
+                          const isAssigned = (selectedUser?.roleIds || []).includes(template.id);
+                          return (
+                            <div 
+                              key={template.id} 
+                              className={cn(
+                                "flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer group/role",
+                                isAssigned ? "border-primary bg-primary/5" : "border-transparent bg-muted/20 hover:bg-muted/40"
+                              )}
+                              onClick={() => {
+                                if (!selectedUser || !isEditing) return;
+                                const currentIds = selectedUser.roleIds || [];
+                                const newIds = isAssigned 
+                                  ? currentIds.filter(id => id !== template.id)
+                                  : [...currentIds, template.id];
+                                setSelectedUser({...selectedUser, roleIds: newIds});
+                              }}
+                            >
+                              <div className="flex flex-col min-w-0 pr-2">
+                                <span className="text-[11px] font-bold truncate">{template.name}</span>
+                                <span className="text-[9px] text-muted-foreground line-clamp-1">{template.description}</span>
+                              </div>
+                              <div className={cn(
+                                "h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors",
+                                isAssigned ? "border-primary bg-primary" : "border-muted-foreground/30 group-hover/role:border-muted-foreground/50"
+                              )}>
+                                {isAssigned && <Check className="h-3 w-3 text-white" />}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <Separator className="my-2" />
                     <div className="space-y-4">
                       <Label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Primary Assignment</Label>
                       <div className="grid gap-4 border rounded-xl p-4 bg-muted/10">
@@ -1934,174 +1991,6 @@ export default function UserManagement() {
                 )}
               </TabsContent>
 
-              <TabsContent value="access" className="mt-0 h-full outline-none">
-                <div className="space-y-6">
-                  {/* Assigned Templates Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <UsersIcon className="h-4 w-4 text-primary" />
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Role Template Assignments</h4>
-                    </div>
-                    <div className="grid gap-4 p-4 border rounded-xl bg-muted/5">
-                      <div className="grid grid-cols-2 gap-2">
-                        {allRoleTemplates.map(template => {
-                          const isAssigned = (selectedUser?.roleIds || []).includes(template.id);
-                          return (
-                            <div 
-                              key={template.id} 
-                              className={cn(
-                                "flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer group/role",
-                                isAssigned ? "border-primary bg-primary/5" : "border-transparent bg-muted/20 hover:bg-muted/40"
-                              )}
-                              onClick={() => {
-                                if (!selectedUser || !isEditing) return;
-                                const currentIds = selectedUser.roleIds || [];
-                                const newIds = isAssigned 
-                                  ? currentIds.filter(id => id !== template.id)
-                                  : [...currentIds, template.id];
-                                setSelectedUser({...selectedUser, roleIds: newIds});
-                              }}
-                            >
-                              <div className="flex flex-col min-w-0 pr-2">
-                                <span className="text-[11px] font-bold truncate">{template.name}</span>
-                                <span className="text-[9px] text-muted-foreground line-clamp-1">{template.description}</span>
-                              </div>
-                              <div className={cn(
-                                "h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors",
-                                isAssigned ? "border-primary bg-primary" : "border-muted-foreground/30 group-hover/role:border-muted-foreground/50"
-                              )}>
-                                {isAssigned && <Check className="h-3 w-3 text-white" />}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {allRoleTemplates.length === 0 && (
-                        <p className="text-[10px] text-center text-muted-foreground italic py-2">No templates available. Create them in the Roles tab.</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Section A: Page Visibility — Mobile / Desktop split */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Eye className="h-4 w-4 text-primary" />
-                            <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-60">Feature Access & Overrides</h4>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="h-2 w-2 rounded-full bg-primary" />
-                            <span className="text-[9px] font-bold uppercase text-muted-foreground">Inherited</span>
-                        </div>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-tight">
-                        Toggles below show the final access state. If a toggle is <span className="text-primary font-bold">Enabled</span> but not overridden, it is inherited from the assigned roles above.
-                    </p>
-
-                    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-                      <div className="grid grid-cols-[1fr_100px_100px] bg-muted/50 border-b">
-                        <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Page / Feature</div>
-                        <div className="px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1">
-                          <Smartphone className="h-3 w-3" /> Mobile
-                        </div>
-                        <div className="px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1">
-                          <Monitor className="h-3 w-3" /> Desktop
-                        </div>
-                      </div>
-                      {([
-                        { key: 'viewDashboard', label: 'Dashboard' },
-                        { key: 'viewMyTasks', label: 'My Tasks' },
-                        { key: 'viewAllTasks', label: 'All Tasks Hub' },
-                        { key: 'viewIssues', label: 'Issue Register' },
-                        { key: 'viewInspections', label: 'Inspections' },
-                        { key: 'viewParks', label: 'Parks Management' },
-                        { key: 'viewDepots', label: 'Depot Controls' },
-                        { key: 'viewAssets', label: 'Asset Register' },
-                        { key: 'viewUsers', label: 'Staff Management' },
-                        { key: 'viewStaffRequests', label: 'Staff Requests' },
-                        { key: 'viewEvents', label: 'Events Hub' },
-                        { key: 'viewProjects', label: 'Projects Hub' },
-                        { key: 'viewOperational', label: 'Operational Hub' },
-                        { key: 'viewSports', label: 'Sports & Leisure' },
-                        { key: 'viewCalendar', label: 'Master Calendar' },
-                        { key: 'viewMap', label: 'Map' },
-                        { key: 'viewInfoCorner', label: 'Info Corner' },
-                        { key: 'viewSmartTasking', label: 'Smart Tasking' },
-                        { key: 'viewVolunteering', label: 'Volunteering Portal' },
-                        { key: 'createTask', label: 'Create Tasks' },
-                        { key: 'assignTask', label: 'Assign Staff' },
-                        { key: 'createIssue', label: 'Raise Issues' },
-                        { key: 'manageAssets', label: 'Edit Infrastructure' },
-                        { key: 'editParksFull', label: 'Admin: Edit Park Data' },
-                        { key: 'manageInfoCorner', label: 'Manage Info Corner' },
-                      ] as { key: keyof AccessPermissions; label: string }[]).map((item) => {
-                        const isInheritedMobile = currentEffectiveMobilePerms?.[item.key];
-                        const isInheritedDesktop = currentEffectivePerms?.[item.key];
-                        const isOverriddenMobile = selectedUser?.mobilePermissions?.[item.key] !== undefined;
-                        const isOverriddenDesktop = selectedUser?.permissions?.[item.key] !== undefined;
-
-                        return (
-                          <div key={item.key} className="grid grid-cols-[1fr_100px_100px] border-b last:border-b-0 hover:bg-muted/20 transition-colors">
-                            <div className="px-4 py-2 text-xs font-medium">{item.label}</div>
-                            <div className="flex items-center justify-center">
-                              {isEditing ? (
-                                <Checkbox
-                                  checked={isInheritedMobile}
-                                  className={cn(!isOverriddenMobile && isInheritedMobile ? "border-primary bg-primary/20" : "")}
-                                  onCheckedChange={(c) => {
-                                    if (!selectedUser) return;
-                                    const mPerms = { ...(selectedUser.mobilePermissions || {}) } as any;
-                                    mPerms[item.key] = !!c;
-                                    setSelectedUser({...selectedUser, mobilePermissions: mPerms as AccessPermissions});
-                                  }}
-                                />
-                              ) : (
-                                <div className={cn(
-                                  "h-5 w-5 rounded-full flex items-center justify-center",
-                                  isInheritedMobile ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground/30"
-                                )}>
-                                  {isInheritedMobile ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-center">
-                              {isEditing ? (
-                                <Checkbox
-                                  checked={isInheritedDesktop}
-                                  className={cn(!isOverriddenDesktop && isInheritedDesktop ? "border-primary bg-primary/20" : "")}
-                                  onCheckedChange={(c) => {
-                                    if (!selectedUser) return;
-                                    const dPerms = { ...(selectedUser.permissions || {}) } as any;
-                                    dPerms[item.key] = !!c;
-                                    setSelectedUser({...selectedUser, permissions: dPerms as AccessPermissions});
-                                  }}
-                                />
-                              ) : (
-                                <div className={cn(
-                                  "h-5 w-5 rounded-full flex items-center justify-center",
-                                  isInheritedDesktop ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground/30"
-                                )}>
-                                  {isInheritedDesktop ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {isEditing && (
-                    <div className="pt-4 pb-12">
-                      <Button onClick={handleUpdateUser} className="w-full font-bold h-12 text-lg shadow-lg" disabled={isUserSubmitting}>
-                        {isUserSubmitting ? "Saving..." : "Save Access Changes"}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
 
               </div>
             </ScrollArea>
@@ -2254,6 +2143,46 @@ export default function UserManagement() {
                         );
                       })}
                    </div>
+                </div>
+
+                {/* Park Info Section Permissions */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2">
+                      <Label className="text-[11px] font-bold uppercase tracking-widest text-primary">Park Registry Section Access</Label>
+                      <div className="flex gap-4 text-[9px] font-bold uppercase text-muted-foreground">
+                        <span className="w-12 text-center">View</span>
+                        <span className="w-12 text-center">Edit</span>
+                      </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    {PARK_SECTIONS.map((section) => {
+                      if (!selectedRole) return null;
+                      const perms = selectedRole.parkPermissions?.[section.key] || { view: false, edit: false };
+                      return (
+                        <div key={section.key} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors border-b border-dashed last:border-0">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium">{section.label}</span>
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">Section {section.number}</span>
+                          </div>
+                          <div className="flex gap-4">
+                            <div className="w-12 flex justify-center">
+                              <Switch 
+                                checked={perms.view} 
+                                onCheckedChange={(v) => handleUpdateRoleParkPermission(section.key, 'view', v)}
+                              />
+                            </div>
+                            <div className="w-12 flex justify-center">
+                              <Switch 
+                                checked={perms.edit} 
+                                onCheckedChange={(v) => handleUpdateRoleParkPermission(section.key, 'edit', v)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

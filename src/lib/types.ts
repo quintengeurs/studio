@@ -87,6 +87,7 @@ export interface RoleTemplate {
   isSystemRole?: boolean;
   permissions: AccessPermissions;
   mobilePermissions?: AccessPermissions;
+  parkPermissions?: RoleParkPermissions;
   updatedAt: string;
   updatedBy: string;
 }
