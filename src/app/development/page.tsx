@@ -54,6 +54,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -118,7 +119,8 @@ export default function DevelopmentPage() {
     impactLevel: "Medium",
     type: "Development",
     linkedAssetId: "",
-    linkedAssetCategory: ""
+    linkedAssetCategory: "",
+    showOnCalendar: false
   });
 
   // Query for all development updates
@@ -257,7 +259,8 @@ export default function DevelopmentPage() {
       impactLevel: "Medium",
       type: "Development",
       linkedAssetId: "",
-      linkedAssetCategory: ""
+      linkedAssetCategory: "",
+      showOnCalendar: false
     });
     setEditingActivity(null);
   };
@@ -665,7 +668,26 @@ export default function DevelopmentPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex items-center space-x-2 bg-muted/20 p-3 rounded-lg border border-dashed border-primary/20">
+              <Checkbox 
+                id="showOnCalendar" 
+                checked={form.showOnCalendar} 
+                onCheckedChange={(checked) => setForm({...form, showOnCalendar: !!checked})}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="showOnCalendar"
+                  className="text-xs font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Show on Master Calendar
+                </Label>
+                <p className="text-[10px] text-muted-foreground">
+                  If enabled, this will appear in the global Master Calendar for all teams.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t pt-4">
               <Label htmlFor="description" className="text-xs font-bold uppercase tracking-widest opacity-60">Strategy Details & Community Impact</Label>
               <Textarea 
                 id="description" 

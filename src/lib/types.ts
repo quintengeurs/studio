@@ -291,6 +291,7 @@ export interface ParkActivity {
   createdAt: string;
   createdBy: string;
   updatedAt?: string;
+  showOnCalendar?: boolean;
 }
 
 export interface ParkUpdate {

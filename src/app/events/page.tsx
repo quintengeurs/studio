@@ -50,6 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -79,7 +80,8 @@ export default function EventsPage() {
     endDate: "",
     status: "Draft",
     impactLevel: "Medium",
-    type: "Event"
+    type: "Event",
+    showOnCalendar: false
   });
 
   // Query for all events
@@ -214,7 +216,8 @@ export default function EventsPage() {
       endDate: "",
       status: "Draft",
       impactLevel: "Medium",
-      type: "Event"
+      type: "Event",
+      showOnCalendar: false
     });
     setEditingActivity(null);
   };
@@ -579,6 +582,25 @@ export default function EventsPage() {
                     <SelectItem value="High">High Impact (Alert Depot)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 bg-muted/20 p-3 rounded-lg border border-dashed border-primary/20">
+              <Checkbox 
+                id="showOnCalendar" 
+                checked={form.showOnCalendar} 
+                onCheckedChange={(checked) => setForm({...form, showOnCalendar: !!checked})}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="showOnCalendar"
+                  className="text-xs font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Show on Master Calendar
+                </Label>
+                <p className="text-[10px] text-muted-foreground">
+                  If enabled, this will appear in the global Master Calendar for all teams.
+                </p>
               </div>
             </div>
 

@@ -58,6 +58,8 @@ const ACTIVITY_COLORS: Record<string, { bg: string, text: string, dot: string }>
   Project: { bg: "bg-blue-500/10", text: "text-blue-700", dot: "bg-blue-600" },
   Development: { bg: "bg-purple-500/10", text: "text-purple-700", dot: "bg-purple-600" },
   Volunteering: { bg: "bg-orange-500/10", text: "text-orange-700", dot: "bg-orange-600" },
+  Operational: { bg: "bg-rose-500/10", text: "text-rose-700", dot: "bg-rose-600" },
+  Sports: { bg: "bg-emerald-500/10", text: "text-emerald-700", dot: "bg-emerald-600" },
   Maintenance: { bg: "bg-slate-500/10", text: "text-slate-700", dot: "bg-slate-600" }
 };
 
@@ -88,7 +90,8 @@ export default function CalendarPage() {
     return allActivities.filter(a => {
       const matchesPark = selectedPark === "all" || a.parkId === selectedPark;
       const matchesType = typeFilter === "all" || a.type === typeFilter;
-      return matchesPark && matchesType;
+      const isVisible = a.showOnCalendar !== false;
+      return matchesPark && matchesType && isVisible;
     });
   }, [allActivities, selectedPark, typeFilter]);
 
@@ -222,6 +225,8 @@ export default function CalendarPage() {
                 <SelectItem value="Project">Projects</SelectItem>
                 <SelectItem value="Development">Development</SelectItem>
                 <SelectItem value="Volunteering">Volunteering</SelectItem>
+                <SelectItem value="Operational">Operational</SelectItem>
+                <SelectItem value="Sports">Sports and Leisure</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -251,7 +256,9 @@ export default function CalendarPage() {
           {/* Days Grid */}
           <div className={cn(
             "grid",
-            viewMode === 'day' ? "grid-cols-1 auto-rows-auto" : "grid-cols-7 auto-rows-[120px] md:auto-rows-[160px]"
+            viewMode === 'day' ? "grid-cols-1 auto-rows-auto" : 
+            viewMode === 'week' ? "grid-cols-7 auto-rows-fr min-h-[400px]" :
+            "grid-cols-7 auto-rows-[120px] md:auto-rows-[160px]"
           )}>
             {calendarDays.map((day, idx) => {
               const dayActivities = getActivitiesForDay(day);
@@ -265,7 +272,8 @@ export default function CalendarPage() {
                     "border-r border-b p-2 transition-colors hover:bg-muted/10",
                     viewMode === 'month' && !isCurrentMonth && "bg-muted/5 opacity-40",
                     isToday && "bg-primary/5 ring-1 ring-inset ring-primary/20",
-                    viewMode === 'day' ? "p-8 min-h-[400px]" : "overflow-hidden"
+                    viewMode === 'day' ? "p-8 min-h-[400px]" : 
+                    viewMode === 'week' ? "min-h-[200px]" : "overflow-hidden"
                   )}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -295,7 +303,7 @@ export default function CalendarPage() {
                     "space-y-1 overflow-y-auto scrollbar-none",
                     viewMode === 'day' ? "max-h-none grid grid-cols-1 md:grid-cols-2 gap-4" : "max-h-[80%]"
                   )}>
-                    {dayActivities.slice(0, viewMode === 'day' ? 20 : 4).map(activity => {
+                    {dayActivities.slice(0, (viewMode === 'day' || viewMode === 'week') ? 50 : 4).map(activity => {
                       const colors = ACTIVITY_COLORS[activity.type] || ACTIVITY_COLORS.Maintenance;
                       return (
                         <button 
@@ -308,14 +316,14 @@ export default function CalendarPage() {
                             "block w-full text-left px-1.5 py-0.5 rounded text-[9px] font-bold truncate transition-transform hover:scale-105",
                             colors.bg,
                             colors.text,
-                            viewMode === 'day' && "p-4 text-sm"
+                            (viewMode === 'day' || viewMode === 'week') && "p-4 text-xs whitespace-normal line-clamp-2 mb-2 shadow-sm border border-black/5"
                           )}
                         >
                           <div className="flex items-center gap-2">
-                             <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", colors.dot, viewMode === 'day' && "h-2 w-2")} />
+                             <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", colors.dot, (viewMode === 'day' || viewMode === 'week') && "h-2 w-2")} />
                              <div className="flex flex-col">
                                <span className="truncate">{activity.title}</span>
-                               {viewMode === 'day' && (
+                               {(viewMode === 'day' || viewMode === 'week') && (
                                  <span className="text-[10px] opacity-60 font-medium flex items-center gap-1 mt-1">
                                    <MapPin className="h-3 w-3" /> {activity.parkId}
                                  </span>
@@ -325,9 +333,9 @@ export default function CalendarPage() {
                         </button>
                       );
                     })}
-                    {dayActivities.length > (viewMode === 'day' ? 20 : 4) && (
+                    {dayActivities.length > ((viewMode === 'day' || viewMode === 'week') ? 50 : 4) && (
                       <p className="text-[8px] text-center text-muted-foreground font-bold italic mt-1">
-                        + {dayActivities.length - (viewMode === 'day' ? 20 : 4)} more
+                        + {dayActivities.length - ((viewMode === 'day' || viewMode === 'week') ? 50 : 4)} more
                       </p>
                     )}
                   </div>

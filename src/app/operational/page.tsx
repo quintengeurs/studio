@@ -51,6 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -81,7 +82,8 @@ export default function OperationalPage() {
     endDate: "",
     status: "Confirmed",
     impactLevel: "Medium",
-    type: "Operational"
+    type: "Operational",
+    showOnCalendar: false
   });
 
   const operationalTypes: ActivityType[] = ['Operational', 'ContractorWorks', 'TreeWorks', 'Maintenance'];
@@ -217,7 +219,8 @@ export default function OperationalPage() {
       endDate: "",
       status: "Confirmed",
       impactLevel: "Medium",
-      type: "Operational"
+      type: "Operational",
+      showOnCalendar: false
     });
     setEditingActivity(null);
   };
@@ -518,7 +521,26 @@ export default function OperationalPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex items-center space-x-2 bg-muted/20 p-3 rounded-lg border border-dashed border-orange-600/20">
+              <Checkbox 
+                id="showOnCalendar" 
+                checked={form.showOnCalendar} 
+                onCheckedChange={(checked) => setForm({...form, showOnCalendar: !!checked})}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <Label
+                  htmlFor="showOnCalendar"
+                  className="text-xs font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Show on Master Calendar
+                </Label>
+                <p className="text-[10px] text-muted-foreground">
+                  If enabled, this will appear in the global Master Calendar for all teams.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t pt-4">
               <Label className="text-xs font-bold uppercase tracking-widest opacity-60">Details</Label>
               <Textarea 
                 placeholder="Scope of work, machinery required, safety precautions..." 
