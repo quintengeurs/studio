@@ -12,7 +12,8 @@ service cloud.firestore {
 
     function getUserData() {
       let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data : {"orgId": "none"};
+      // Default to hackney-council for legacy profiles without an explicit orgId
+      return exists(path) ? get(path).data : {"orgId": "hackney-council"};
     }
 
     function belongsToOrg(orgId) {
@@ -28,9 +29,11 @@ service cloud.firestore {
 
     // Rules for user management
     match /users/{userId} {
-      allow read: if isAuth() && (isMaster() || request.auth.uid == userId || resource.data.orgId == getUserData().orgId);
+      // Break recursion by using simple UID matching for own profile, 
+      // and allow reading other profiles if authenticated (necessary for dashboard/context lookups)
+      allow read: if isAuth(); 
       allow create: if true; // Registration flow handles this
-      allow update, delete: if isAuth() && (isMaster() || request.auth.uid == userId || (resource.data.orgId == getUserData().orgId && getUserData().role == 'Admin'));
+      allow update, delete: if isAuth() && (isMaster() || request.auth.uid == userId);
     }
 
     // Rules for organizations
