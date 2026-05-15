@@ -388,27 +388,27 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
     (db && effectiveOrgId) ? query(
       collection(db, "tasks"), 
       where("orgId", "==", effectiveOrgId),
-      where("status", "==", "completed"),
-      where("completedByVolunteers", "!=", null),
-      orderBy("completedByVolunteers"),
+      where("status", "==", "Completed"),
+      where("isVolunteerEligible", "==", true),
       orderBy("completedAt", "desc"),
-      limit(50)
-    ) : null,
+      limit(100)
+    ) : null, 
   [db, effectiveOrgId]);
 
   const staffTasksQuery = useMemoFirebase(() => 
     (db && effectiveOrgId) ? query(
       collection(db, "tasks"), 
       where("orgId", "==", effectiveOrgId),
-      where("isVolunteerOpportunity", "==", true),
+      where("isVolunteerEligible", "==", true),
       orderBy("dueDate", "desc")
     ) : null,
   [db, effectiveOrgId]);
 
   const volunteersQuery = useMemoFirebase(() => 
     (db && effectiveOrgId) ? query(
-      collection(db, "volunteers"),
+      collection(db, "users"),
       where("orgId", "==", effectiveOrgId),
+      where("isVolunteer", "==", true),
       orderBy("registeredAt", "desc")
     ) : null,
   [db, effectiveOrgId]);
@@ -417,8 +417,23 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
   const { data: staffAllTasks = [], loading: staffTasksLoading } = useCollection<Task>(staffTasksQuery as any);
   const { data: allVolunteers = [], loading: volunteersLoading } = useCollection<any>(volunteersQuery as any);
 
-  const staffActiveTasks = staffAllTasks.filter(t => t.status !== 'archived');
-  const staffArchivedTasks = staffAllTasks.filter(t => t.status === 'archived');
+  const staffActiveTasks = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return staffAllTasks.filter(t => {
+      if (t.status === 'Completed') return false;
+      const end = t.endDate || t.dueDate || "9999-99-99";
+      return today <= end;
+    });
+  }, [staffAllTasks]);
+
+  const staffArchivedTasks = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return staffAllTasks.filter(t => {
+      if (t.status === 'Completed') return true;
+      const end = t.endDate || t.dueDate || "9999-99-99";
+      return today > end;
+    });
+  }, [staffAllTasks]);
 
   useEffect(() => {
     // fetchNews is now handled by useCollection
@@ -695,10 +710,18 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await updateDoc(doc(db, "volunteers", volunteerId), { status: 'active' });
-      toast({ title: "Volunteer Approved", description: "They can now claim tasks and earn points." });
+      await updateDoc(doc(db, "users", volunteerId), { 
+        status: 'active',
+        approvedAt: new Date().toISOString(),
+        approvedBy: user?.email || "Staff"
+      });
+      toast({
+        title: "Volunteer Approved",
+        description: "The volunteer now has full access to the task board.",
+      });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to approve volunteer.", variant: "destructive" });
+      console.error("Approval error:", error);
+      toast({ title: "Action Failed", description: "Could not approve volunteer.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -708,10 +731,16 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
     if (!db || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await deleteDoc(doc(db, "volunteers", volunteerId));
-      toast({ title: "Volunteer Rejected", description: "Registration request removed." });
+      // In this system we usually just mark as rejected/disabled or delete the record
+      // to allow them to register again or simply clear them out.
+      await deleteDoc(doc(db, "users", volunteerId));
+      toast({
+        title: "Volunteer Removed",
+        description: "The registration has been cleared.",
+      });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to remove registration.", variant: "destructive" });
+      console.error("Delete error:", error);
+      toast({ title: "Action Failed", description: "Could not remove registration.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }

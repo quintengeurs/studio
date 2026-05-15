@@ -35,7 +35,7 @@ service cloud.firestore {
 
     // Rules for organizations
     match /organizations/{orgId} {
-      allow read: if isAuth() && (isMaster() || getUserData().orgId == orgId);
+      allow read: if true; // Public access for Hub branding
       allow write: if isMaster();
 
       match /role_templates/{roleId} {
@@ -46,7 +46,8 @@ service cloud.firestore {
 
     // Rules for park_activities (Centralized Registry)
     match /park_activities/{activityId} {
-      allow read: if isAuth() && matchOrgId(resource.data);
+      allow read: if (isAuth() && matchOrgId(resource.data)) || 
+                   (resource.data.type == 'Volunteering' && resource.data.status == 'Confirmed');
       allow create: if isAuth() && matchOrgId(request.resource.data);
       allow update, delete: if isAuth() && matchOrgId(resource.data);
     }
@@ -62,7 +63,8 @@ service cloud.firestore {
 
     // Rules for tasks
     match /tasks/{taskId} {
-      allow read: if isAuth() && matchOrgId(resource.data);
+      allow read: if (isAuth() && matchOrgId(resource.data)) || 
+                   (resource.data.isVolunteerEligible == true);
       allow create: if isAuth() && matchOrgId(request.resource.data);
       allow update, delete: if isAuth() && matchOrgId(resource.data);
     }
@@ -119,7 +121,8 @@ service cloud.firestore {
     }
 
     match /info_items/{itemId} {
-      allow read: if isAuth() && matchOrgId(resource.data);
+      allow read: if (isAuth() && matchOrgId(resource.data)) || 
+                   (resource.data.isVolunteerVisible == true);
       allow create, update, delete: if isAuth() && matchOrgId(resource.data);
     }
 
