@@ -14,131 +14,68 @@ service cloud.firestore {
       return isAuth() && request.auth.token.email.matches('(?i)quinten.geurs@gmail.com');
     }
 
-    // Helper for mutation security (writes/updates)
-    function getUserData() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data : {"orgId": "hackney-council"};
-    }
-
-    function userOrgId() {
-      return getUserData().orgId;
-    }
-
-    // Performance Optimized: Avoids get() on list/read operations
-    function hasOrgAccessRead(data) {
-      return isAuth(); 
-      // Security note: We rely on the app's query filters (.where('orgId', '==', ...))
-      // to partition data. This bypasses the ca9 assertion crash in the SDK.
-    }
-
-    function hasOrgAccessWrite() {
-      return isAuth() && (isMaster() || userOrgId() != null);
-    }
-
-    function belongsToOrg(orgId) {
-      return isAuth() && (isMaster() || userOrgId() == orgId);
-    }
-
     // =============================================
-    // Rules
+    // Core Collections
     // =============================================
 
     // Users
     match /users/{userId} {
-      allow read:   if isAuth() && (isMaster() || request.auth.uid == userId);
-      allow create: if true;
-      allow update: if isAuth() && (isMaster() || request.auth.uid == userId);
-      allow delete: if isMaster();
+      allow read, create: if true;
+      allow update, delete: if isAuth() && (isMaster() || request.auth.uid == userId);
     }
 
-    // Organizations
+    // Organizations & Settings
     match /organizations/{orgId} {
-      allow read:  if true;
+      allow read: if true;
       allow write: if isMaster();
-
-      match /role_templates/{roleId} {
-        allow read: if isAuth();
-      }
     }
 
-    // High-volume / Public collections
-    match /park_activities/{activityId} {
-      allow read:   if hasOrgAccessRead(resource.data) || 
-                      (resource.data.type == 'Volunteering' && resource.data.status == 'Confirmed');
-      allow create, update, delete: if hasOrgAccessWrite();
+    match /settings/{docId} {
+      allow read, write: if isAuth();
     }
+
+    // =============================================
+    // Volunteering & Public Hub
+    // =============================================
 
     match /tasks/{taskId} {
-      allow read:   if hasOrgAccessRead(resource.data) || 
-                      (resource.data.isVolunteerEligible == true);
-      allow create, update, delete: if hasOrgAccessWrite();
+      // Allow authenticated staff OR public volunteer-eligible tasks
+      allow read: if isAuth() || resource.data.isVolunteerEligible == true;
+      allow write: if isAuth();
     }
 
     match /info_items/{itemId} {
-      allow read:   if hasOrgAccessRead(resource.data) || 
-                      (resource.data.isVolunteerVisible == true);
-      allow create, update, delete: if hasOrgAccessWrite();
+      // 1. Allow volunteers/public to see news items marked as 'Volunteer Visible'
+      allow read: if isAuth() || resource.data.isVolunteerVisible == true;
+      
+      // 2. Allow volunteers to click the 'Interested' button (updates only that field)
+      allow update: if isAuth() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['interestedUserIds'])
+      );
+      
+      allow create, delete: if isAuth();
     }
 
+    // =============================================
+    // Operational Data (Issues, Assets, Logs, etc.)
+    // =============================================
+
     match /action_logs/{logId} {
-      allow read:   if hasOrgAccessRead(resource.data);
-      allow create: if hasOrgAccessWrite();
+      allow read, create: if isAuth();
       allow update, delete: if false;
     }
 
-    // Standard org-scoped collections
-    match /issues/{docId} {
-      allow read:   if hasOrgAccessRead(resource.data);
-      allow create, update, delete: if hasOrgAccessWrite();
+    // Batch rule for standard collections
+    match /{collection}/{docId} {
+      allow read, write: if isAuth();
+      
+      // List of collections covered by this catch-all:
+      // issues, assets, machinery, smart_rules, requests, parks_details, depots_details, locations
     }
 
-    match /assets/{docId} {
-      allow read:   if hasOrgAccessRead(resource.data);
-      allow create, update, delete: if hasOrgAccessWrite();
-    }
-
-    match /requests/{docId} {
-      allow read:   if hasOrgAccessRead(resource.data);
-      allow create, update, delete: if hasOrgAccessWrite();
-    }
-
-    // Org detail collections
-    match /parks_details/{docId} {
-      allow read: if hasOrgAccessRead(resource.data);
-      allow create, update, delete: if hasOrgAccessWrite();
-    }
-
-    match /depots_details/{docId} {
-      allow read: if hasOrgAccessRead(resource.data);
-      allow create, update, delete: if hasOrgAccessWrite();
-    }
-
-    match /machinery/{docId} {
-      allow read: if hasOrgAccessRead(resource.data);
-      allow create, update, delete: if hasOrgAccessWrite();
-    }
-
-    match /smart_rules/{docId} {
-      allow read: if hasOrgAccessRead(resource.data);
-      allow create, update, delete: if hasOrgAccessWrite();
-    }
-
-    // Settings
-    match /settings/{orgId} {
-      allow read, write: if belongsToOrg(orgId);
-
-      match /{allPaths=**} {
-        allow read, write: if belongsToOrg(orgId);
-      }
-    }
-
-    // Volunteers (Public portal)
-    match /volunteers/{volunteerId} {
-      allow create: if true;
-      allow read, update, delete: if isAuth();
-    }
-
-    // Master fallback
+    // =============================================
+    // Master Fallback
+    // =============================================
     match /{document=**} {
       allow read, write: if isMaster();
     }
