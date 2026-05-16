@@ -358,7 +358,19 @@ export default function MyTasksPage() {
 
         <TabsContent value="active">
           {loading ? (
-             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+               {[1, 2, 3].map((i) => (
+                 <div key={i} className="h-[280px] rounded-2xl border-2 bg-muted/20 animate-pulse flex flex-col p-6 space-y-4">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-20 bg-muted rounded-full" />
+                      <div className="h-4 w-16 bg-muted rounded-full" />
+                    </div>
+                    <div className="h-6 w-3/4 bg-muted rounded-lg" />
+                    <div className="h-4 w-1/2 bg-muted rounded-lg" />
+                    <div className="mt-auto h-10 w-full bg-muted rounded-xl" />
+                 </div>
+               ))}
+             </div>
           ) : isMobile ? (
              mobileTasks.length > 0 ? (
                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
