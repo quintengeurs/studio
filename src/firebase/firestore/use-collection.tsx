@@ -44,7 +44,10 @@ export function useCollection<T = DocumentData>(
       return;
     }
 
-    setLoading(true);
+    // Only set loading to true if we don't have data yet
+    if (data.length === 0) {
+      setLoading(true);
+    }
 
     // cleanup previous
     if (unsubscribeRef.current) {
