@@ -11,7 +11,13 @@ const db = admin.firestore();
  * Scheduled Smart Evaluator
  * Runs daily at 06:00 AM
  */
-export const scheduledSmartEvaluator = functions.pubsub
+const NAMED_DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
+
+/**
+ * Scheduled Smart Evaluator
+ * Runs daily at 06:00 AM
+ */
+export const scheduledSmartEvaluator = functions.region("europe-west1").pubsub
   .schedule("every day 06:00")
   .timeZone("Europe/London")
   .onRun(async (context) => {
@@ -22,7 +28,7 @@ export const scheduledSmartEvaluator = functions.pubsub
 /**
  * Manual Trigger for testing/UI
  */
-export const manualProcessRules = functions.https.onCall(async (data, context) => {
+export const manualProcessRules = functions.region("europe-west1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   // Check if user is staff/admin
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
@@ -58,7 +64,7 @@ async function processAllRules() {
       if (rulesSnap.empty) continue;
 
       const rules: any[] = [];
-      rulesSnap.forEach(doc => rules.push({ id: doc.id, ...doc.data() }));
+      rulesSnap.forEach((doc: any) => rules.push({ id: doc.id, ...doc.data() }));
 
       // 3. Fetch all parks for this org to get coordinates
       const parksSnap = await db.collection("parks_details")
@@ -197,9 +203,10 @@ async function processAllRules() {
  * Smart Tasking Engine - Dynamic Rules Evaluation
  * Triggers automatically when conditions are logged from the frontend UI
  */
-export const onConditionLogged = functions.firestore
+export const onConditionLogged = functions.region("europe-west1").firestore
   .document("daily_conditions/{docId}")
-  .onCreate(async (snap, context) => {
+  .database(NAMED_DB_ID)
+  .onCreate(async (snap: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
     const condition = snap.data();
     if (!condition) return;
 
@@ -228,7 +235,7 @@ export const onConditionLogged = functions.firestore
         const machSnap = await db.collection("machinery")
           .where("orgId", "==", condition.orgId || "hackney-council")
           .get();
-        machSnap.forEach(doc => allMachinery.push({ id: doc.id, ...doc.data() }));
+        machSnap.forEach((doc: any) => allMachinery.push({ id: doc.id, ...doc.data() }));
       }
 
       // 3. Evaluate Engine Logic
@@ -321,9 +328,10 @@ function evaluateSimpleCondition(conditionValue: any, ruleCondition: any): boole
  * Automatically tracks all changes to critical collections securely on the backend
  */
 function buildAuditFunction(collectionName: string) {
-  return functions.firestore
+  return functions.region("europe-west1").firestore
     .document(`${collectionName}/{docId}`)
-    .onWrite(async (change, context) => {
+    .database(NAMED_DB_ID)
+    .onWrite(async (change: functions.Change<functions.firestore.DocumentSnapshot>, context: functions.EventContext) => {
       const docId = context.params.docId;
       const after = change.after.exists ? change.after.data() : null;
       const before = change.before.exists ? change.before.data() : null;
@@ -367,9 +375,10 @@ export const auditUsers = buildAuditFunction("users");
  * Synchronize Firestore User Profile with Auth Custom Claims
  * Triggered whenever a user document is created or updated
  */
-export const syncUserClaims = functions.firestore
+export const syncUserClaims = functions.region("europe-west1").firestore
   .document("users/{userId}")
-  .onWrite(async (change, context) => {
+  .database(NAMED_DB_ID)
+  .onWrite(async (change: functions.Change<functions.firestore.DocumentSnapshot>, context: functions.EventContext) => {
     const userId = context.params.userId;
     const userData = change.after.exists ? change.after.data() : null;
 
@@ -406,7 +415,7 @@ export const syncUserClaims = functions.firestore
  * Admin: Create New User
  * Creates user in Auth and Firestore atomically
  */
-export const adminCreateUser = functions.https.onCall(async (data, context) => {
+export const adminCreateUser = functions.region("europe-west1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   // 1. Verify caller is authenticated
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");

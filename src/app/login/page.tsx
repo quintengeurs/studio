@@ -30,8 +30,8 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("quinten.geurs@gmail.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -188,7 +188,7 @@ export default function LoginPage() {
                 <Input 
                     id="email" 
                     type="email" 
-                    placeholder="quinten.geurs@gmail.com" 
+                    placeholder="your@email.com" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -240,7 +240,7 @@ export default function LoginPage() {
                         setLoading(true);
                         try {
                             const { signInWithEmailAndPassword } = await import("firebase/auth");
-                            await signInWithEmailAndPassword(auth, "quinten.geurs@hackney.gov.uk", "Azerty11");
+                            await signInWithEmailAndPassword(auth, "quinten.geurs@gmail.com", "password123");
                             router.push("/");
                         } catch (err: any) {
                             toast({ title: "Bypass Failed", description: err.message, variant: "destructive" });
