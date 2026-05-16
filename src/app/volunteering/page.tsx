@@ -759,7 +759,19 @@ export default function VolunteeringPage() {
               </div>
 
               {logLoading ? (
-                <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-orange-500" /></div>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-[280px] rounded-3xl border-2 bg-muted/20 animate-pulse flex flex-col p-6 space-y-4">
+                        <div className="flex justify-between">
+                          <div className="h-4 w-20 bg-muted rounded-full" />
+                          <div className="h-4 w-16 bg-muted rounded-full" />
+                        </div>
+                        <div className="h-6 w-3/4 bg-muted rounded-lg" />
+                        <div className="h-4 w-1/2 bg-muted rounded-lg" />
+                        <div className="mt-auto h-10 w-full bg-muted rounded-xl" />
+                    </div>
+                  ))}
+                </div>
               ) : logTasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
                   <Heart className="h-12 w-12 mb-4 text-orange-500 opacity-20" />
@@ -844,7 +856,23 @@ export default function VolunteeringPage() {
               </div>
 
               {volunteersLoading ? (
-                <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-orange-500" /></div>
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-20 rounded-xl border-2 bg-muted/20 animate-pulse flex items-center justify-between px-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-muted" />
+                        <div className="space-y-2">
+                          <div className="h-4 w-32 bg-muted rounded" />
+                          <div className="h-3 w-20 bg-muted rounded" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="h-8 w-16 bg-muted rounded-lg" />
+                        <div className="h-8 w-16 bg-muted rounded-lg" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : allVolunteers.filter(v => v.status === 'pending').length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-3xl bg-muted/20 opacity-60">
                   <UserCheck className="h-12 w-12 mb-4 text-orange-500 opacity-20" />

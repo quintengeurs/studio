@@ -1025,7 +1025,19 @@ export default function TasksPage() {
               </Select>
             </div>
             {tasksLoading ? (
-              <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-[280px] rounded-2xl border-2 bg-muted/20 animate-pulse flex flex-col p-6 space-y-4">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-20 bg-muted rounded-full" />
+                      <div className="h-4 w-16 bg-muted rounded-full" />
+                    </div>
+                    <div className="h-6 w-3/4 bg-muted rounded-lg" />
+                    <div className="h-4 w-1/2 bg-muted rounded-lg" />
+                    <div className="mt-auto h-10 w-full bg-muted rounded-xl" />
+                  </div>
+                ))}
+              </div>
             ) : displayActiveTasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
                  <ListTodo className="h-12 w-12 mb-4" />
@@ -1251,12 +1263,14 @@ export default function TasksPage() {
                 </TableHeader>
                 <TableBody>
                   {archivedTasksLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
-                        <Clock className="h-6 w-6 animate-spin mx-auto mb-2" />
-                        Loading archives...
-                      </TableCell>
-                    </TableRow>
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i} className="animate-pulse">
+                        <TableCell><div className="h-4 w-40 bg-muted rounded" /></TableCell>
+                        <TableCell><div className="h-4 w-24 bg-muted rounded" /></TableCell>
+                        <TableCell><div className="h-4 w-32 bg-muted rounded" /></TableCell>
+                        <TableCell><div className="h-4 w-24 bg-muted rounded" /></TableCell>
+                      </TableRow>
+                    ))
                   ) : filteredArchivedTasks.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
@@ -1302,7 +1316,18 @@ export default function TasksPage() {
       ) : (
         <div className="space-y-6">
           {tasksLoading ? (
-             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-[200px] rounded-2xl border-2 bg-muted/20 animate-pulse flex flex-col p-6 space-y-4">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-20 bg-muted rounded-full" />
+                      <div className="h-4 w-16 bg-muted rounded-full" />
+                    </div>
+                    <div className="h-6 w-3/4 bg-muted rounded-lg" />
+                    <div className="mt-auto h-10 w-full bg-muted rounded-xl" />
+                  </div>
+                ))}
+              </div>
           ) : filteredTasksForUser.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50 bg-muted/10">
                <ListTodo className="h-12 w-12 mb-4" />

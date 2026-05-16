@@ -401,7 +401,27 @@ function IssuesContent() {
   };
 
   const renderIssueList = (listToRender: Issue[], loadingState: boolean) => {
-    if (loadingState) return <div className="flex justify-center items-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>;
+    if (loadingState) return (
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-[400px] rounded-2xl border-2 bg-muted/20 animate-pulse flex flex-col overflow-hidden">
+            <div className="h-48 w-full bg-muted" />
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between">
+                <div className="h-4 w-20 bg-muted rounded-full" />
+                <div className="h-4 w-16 bg-muted rounded-full" />
+              </div>
+              <div className="h-6 w-3/4 bg-muted rounded-lg" />
+              <div className="h-4 w-full bg-muted rounded-lg" />
+              <div className="mt-auto flex justify-between gap-4">
+                <div className="h-8 w-24 bg-muted rounded-lg" />
+                <div className="h-8 w-12 bg-muted rounded-lg" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
     if (listToRender.length === 0) return (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
           <CheckCircle2 className="h-12 w-12 mb-4 opacity-20" />
@@ -898,8 +918,10 @@ export default function IssuesPage() {
   return (
     <Suspense fallback={
       <DashboardShell title="Issues Management" description="Loading issues...">
-        <div className="flex items-center justify-center h-96">
-          <Clock className="h-12 w-12 animate-spin text-primary" />
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-[400px] rounded-2xl border-2 bg-muted/20 animate-pulse" />
+          ))}
         </div>
       </DashboardShell>
     }>
