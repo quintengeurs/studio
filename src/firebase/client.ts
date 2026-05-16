@@ -7,6 +7,7 @@ import {
   Firestore
 } from "firebase/firestore";
 import { getAuth, Auth } from "firebase/auth";
+import { getFunctions, Functions } from "firebase/functions";
 
 // IMPORTANT: projectId is hardcoded because Firebase App Hosting overrides
 // the NEXT_PUBLIC_FIREBASE_PROJECT_ID env var with the .appspot.com storage
@@ -50,3 +51,4 @@ const getFirestoreClient = (): Firestore => {
 
 export const db = getFirestoreClient();
 export const auth: Auth = getAuth(app);
+export const functions: Functions = getFunctions(app, "europe-west1"); // Default region for the project

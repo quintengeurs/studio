@@ -98,10 +98,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { firebaseConfig } from "@/firebase/config";
-import { initializeApp, deleteApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { useFirestore, useCollection, useMemoFirebase, useUser, functions } from "@/firebase";
+import { httpsCallable } from "firebase/functions";
 import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDoc, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
@@ -349,68 +347,43 @@ export default function UserManagement() {
     }
   };
 
-  const registerUserInAuth = async (email: string, password?: string) => {
-    if (!password || password.length < 6) {
-        throw new Error("Password must be at least 6 characters long for the login service.");
-    }
-    
-    // Create a secondary app to avoid signing out the current admin
-    const secondaryAppName = `TempApp_${Date.now()}`;
-    const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
-    const secondaryAuth = getAuth(secondaryApp);
-    
-    try {
-        await createUserWithEmailAndPassword(secondaryAuth, email, password);
-        await signOut(secondaryAuth);
-        await deleteApp(secondaryApp);
-        return true;
-    } catch (error: any) {
-        // Cleanup even on error
-        await deleteApp(secondaryApp);
-        if (error.code === 'auth/email-already-in-use') {
-            // If they already exist in Auth, we consider this a "partial success" or already synced
-            return true;
-        }
-        throw error;
-    }
-  };
 
   const handleAddUser = async () => {
-    if (!db || isUserSubmitting) return;
+    if (!functions || isUserSubmitting) return;
 
-    const trainingString = getFinalTrainingString() || "None";
-    const userEmail = newUser.email?.trim() || "";
-    const emailId = userEmail.toLowerCase().replace(/[.#$[\]]/g, "_");
-    const tempId = emailId || `user_${Date.now()}`;
-    const userToSave = {
-        ...newUser,
-        id: tempId,
-        name: newUser.name || "Unknown User",
-        email: userEmail,
-        training: trainingString,
-        depots: Array.from(new Set(newUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
-        depot: newUser.assignedRoles?.[0]?.depotIds?.[0] || "",
-        isArchived: false,
-        roles: newUser.assignedRoles?.map(ar => ar.role) || newUser.roles || [],
-        assignedRoles: newUser.assignedRoles || [],
-        createdAt: new Date().toISOString(),
-        permissions: newUserDesktopPerms || undefined,
-        mobilePermissions: newUserMobilePerms || undefined,
-        allowDesktopView: newUserDesktopPerms ? Object.values(newUserDesktopPerms).some(v => v === true) : true,
-        orgId: effectiveOrgId // Use effectiveOrgId to ensure consistency with current context
-    };
+    if (!newUser.email || !newUser.password) {
+      toast({ title: "Validation Error", description: "Email and Password are required.", variant: "destructive" });
+      return;
+    }
 
     setIsUserSubmitting(true);
-    const sanitizedUser = JSON.parse(JSON.stringify(userToSave));
   
     try {
-        // Step 1: Register in Firebase Authentication
-        await registerUserInAuth(userEmail, newUser.password);
+        const adminCreateUser = httpsCallable(functions, 'adminCreateUser');
+        const result = await adminCreateUser({
+          email: newUser.email.trim(),
+          password: newUser.password,
+          displayName: newUser.name || "Unknown User",
+          role: newUser.assignedRoles?.[0]?.role || 'Staff',
+          orgId: effectiveOrgId || 'hackney-council'
+        });
 
-        // Step 2: Save to Firestore
-        await setDoc(doc(db, "users", tempId), sanitizedUser);
+        // After creation, we can update the Firestore doc with extra fields (training, etc)
+        const { uid } = result.data as { uid: string };
+        const trainingString = getFinalTrainingString() || "None";
+        
+        await updateDoc(doc(db, "users", uid), {
+          training: trainingString,
+          depots: Array.from(new Set(newUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
+          depot: newUser.assignedRoles?.[0]?.depotIds?.[0] || "",
+          permissions: newUserDesktopPerms || undefined,
+          mobilePermissions: newUserMobilePerms || undefined,
+          phone: newUser.phone || "",
+          radioCallSign: newUser.radioCallSign || "",
+          avatar: newUser.avatar || ""
+        });
 
-        toast({ title: "User Added", description: `${userToSave.name} has been added.` });
+        toast({ title: "User Created", description: `${newUser.name} has been added and claims assigned.` });
         setIsAddDialogOpen(false);
         setNewUser({ 
           name: '', email: '', roles: ['Gardener'], depot: '', depots: [], 
@@ -422,7 +395,8 @@ export default function UserManagement() {
         setNewUserDesktopPerms(null);
         setNewUserMobilePerms(null);
     } catch (e: any) {
-        toast({ title: "Error", description: `Could not save user record. (Code: ${e.code})`, variant: "destructive" });
+        console.error("User Creation Error:", e);
+        toast({ title: "Creation Failed", description: e.message || "Could not create user account.", variant: "destructive" });
     } finally {
         setIsUserSubmitting(false);
     }

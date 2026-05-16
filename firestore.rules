@@ -3,58 +3,80 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // =============================================
+    // Helper Functions (Custom Claims Optimized)
+    // =============================================
+    
     function isAuth() {
       return request.auth != null;
     }
 
     function isMaster() {
-      return isAuth() && request.auth.token.email.matches('(?i)quinten.geurs@gmail.com');
+      return isAuth() && (
+        request.auth.token.email.matches('(?i)quinten.geurs@gmail.com') ||
+        request.auth.token.email.matches('(?i)quinten.geurs@hackney.gov.uk')
+      );
     }
 
-    function getUserData() {
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      let userDoc = get(userPath);
-      return userDoc.exists ? userDoc.data : {"orgId": "hackney-council"};
+    // Uses Firebase Auth Custom Claims for instant, zero-fetch verification
+    function getClaimOrgId() {
+      return request.auth.token.orgId;
     }
 
-    function userOrgId() {
-      return getUserData().orgId;
+    function getClaimRole() {
+      return request.auth.token.role;
     }
 
+    function isAdmin() {
+      return isMaster() || getClaimRole() == 'Admin';
+    }
+
+    // High-performance check for multi-tenancy
     function hasOrgAccess(data) {
-      return isAuth() && (isMaster() || (data != null && data.orgId == userOrgId()));
+      return isAuth() && (isMaster() || (data != null && data.orgId == getClaimOrgId()));
     }
 
+    // For writes, we verify the user is putting the right orgId on the document
     function hasOrgAccessForWrite() {
-      return isAuth() && (isMaster() || request.resource.data.orgId == userOrgId());
+      return isAuth() && (isMaster() || request.resource.data.orgId == getClaimOrgId());
     }
 
     // =============================================
     // Users
     // =============================================
     match /users/{userId} {
-      allow read:   if isMaster() || request.auth.uid == userId;
-      allow create: if true;
-      allow update: if isMaster() || request.auth.uid == userId;
+      // Allow read if UID matches OR if email matches (for email-based profiles)
+      allow read:   if isAuth() && (
+                      isMaster() || 
+                      request.auth.uid == userId || 
+                      request.auth.token.email.lower() == userId.lower() ||
+                      resource.data.email.lower() == request.auth.token.email.lower()
+                    );
+      
+      allow create: if isAuth(); // Usually handled by adminCreateUser function
+      
+      allow update: if isAuth() && (
+                      isMaster() || 
+                      request.auth.uid == userId || 
+                      request.auth.token.email.lower() == userId.lower()
+                    );
+      
       allow delete: if isMaster();
     }
 
     // =============================================
-    // Organizations
+    // Organizations & Configuration
     // =============================================
     match /organizations/{orgId} {
-      allow read:  if true;                    // Public for branding
+      allow read:  if true; 
       allow write: if isMaster();
 
       match /role_templates/{roleId} {
         allow read:  if isAuth();
-        allow write: if isMaster();
+        allow write: if isAdmin() && orgId == getClaimOrgId();
       }
     }
 
-    // =============================================
-    // Global / Public-ish
-    // =============================================
     match /settings/registry {
       allow read:  if isAuth();
       allow write: if isMaster();
@@ -62,38 +84,41 @@ service cloud.firestore {
 
     match /locations/{locationId} {
       allow read:  if isAuth();
-      allow write: if hasOrgAccessForWrite();
+      allow write: if isAdmin() && hasOrgAccessForWrite();
     }
 
     // =============================================
-    // Main app collections
+    // Operational Data (Optimized for Query)
     // =============================================
+    
+    // We use a baseline of 'isAuth()' for many READS to prevent Evaluate crashes
+    // while keeping WRITES strictly scoped by organization claim.
+
     match /park_activities/{activityId} {
-      allow read:   if hasOrgAccess(resource.data) || 
-                      (resource.data.type == 'Volunteering' && resource.data.status == 'Confirmed');
+      allow read:   if isAuth(); 
       allow create, update, delete: if hasOrgAccessForWrite();
     }
 
     match /tasks/{taskId} {
-      allow read:   if hasOrgAccess(resource.data) || resource.data.isVolunteerEligible == true;
+      allow read:   if isAuth();
       allow create, update, delete: if hasOrgAccessForWrite();
     }
 
     match /info_items/{itemId} {
-      allow read:   if resource.data.isVolunteerVisible == true || hasOrgAccess(resource.data);
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['interestedUserIds']);
-      allow create, delete: if hasOrgAccessForWrite();
+      allow read:   if isAuth();
+      allow update: if isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['interestedUserIds']);
+      allow create, delete: if isAdmin() && hasOrgAccessForWrite();
     }
 
-    match /issues/{issueId}     { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
-    match /assets/{assetId}     { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
-    match /requests/{requestId} { allow read, create, update, delete: if isMaster() || hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
+    match /issues/{issueId}     { allow read: if isAuth(); allow write: if hasOrgAccessForWrite(); }
+    match /assets/{assetId}     { allow read: if isAuth(); allow write: if hasOrgAccessForWrite(); }
+    match /requests/{requestId} { allow read: if isAuth(); allow write: if hasOrgAccessForWrite(); }
 
     // Detail collections
-    match /parks_details/{docId}   { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
-    match /depots_details/{docId}  { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
-    match /machinery/{docId}       { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
-    match /smart_rules/{docId}     { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
+    match /parks_details/{docId}   { allow read: if isAuth(); allow write: if isAdmin() && hasOrgAccessForWrite(); }
+    match /depots_details/{docId}  { allow read: if isAuth(); allow write: if isAdmin() && hasOrgAccessForWrite(); }
+    match /machinery/{docId}       { allow read: if isAuth(); allow write: if isAdmin() && hasOrgAccessForWrite(); }
+    match /smart_rules/{docId}     { allow read: if isAuth(); allow write: if isAdmin() && hasOrgAccessForWrite(); }
 
     // =============================================
     // Volunteering

@@ -362,3 +362,91 @@ export const auditTasks = buildAuditFunction("tasks");
 export const auditIssues = buildAuditFunction("issues");
 export const auditRequests = buildAuditFunction("requests");
 export const auditUsers = buildAuditFunction("users");
+
+/**
+ * Synchronize Firestore User Profile with Auth Custom Claims
+ * Triggered whenever a user document is created or updated
+ */
+export const syncUserClaims = functions.firestore
+  .document("users/{userId}")
+  .onWrite(async (change, context) => {
+    const userId = context.params.userId;
+    const userData = change.after.exists ? change.after.data() : null;
+
+    if (!userData) {
+      console.log(`User ${userId} deleted. Claims will be cleared on next login.`);
+      return;
+    }
+
+    const { orgId, role } = userData;
+
+    // Map role to claims
+    const claims: any = {
+      orgId: orgId || "hackney-council",
+      role: role || "Staff"
+    };
+
+    try {
+      // We set claims on the UID. 
+      // If the Firestore ID is an email, we need to find the UID first.
+      let targetUid = userId;
+      if (userId.includes('@')) {
+        const userRecord = await admin.auth().getUserByEmail(userId);
+        targetUid = userRecord.uid;
+      }
+
+      await admin.auth().setCustomUserClaims(targetUid, claims);
+      console.log(`Set claims for ${targetUid} (${userId}):`, claims);
+    } catch (error) {
+      console.error(`Error setting claims for ${userId}:`, error);
+    }
+  });
+
+/**
+ * Admin: Create New User
+ * Creates user in Auth and Firestore atomically
+ */
+export const adminCreateUser = functions.https.onCall(async (data, context) => {
+  // 1. Verify caller is authenticated
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+  }
+
+  // 2. Simple check for master admin or existing role
+  const isAuthorized = 
+    context.auth.token.email?.includes('quinten.geurs') || 
+    context.auth.token.role === 'Admin';
+
+  if (!isAuthorized) {
+    throw new functions.https.HttpsError("permission-denied", "Only admins can create users.");
+  }
+
+  const { email, password, displayName, role, orgId } = data;
+
+  try {
+    // 3. Create in Auth
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName,
+    });
+
+    // 4. Create in Firestore (Using UID as ID for consistency)
+    await db.collection("users").doc(userRecord.uid).set({
+      id: userRecord.uid,
+      email: email.toLowerCase(),
+      displayName,
+      role: role || 'Staff',
+      orgId: orgId || 'hackney-council',
+      createdAt: new Date().toISOString(),
+      status: 'Active'
+    });
+
+    // Claims will be synced automatically by syncUserClaims trigger
+
+    return { uid: userRecord.uid };
+  } catch (error: any) {
+    console.error("Error in adminCreateUser:", error);
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});

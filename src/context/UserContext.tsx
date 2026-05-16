@@ -19,12 +19,13 @@ interface UserContextType {
   setImpersonatedOrgId: (id: string | null) => void;
   currentUserRoles: string[];
   effectiveOrgId: string | null;
+  claims: any;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading } = useUser();
+  const { user, claims, loading: authLoading } = useUser();
   const db = useFirestore();
   const isMobile = useIsMobile();
   const [impersonatedOrgId, setImpersonatedOrgIdState] = React.useState<string | null>(null);
@@ -35,13 +36,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem('impersonatedOrgId');
   };
 
-  // 1. Check by UID
+  // 1. Check by UID (Priority)
   const profileByUidRef = useMemo(() => 
     db && user?.uid ? doc(db, "users", user.uid) : null, 
   [db, user?.uid]);
   const { data: profileByUid, loading: loadingUid } = useDoc<User>(profileByUidRef as any);
 
-  // 2. Check by Email ID (Sanitized)
+  // 2. Check by Email ID (Legacy/Fallback)
   const emailId = useMemo(() => 
     user?.email?.toLowerCase().replace(/[.#$[\]]/g, "_") || "", 
   [user?.email]);
@@ -61,31 +62,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
   
   const currentUserRoles = useMemo(() => {
     const rolesSet = new Set<string>();
+    // Claims Role (Priority)
+    if (claims?.role) rolesSet.add(claims.role as string);
+    // Profile Roles (Sync/Fallback)
     if (profile?.role) rolesSet.add(profile.role);
     if (profile?.roles) profile.roles.forEach(r => rolesSet.add(r));
     if (profile?.assignedRoles) profile.assignedRoles.forEach(ar => rolesSet.add(ar.role));
     return Array.from(rolesSet);
-  }, [profile]);
+  }, [profile, claims]);
 
   const isMaster = useMemo(() => 
-    user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
+    user?.email?.toLowerCase() === 'quinten.geurs@gmail.com' ||
+    user?.email?.toLowerCase() === 'quinten.geurs@hackney.gov.uk',
   [user?.email]);
 
   const isAdmin = useMemo(() => 
     currentUserRoles.includes('Admin') || 
     isMaster ||
-    user?.email?.toLowerCase() === 'quinten.geurs@hackney.gov.uk',
-  [currentUserRoles, user?.email, isMaster]);
+    claims?.role === 'Admin',
+  [currentUserRoles, isMaster, claims?.role]);
 
   const isManagement = useMemo(() => 
     currentUserRoles.some(r => [...MANAGEMENT_ROLES, 'Volunteering Coordinator'].includes(r as any)) || isAdmin,
   [currentUserRoles, isAdmin]);
 
-  // Sync with localStorage on mount (MUST be after profile and isAdmin are declared)
+  // Sync with localStorage on mount
   React.useEffect(() => {
     const saved = localStorage.getItem('impersonatedOrgId');
     if (saved) {
-      // If we already have a profile and we're not an admin, clear it immediately
       if (profile && !isAdmin) {
         localStorage.removeItem('impersonatedOrgId');
         setImpersonatedOrgIdState(null);
@@ -95,12 +99,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [profile, isAdmin]);
 
-  // 3. Organization Fetching
+  // 3. Organization ID calculation
   const effectiveOrgId = useMemo(() => {
     if (isAdmin && impersonatedOrgId) return impersonatedOrgId;
-    // Fallback to hackney-council for legacy users/profiles without an orgId
+    // Use Claim Org ID if available (Gold Standard)
+    if (claims?.orgId) return claims.orgId as string;
+    // Fallback to profile
     return profile?.orgId || (profile ? "hackney-council" : null);
-  }, [isAdmin, impersonatedOrgId, profile?.orgId, profile]);
+  }, [isAdmin, impersonatedOrgId, profile, claims]);
+
   const orgRef = useMemo(() => 
     db && effectiveOrgId ? doc(db, "organizations", effectiveOrgId) : null, 
   [db, effectiveOrgId]);
@@ -112,11 +119,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   [db, effectiveOrgId]);
   const { data: allRoleTemplates = [], loading: loadingRoles } = useCollection<RoleTemplate>(rolesQuery as any);
 
-  const loading = authLoading || (loadingUid && loadingEmailId) || (!!effectiveOrgId && (loadingOrg || loadingRoles));
+  const loading = authLoading || (loadingUid && loadingEmailId && !claims) || (!!effectiveOrgId && (loadingOrg || loadingRoles));
 
   const permissions = useMemo(() => {
     const userRoleIds = profile?.roleIds || [];
-    // Match templates by ID or by Role name (for legacy support)
     const matchedTemplates = allRoleTemplates.filter(t => 
       userRoleIds.includes(t.id) || 
       currentUserRoles.includes(t.name)
@@ -138,28 +144,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
           lastActive: new Date().toISOString()
         });
       } catch (err) {
-        console.error("Failed to update presence:", err);
+        // Suppress console error if just permission issue during logout
       }
     };
 
-    // Initial sign-in update
     updateStatus(true);
-
-    // Periodic heartbeat (every 2 minutes)
     const interval = setInterval(() => updateStatus(true), 120000);
-
-    // Optional: Try to set to offline on close (unreliable but helpful)
-    const handleUnload = () => {
-      // Use navigator.sendBeacon or similar if needed, but updateDoc is async
-      // For now, we'll rely on lastActive timestamp for accurate status
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('beforeunload', handleUnload);
-    };
+    return () => clearInterval(interval);
   }, [db, user, profile?.id]);
 
   const value = {
@@ -173,7 +164,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     isImpersonating: !!impersonatedOrgId,
     setImpersonatedOrgId,
     currentUserRoles,
-    effectiveOrgId: effectiveOrgId || null
+    effectiveOrgId: effectiveOrgId || null,
+    claims
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
