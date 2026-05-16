@@ -29,10 +29,6 @@ service cloud.firestore {
       return isAuth() && (isMaster() || request.resource.data.orgId == userOrgId());
     }
 
-    function belongsToOrg(orgId) {
-      return isAuth() && (userOrgId() == orgId || isMaster());
-    }
-
     // =============================================
     // Users
     // =============================================
@@ -51,17 +47,17 @@ service cloud.firestore {
       allow write: if isMaster();
 
       match /role_templates/{roleId} {
-        allow read:  if belongsToOrg(orgId);
-        allow write: if belongsToOrg(orgId) && getUserData().role == 'Admin';
+        allow read:  if isAuth();
+        allow write: if isMaster();
       }
     }
 
     // =============================================
-    // Core Collections
+    // Global / Public-ish
     // =============================================
-
     match /settings/registry {
-      allow read, write: if isMaster();        // Was too open
+      allow read:  if isAuth();
+      allow write: if isMaster();
     }
 
     match /locations/{locationId} {
@@ -69,6 +65,9 @@ service cloud.firestore {
       allow write: if hasOrgAccessForWrite();
     }
 
+    // =============================================
+    // Main app collections
+    // =============================================
     match /park_activities/{activityId} {
       allow read:   if hasOrgAccess(resource.data) || 
                       (resource.data.type == 'Volunteering' && resource.data.status == 'Confirmed');
@@ -76,54 +75,28 @@ service cloud.firestore {
     }
 
     match /tasks/{taskId} {
-      allow read:   if hasOrgAccess(resource.data) || 
-                      (resource.data.isVolunteerEligible == true);
+      allow read:   if hasOrgAccess(resource.data) || resource.data.isVolunteerEligible == true;
       allow create, update, delete: if hasOrgAccessForWrite();
     }
 
     match /info_items/{itemId} {
       allow read:   if resource.data.isVolunteerVisible == true || hasOrgAccess(resource.data);
-      
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['interestedUserIds']);
-      
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['interestedUserIds']);
       allow create, delete: if hasOrgAccessForWrite();
     }
 
-    match /issues/{issueId} {
-      allow read:   if hasOrgAccess(resource.data);
-      allow create, update, delete: if hasOrgAccessForWrite();
-    }
+    match /issues/{issueId}     { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
+    match /assets/{assetId}     { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
+    match /requests/{requestId} { allow read, create, update, delete: if isMaster() || hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
 
-    match /assets/{assetId} {
-      allow read:   if hasOrgAccess(resource.data);
-      allow create, update, delete: if hasOrgAccessForWrite();
-    }
-
-    match /requests/{requestId} {
-      allow read:   if hasOrgAccess(resource.data);
-      allow create, update, delete: if isMaster() || hasOrgAccessForWrite();
-    }
-
-    // Org-specific detail collections
-    match /parks_details/{docId} {
-      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
-    }
-
-    match /depots_details/{docId} {
-      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
-    }
-
-    match /machinery/{docId} {
-      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
-    }
-
-    match /smart_rules/{docId} {
-      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
-    }
+    // Detail collections
+    match /parks_details/{docId}   { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
+    match /depots_details/{docId}  { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
+    match /machinery/{docId}       { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
+    match /smart_rules/{docId}     { allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite(); }
 
     // =============================================
-    // Public Volunteering Portal
+    // Volunteering
     // =============================================
     match /volunteers/{volunteerId} {
       allow create: if true;
@@ -131,7 +104,7 @@ service cloud.firestore {
     }
 
     // =============================================
-    // Master Catch-all (Safety Net)
+    // Master fallback
     // =============================================
     match /{document=**} {
       allow read, write: if isMaster();
