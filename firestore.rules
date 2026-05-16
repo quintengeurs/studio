@@ -1,10 +1,7 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // =============================================
-    // Helper Functions
-    // =============================================
 
     function isAuth() {
       return request.auth != null;
@@ -14,67 +11,127 @@ service cloud.firestore {
       return isAuth() && request.auth.token.email.matches('(?i)quinten.geurs@gmail.com');
     }
 
+    function getUserData() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let userDoc = get(userPath);
+      return userDoc.exists ? userDoc.data : {"orgId": "hackney-council"};
+    }
+
+    function userOrgId() {
+      return getUserData().orgId;
+    }
+
+    function hasOrgAccess(data) {
+      return isAuth() && (isMaster() || (data != null && data.orgId == userOrgId()));
+    }
+
+    function hasOrgAccessForWrite() {
+      return isAuth() && (isMaster() || request.resource.data.orgId == userOrgId());
+    }
+
+    function belongsToOrg(orgId) {
+      return isAuth() && (userOrgId() == orgId || isMaster());
+    }
+
+    // =============================================
+    // Users
+    // =============================================
+    match /users/{userId} {
+      allow read:   if isMaster() || request.auth.uid == userId;
+      allow create: if true;
+      allow update: if isMaster() || request.auth.uid == userId;
+      allow delete: if isMaster();
+    }
+
+    // =============================================
+    // Organizations
+    // =============================================
+    match /organizations/{orgId} {
+      allow read:  if true;                    // Public for branding
+      allow write: if isMaster();
+
+      match /role_templates/{roleId} {
+        allow read:  if belongsToOrg(orgId);
+        allow write: if belongsToOrg(orgId) && getUserData().role == 'Admin';
+      }
+    }
+
     // =============================================
     // Core Collections
     // =============================================
 
-    // Users
-    match /users/{userId} {
-      allow read, create: if true;
-      allow update, delete: if isAuth() && (isMaster() || request.auth.uid == userId);
+    match /settings/registry {
+      allow read, write: if isMaster();        // Was too open
     }
 
-    // Organizations & Settings
-    match /organizations/{orgId} {
-      allow read: if true;
-      allow write: if isMaster();
+    match /locations/{locationId} {
+      allow read:  if isAuth();
+      allow write: if hasOrgAccessForWrite();
     }
 
-    match /settings/{docId} {
-      allow read, write: if isAuth();
+    match /park_activities/{activityId} {
+      allow read:   if hasOrgAccess(resource.data) || 
+                      (resource.data.type == 'Volunteering' && resource.data.status == 'Confirmed');
+      allow create, update, delete: if hasOrgAccessForWrite();
     }
-
-    // =============================================
-    // Volunteering & Public Hub
-    // =============================================
 
     match /tasks/{taskId} {
-      // Allow authenticated staff OR public volunteer-eligible tasks
-      allow read: if isAuth() || resource.data.isVolunteerEligible == true;
-      allow write: if isAuth();
+      allow read:   if hasOrgAccess(resource.data) || 
+                      (resource.data.isVolunteerEligible == true);
+      allow create, update, delete: if hasOrgAccessForWrite();
     }
 
     match /info_items/{itemId} {
-      // 1. Allow volunteers/public to see news items marked as 'Volunteer Visible'
-      allow read: if isAuth() || resource.data.isVolunteerVisible == true;
+      allow read:   if resource.data.isVolunteerVisible == true || hasOrgAccess(resource.data);
       
-      // 2. Allow volunteers to click the 'Interested' button (updates only that field)
-      allow update: if isAuth() || (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['interestedUserIds'])
-      );
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['interestedUserIds']);
       
-      allow create, delete: if isAuth();
+      allow create, delete: if hasOrgAccessForWrite();
+    }
+
+    match /issues/{issueId} {
+      allow read:   if hasOrgAccess(resource.data);
+      allow create, update, delete: if hasOrgAccessForWrite();
+    }
+
+    match /assets/{assetId} {
+      allow read:   if hasOrgAccess(resource.data);
+      allow create, update, delete: if hasOrgAccessForWrite();
+    }
+
+    match /requests/{requestId} {
+      allow read:   if hasOrgAccess(resource.data);
+      allow create, update, delete: if isMaster() || hasOrgAccessForWrite();
+    }
+
+    // Org-specific detail collections
+    match /parks_details/{docId} {
+      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
+    }
+
+    match /depots_details/{docId} {
+      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
+    }
+
+    match /machinery/{docId} {
+      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
+    }
+
+    match /smart_rules/{docId} {
+      allow read, create, update, delete: if hasOrgAccess(resource.data) || hasOrgAccessForWrite();
     }
 
     // =============================================
-    // Operational Data (Issues, Assets, Logs, etc.)
+    // Public Volunteering Portal
     // =============================================
-
-    match /action_logs/{logId} {
-      allow read, create: if isAuth();
-      allow update, delete: if false;
-    }
-
-    // Batch rule for standard collections
-    match /{collection}/{docId} {
-      allow read, write: if isAuth();
-      
-      // List of collections covered by this catch-all:
-      // issues, assets, machinery, smart_rules, requests, parks_details, depots_details, locations
+    match /volunteers/{volunteerId} {
+      allow create: if true;
+      allow read, update, delete: if isAuth();
     }
 
     // =============================================
-    // Master Fallback
+    // Master Catch-all (Safety Net)
     // =============================================
     match /{document=**} {
       allow read, write: if isMaster();
