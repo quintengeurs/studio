@@ -90,7 +90,7 @@ export function MobileBottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center border-t bg-card px-2 pb-safe shadow-lg overflow-x-auto no-scrollbar">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[80px] items-start border-t bg-card/95 backdrop-blur-md px-2 pt-3 pb-6 shadow-lg overflow-x-auto no-scrollbar">
         <div className="flex items-center justify-around w-full min-w-max gap-1 px-1">
           {filteredItems.map((item) => {
             const isActive = pathname === item.href;
