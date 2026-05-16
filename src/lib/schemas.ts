@@ -1,43 +1,89 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-export const volunteerTaskSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100),
-  objective: z.string().min(10, "Please provide a clear objective (min 10 chars)").max(500),
-  park: z.string().min(1, "Please select a location"),
-  dueDate: z.string().min(1, "Please select a deadline"),
-  startDate: z.string().min(1, "Please select a start date"),
-  endDate: z.string().min(1, "Please select an expiry date"),
-  maxVolunteers: z.coerce.number().min(1, "Must allow at least 1 volunteer").max(100),
-  volunteerPoints: z.coerce.number().min(1, "Must award at least 1 point").max(1000),
-  rewardDescription: z.string().optional(),
-  rewardCode: z.string().optional(),
-  imageUrl: z.string().optional(),
+/**
+ * Common Fields
+ */
+const BaseSchema = z.object({
+  id: z.string(),
+  orgId: z.string(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
 });
 
-export const logWorkSchema = z.object({
-  title: z.string().min(3, "Please provide a descriptive title").max(100),
-  park: z.string().min(1, "Location is required"),
-  note: z.string().optional(),
-  imageUrl: z.string().optional(),
-  selectedColleagues: z.array(z.string()).default([])
+/**
+ * User Schema
+ */
+export const UserSchema = BaseSchema.extend({
+  email: z.string().email(),
+  name: z.string().optional(),
+  role: z.string(),
+  roles: z.array(z.string()).optional(),
+  depot: z.string().optional(),
+  depots: z.array(z.string()).optional(),
+  isOnline: z.boolean().optional(),
+  lastActive: z.string().optional(),
+  avatarUrl: z.string().optional(),
 });
 
-export const issueSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100),
+export type User = z.infer<typeof UserSchema>;
+
+/**
+ * Task Schema
+ */
+export const TaskSchema = BaseSchema.extend({
+  title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  priority: z.enum(["Low", "Medium", "High", "Urgent"]).default("Medium"),
-  category: z.string().min(1, "Please select a category").default("General"),
-  park: z.string().min(1, "Location is required"),
-  imageUrl: z.string().optional(),
-  location: z.object({
-    latitude: z.number(),
-    longitude: z.number()
-  }).nullable().optional()
+  status: z.enum(['Pending', 'In Progress', 'Completed', 'Cancelled']),
+  priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
+  assignedTo: z.string().optional(),
+  assignedToName: z.string().optional(),
+  dueDate: z.string().optional(),
+  park: z.string(),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 });
 
-export const requestSchema = z.object({
-  category: z.enum(["Materials", "Tools", "Equipment", "PPE", "Other"]).default("Materials"),
-  description: z.string().min(5, "Please provide more details about your request").max(500),
-  depot: z.string().min(1, "Please select a collection depot"),
-  imageUrl: z.string().optional()
+export type Task = z.infer<typeof TaskSchema>;
+
+/**
+ * Issue Schema
+ */
+export const IssueSchema = BaseSchema.extend({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  status: z.enum(['Open', 'In Progress', 'Resolved', 'Closed']),
+  type: z.string(),
+  park: z.string(),
+  location: z.object({
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    description: z.string().optional(),
+  }).optional(),
+  reportedBy: z.string(),
+  reportedByName: z.string().optional(),
+  images: z.array(z.string()).optional(),
 });
+
+export type Issue = z.infer<typeof IssueSchema>;
+
+/**
+ * Inspection Schema
+ */
+export const InspectionSchema = BaseSchema.extend({
+  assetId: z.string(),
+  assetName: z.string(),
+  park: z.string(),
+  status: z.enum(['Pending', 'Completed', 'Overdue']),
+  dueDate: z.string(),
+  completedAt: z.string().optional(),
+  inspectedBy: z.string().optional(),
+  frequency: z.string().optional(),
+  checklist: z.array(z.object({
+    item: z.string(),
+    status: z.enum(['Pass', 'Fail', 'N/A']),
+    notes: z.string().optional(),
+    imageUrl: z.string().optional(),
+  })).optional(),
+});
+
+export type Inspection = z.infer<typeof InspectionSchema>;

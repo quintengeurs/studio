@@ -1,20 +1,20 @@
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
+import { onDocumentWritten, onDocumentCreated } from "firebase-functions/v2/firestore";
+import { setGlobalOptions } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import axios from "axios";
 import { format } from "date-fns";
 
 admin.initializeApp();
-
 const db = admin.firestore();
 
-/**
- * Scheduled Smart Evaluator
- * Runs daily at 06:00 AM
- */
+// Set global options for v2 functions
+setGlobalOptions({ region: 'europe-west1' });
+
 const NAMED_DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
 
 /**
- * Scheduled Smart Evaluator
+ * Scheduled Smart Evaluator (Gen 1)
  * Runs daily at 06:00 AM
  */
 export const scheduledSmartEvaluator = functions.region("europe-west1").pubsub
@@ -26,64 +26,41 @@ export const scheduledSmartEvaluator = functions.region("europe-west1").pubsub
   });
 
 /**
- * Manual Trigger for testing/UI
+ * Manual Trigger for testing/UI (Gen 1)
  */
 export const manualProcessRules = functions.region("europe-west1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
-  // Check if user is staff/admin
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
   }
-  
-  console.log(`Manual trigger by ${context.auth.token.email}`);
   return await processAllRules();
 });
 
 /**
  * Core Rule Processing Logic
  */
-/**
- * Core Rule Processing Logic
- * Fetches weather for all parks and evaluates against all active smart rules
- */
 async function processAllRules() {
   const stats = { rulesProcessed: 0, matchesFound: 0, tasksProposed: 0, errors: 0, parksChecked: 0 };
-  
   try {
-    // 1. Fetch all organizations to process separately (Multi-tenancy support)
     const orgsSnap = await db.collection("organizations").get();
-    
     for (const orgDoc of orgsSnap.docs) {
       const orgId = orgDoc.id;
-      
-      // 2. Fetch all active dynamic rules for this org
       const rulesSnap = await db.collection("smart_rules")
         .where("orgId", "==", orgId)
         .where("isActive", "==", true)
         .get();
 
       if (rulesSnap.empty) continue;
-
       const rules: any[] = [];
       rulesSnap.forEach((doc: any) => rules.push({ id: doc.id, ...doc.data() }));
 
-      // 3. Fetch all parks for this org to get coordinates
-      const parksSnap = await db.collection("parks_details")
-        .where("orgId", "==", orgId)
-        .get();
-      
+      const parksSnap = await db.collection("parks_details").where("orgId", "==", orgId).get();
       for (const parkDoc of parksSnap.docs) {
         const parkData = parkDoc.data();
-        const parkId = parkDoc.id; // or parkData.name
-
-        if (!parkData.latitude || !parkData.longitude) {
-          console.warn(`Park ${parkId} in org ${orgId} missing coordinates. Skipping.`);
-          continue;
-        }
-
+        const parkId = parkDoc.id;
+        if (!parkData.latitude || !parkData.longitude) continue;
         stats.parksChecked++;
 
         try {
-          // 4. Fetch Weather Forecast
           const weatherResponse = await axios.get("https://api.open-meteo.com/v1/forecast", {
             params: {
               latitude: parkData.latitude,
@@ -99,29 +76,21 @@ async function processAllRules() {
             temperature: forecast.temperature_2m_max[0],
             rain: forecast.precipitation_sum[0],
             windSpeed: forecast.wind_speed_10m_max[0],
-            tags: [] // Daily tags like 'rainy' could be added here based on thresholds
+            tags: []
           };
 
-          // Logic-based tags
           if (currentContext.rain > 2) currentContext.tags.push("rain");
           if (currentContext.temperature > 25) currentContext.tags.push("sunny");
           if (currentContext.windSpeed > 20) currentContext.tags.push("windy");
 
-          // 5. Evaluate Rules
           for (const rule of rules) {
             stats.rulesProcessed++;
-            
             const evaluations = (rule.conditions || []).map((c: any) => {
               const actualValue = currentContext[c.field];
               if (actualValue === undefined) return false;
-              
-              if (c.operator === 'contains') {
-                return Array.isArray(actualValue) ? actualValue.includes(c.value) : false;
-              }
-              
+              if (c.operator === 'contains') return Array.isArray(actualValue) ? actualValue.includes(c.value) : false;
               const numVal = Number(actualValue);
               const targetVal = Number(c.value);
-              
               if (c.operator === ">") return numVal > targetVal;
               if (c.operator === "<") return numVal < targetVal;
               if (c.operator === "==") return numVal === targetVal;
@@ -130,31 +99,23 @@ async function processAllRules() {
               return false;
             });
 
-            let isMatch = false;
-            if (rule.conditionLogic === 'AND') {
-              isMatch = evaluations.length > 0 && evaluations.every((v: boolean) => v === true);
-            } else {
-              isMatch = evaluations.some((v: boolean) => v === true);
-            }
+            let isMatch = rule.conditionLogic === 'AND' 
+              ? evaluations.length > 0 && evaluations.every((v: boolean) => v === true)
+              : evaluations.some((v: boolean) => v === true);
 
             if (isMatch) {
               stats.matchesFound++;
-              
-              // Cooldown Check
               const todayStr = format(new Date(), "yyyy-MM-dd");
               const existingProposal = await db.collection("proposed_tasks")
                 .where("ruleId", "==", rule.id)
                 .where("park", "==", parkData.name || parkId)
                 .where("suggestedDate", "==", todayStr)
-                .limit(1)
-                .get();
+                .limit(1).get();
 
               if (!existingProposal.empty) continue;
 
-              // Create Proposed Tasks
               for (const taskTemplate of (rule.tasksToGenerate || [])) {
                 const proposalId = `prop_${Date.now()}_${rule.id}_${Math.floor(Math.random() * 1000)}`;
-                
                 await db.collection("proposed_tasks").doc(proposalId).set({
                   id: proposalId,
                   ruleId: rule.id,
@@ -167,81 +128,56 @@ async function processAllRules() {
                   suggestedDate: todayStr,
                   createdAt: new Date().toISOString(),
                   status: "pending",
-                  triggerData: {
-                    temp: currentContext.temperature,
-                    rain: currentContext.rain,
-                    wind: currentContext.windSpeed
-                  }
+                  triggerData: { temp: currentContext.temperature, rain: currentContext.rain, wind: currentContext.windSpeed }
                 });
                 stats.tasksProposed++;
               }
             }
           }
         } catch (err: any) {
-          console.error(`Weather error for ${parkId}:`, err.message);
           stats.errors++;
         }
       }
     }
-
-    // Log Summary
     await db.collection("automation_logs").add({
       timestamp: new Date().toISOString(),
       type: "daily_evaluation",
       stats,
       status: stats.errors > 0 ? "warning" : "success"
     });
-
     return { status: "success", stats };
   } catch (err: any) {
-    console.error("Critical error in evaluator:", err.message);
     return { status: "error", message: err.message };
   }
 }
 
 /**
- * Smart Tasking Engine - Dynamic Rules Evaluation
- * Triggers automatically when conditions are logged from the frontend UI
+ * Smart Tasking Engine (Gen 2)
  */
-export const onConditionLogged = functions.region("europe-west1").firestore
-  .document("daily_conditions/{docId}")
-  .database(NAMED_DB_ID)
-  .onCreate(async (snap: functions.firestore.QueryDocumentSnapshot, context: functions.EventContext) => {
-    const condition = snap.data();
+export const onConditionLogged_v2 = onDocumentCreated({
+  document: "daily_conditions/{docId}",
+  database: NAMED_DB_ID
+}, async (event) => {
+    const condition = event.data?.data();
     if (!condition) return;
 
     try {
-      // 1. Fetch all active dynamic rules
       const rulesSnap = await db.collection("smart_rules")
         .where("isActive", "==", true)
-        .where("orgId", "==", condition.orgId || "hackney-council")
-        .get();
+        .where("orgId", "==", condition.orgId || "hackney-council").get();
 
-      if (rulesSnap.empty) {
-        console.log("No active dynamic rules found for org:", condition.orgId);
-        return;
-      }
-
+      if (rulesSnap.empty) return;
       const rules: any[] = [];
-      rulesSnap.forEach(doc => rules.push({ id: doc.id, ...doc.data() }));
+      rulesSnap.forEach((doc: any) => rules.push({ id: doc.id, ...doc.data() }));
 
-      // 2. Fetch all machinery (if machinery rules exist)
       const allMachinery: any[] = [];
-      const hasMachineryRule = rules.some(r => 
-        r.conditions && r.conditions.some((c: any) => c.field === "machineryHours")
-      );
-
+      const hasMachineryRule = rules.some(r => r.conditions && r.conditions.some((c: any) => c.field === "machineryHours"));
       if (hasMachineryRule) {
-        const machSnap = await db.collection("machinery")
-          .where("orgId", "==", condition.orgId || "hackney-council")
-          .get();
+        const machSnap = await db.collection("machinery").where("orgId", "==", condition.orgId || "hackney-council").get();
         machSnap.forEach((doc: any) => allMachinery.push({ id: doc.id, ...doc.data() }));
       }
 
-      // 3. Evaluate Engine Logic
       const generatedTasks: any[] = [];
-      const park = condition.parkId;
-
       for (const rule of rules) {
         const evaluations = rule.conditions.map((c: any) => {
           if (c.field === 'machineryHours') {
@@ -251,68 +187,44 @@ export const onConditionLogged = functions.region("europe-west1").firestore
           return evaluateSimpleCondition(condition[c.field], c);
         });
         
-        let isMatch = false;
-        if (rule.conditionLogic === 'AND') {
-          isMatch = evaluations.length > 0 && evaluations.every((v: boolean) => v === true);
-        } else {
-          isMatch = evaluations.some((v: boolean) => v === true);
-        }
+        let isMatch = rule.conditionLogic === 'AND'
+          ? evaluations.length > 0 && evaluations.every((v: boolean) => v === true)
+          : evaluations.some((v: boolean) => v === true);
 
         if (isMatch) {
           for (const t of (rule.tasksToGenerate || [])) {
             generatedTasks.push({
-              title: t.title,
-              objective: t.objective,
-              status: 'Todo',
+              title: t.title, objective: t.objective, status: 'Todo',
               dueDate: new Date().toISOString().split('T')[0],
-              assignedTo: t.assignedTo,
-              displayTime: t.displayTime || null,
-              park: park,
-              source: 'smart-engine',
-              isLog: false,
-              isArchived: false,
+              assignedTo: t.assignedTo, displayTime: t.displayTime || null,
+              park: condition.parkId, source: 'smart-engine', isLog: false, isArchived: false,
               isVolunteerEligible: t.isVolunteerEligible || false,
-              orgId: condition.orgId || "hackney-council",
-              createdAt: new Date().toISOString()
+              orgId: condition.orgId || "hackney-council", createdAt: new Date().toISOString()
             });
           }
         }
       }
 
-      // 4. Create Tasks in batch securely
       if (generatedTasks.length > 0) {
         const batch = db.batch();
         const tasksRef = db.collection("tasks");
-        
-        for (const task of generatedTasks) {
-          batch.set(tasksRef.doc(), task);
-        }
-        
+        for (const task of generatedTasks) batch.set(tasksRef.doc(), task);
         await batch.commit();
-        console.log(`Generated ${generatedTasks.length} tasks from ${rules.length} dynamic rules on backend.`);
       }
-
     } catch (error) {
-      console.error("Error evaluating conditions in backend:", error);
+      console.error("Error in onConditionLogged:", error);
     }
   });
 
 function evaluateSimpleCondition(conditionValue: any, ruleCondition: any): boolean {
   const value = Number(ruleCondition.value);
   const rawValue = ruleCondition.value;
-  
   if (ruleCondition.operator === 'contains') {
-    if (Array.isArray(conditionValue)) {
-      return conditionValue.includes(rawValue);
-    }
-    if (typeof conditionValue === 'string') {
-      return conditionValue.includes(String(rawValue));
-    }
+    if (Array.isArray(conditionValue)) return conditionValue.includes(rawValue);
+    if (typeof conditionValue === 'string') return conditionValue.includes(String(rawValue));
     return false;
   }
-
   const numValue = Number(conditionValue);
-
   switch (ruleCondition.operator) {
     case '==': return numValue == value;
     case '>': return numValue > value;
@@ -324,86 +236,58 @@ function evaluateSimpleCondition(conditionValue: any, ruleCondition: any): boole
 }
 
 /**
- * Immutable Audit Trails
- * Automatically tracks all changes to critical collections securely on the backend
+ * Immutable Audit Trails (Gen 2)
  */
 function buildAuditFunction(collectionName: string) {
-  return functions.region("europe-west1").firestore
-    .document(`${collectionName}/{docId}`)
-    .database(NAMED_DB_ID)
-    .onWrite(async (change: functions.Change<functions.firestore.DocumentSnapshot>, context: functions.EventContext) => {
-      const docId = context.params.docId;
-      const after = change.after.exists ? change.after.data() : null;
-      const before = change.before.exists ? change.before.data() : null;
+  return onDocumentWritten({
+    document: `${collectionName}/{docId}`,
+    database: NAMED_DB_ID
+  }, async (event) => {
+      const docId = event.params.docId;
+      const after = event.data?.after.exists ? event.data.after.data() : null;
+      const before = event.data?.before.exists ? event.data.before.data() : null;
 
-      let action = "";
-      if (!before && after) action = `CREATED ${collectionName.toUpperCase()}`;
-      else if (before && !after) action = `DELETED ${collectionName.toUpperCase()}`;
-      else action = `UPDATED ${collectionName.toUpperCase()}`;
-
-      // Extract user info if available from the document metadata
-      let userStr = "System / Unknown";
-      if (after?.updatedBy) userStr = after.updatedBy;
-      else if (after?.completedBy) userStr = after.completedBy;
-      else if (after?.reportedBy) userStr = after.reportedBy;
-      else if (after?.requestedBy) userStr = after.requestedBy;
-      else if (before?.updatedBy) userStr = before.updatedBy;
+      let action = !before && after ? `CREATED ${collectionName.toUpperCase()}` : (before && !after ? `DELETED ${collectionName.toUpperCase()}` : `UPDATED ${collectionName.toUpperCase()}`);
+      let userStr = after?.updatedBy || after?.completedBy || after?.reportedBy || after?.requestedBy || before?.updatedBy || "System / Unknown";
 
       const logEntry = {
-        timestamp: new Date().toISOString(),
-        action,
-        collection: collectionName,
-        documentId: docId,
-        userName: userStr,
+        timestamp: new Date().toISOString(), action, collection: collectionName, documentId: docId, userName: userStr,
         orgId: after?.orgId || before?.orgId || "hackney-council",
-        details: {
-          previousState: before ? JSON.stringify(before).substring(0, 500) : null,
-          newState: after ? JSON.stringify(after).substring(0, 500) : null
-        }
+        details: { previousState: before ? JSON.stringify(before).substring(0, 500) : null, newState: after ? JSON.stringify(after).substring(0, 500) : null }
       };
-
       await db.collection("action_logs").add(logEntry);
     });
 }
 
-export const auditTasks = buildAuditFunction("tasks");
-export const auditIssues = buildAuditFunction("issues");
-export const auditRequests = buildAuditFunction("requests");
-export const auditUsers = buildAuditFunction("users");
+export const auditTasks_v2 = buildAuditFunction("tasks");
+export const auditIssues_v2 = buildAuditFunction("issues");
+export const auditRequests_v2 = buildAuditFunction("requests");
+export const auditUsers_v2 = buildAuditFunction("users");
 
 /**
- * Synchronize Firestore User Profile with Auth Custom Claims
- * Triggered whenever a user document is created or updated
+ * Synchronize Firestore User Profile with Auth Custom Claims (Gen 2)
  */
-export const syncUserClaims = functions.region("europe-west1").firestore
-  .document("users/{userId}")
-  .database(NAMED_DB_ID)
-  .onWrite(async (change: functions.Change<functions.firestore.DocumentSnapshot>, context: functions.EventContext) => {
-    const userId = context.params.userId;
-    const userData = change.after.exists ? change.after.data() : null;
+export const syncUserClaims_v2 = onDocumentWritten({
+  document: "users/{userId}",
+  database: NAMED_DB_ID
+}, async (event) => {
+    const userId = event.params.userId;
+    const userData = event.data?.after.exists ? event.data.after.data() : null;
 
     if (!userData) {
-      console.log(`User ${userId} deleted. Claims will be cleared on next login.`);
+      console.log(`User ${userId} deleted.`);
       return;
     }
 
     const { orgId, role } = userData;
-
-    // Map role to claims
-    const claims: any = {
-      orgId: orgId || "hackney-council",
-      role: role || "Staff"
-    };
+    const claims = { orgId: orgId || "hackney-council", role: role || "Staff" };
 
     try {
-      // We set claims on the UID. 
-      // If the Firestore ID is an email, we need to find the UID first.
       let targetUid = userId;
       if (userId.includes('@')) {
         const userRecord = await admin.auth().getUserByEmail(userId);
         targetUid = userRecord.uid;
       }
-
       await admin.auth().setCustomUserClaims(targetUid, claims);
       console.log(`Set claims for ${targetUid} (${userId}):`, claims);
     } catch (error) {
@@ -412,50 +296,23 @@ export const syncUserClaims = functions.region("europe-west1").firestore
   });
 
 /**
- * Admin: Create New User
- * Creates user in Auth and Firestore atomically
+ * Admin: Create New User (Gen 1)
  */
 export const adminCreateUser = functions.region("europe-west1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
-  // 1. Verify caller is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
-  }
-
-  // 2. Simple check for master admin or existing role
-  const isAuthorized = 
-    context.auth.token.email?.includes('quinten.geurs') || 
-    context.auth.token.role === 'Admin';
-
-  if (!isAuthorized) {
-    throw new functions.https.HttpsError("permission-denied", "Only admins can create users.");
-  }
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+  const isAuthorized = context.auth.token.email?.includes('quinten.geurs') || context.auth.token.role === 'Admin';
+  if (!isAuthorized) throw new functions.https.HttpsError("permission-denied", "Only admins can create users.");
 
   const { email, password, displayName, role, orgId } = data;
-
   try {
-    // 3. Create in Auth
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName,
-    });
-
-    // 4. Create in Firestore (Using UID as ID for consistency)
+    const userRecord = await admin.auth().createUser({ email, password, displayName });
     await db.collection("users").doc(userRecord.uid).set({
-      id: userRecord.uid,
-      email: email.toLowerCase(),
-      displayName,
-      role: role || 'Staff',
-      orgId: orgId || 'hackney-council',
-      createdAt: new Date().toISOString(),
-      status: 'Active'
+      id: userRecord.uid, email: email.toLowerCase(), displayName,
+      role: role || 'Staff', orgId: orgId || 'hackney-council',
+      createdAt: new Date().toISOString(), status: 'Active'
     });
-
-    // Claims will be synced automatically by syncUserClaims trigger
-
     return { uid: userRecord.uid };
   } catch (error: any) {
-    console.error("Error in adminCreateUser:", error);
     throw new functions.https.HttpsError("internal", error.message);
   }
 });

@@ -8,6 +8,7 @@ import {SidebarProvider} from '@/components/ui/sidebar';
 import {Toaster} from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { DesktopGuard } from '@/components/auth/desktop-guard';
+import { GlobalErrorBoundary } from '@/components/error-boundary';
 
 export const metadata: Metadata = {
   title: 'Parks and Green Spaces | Hackney Parks Management',
@@ -31,17 +32,19 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          <UserProvider>
-            <DataProvider>
-              <SidebarProvider defaultOpen={true}>
-                <DesktopGuard>
-                  {children}
-                </DesktopGuard>
-              </SidebarProvider>
-            </DataProvider>
-          </UserProvider>
-        </FirebaseClientProvider>
+        <GlobalErrorBoundary>
+          <FirebaseClientProvider>
+            <UserProvider>
+              <DataProvider>
+                <SidebarProvider defaultOpen={true}>
+                  <DesktopGuard>
+                    {children}
+                  </DesktopGuard>
+                </SidebarProvider>
+              </DataProvider>
+            </UserProvider>
+          </FirebaseClientProvider>
+        </GlobalErrorBoundary>
         <Toaster />
       </body>
     </html>

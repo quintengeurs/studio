@@ -854,19 +854,22 @@ export default function InspectionsPage() {
                     <div className="border rounded-xl bg-muted/10 overflow-hidden">
                       <ScrollArea className="h-[150px] p-3">
                         <div className="grid gap-2">
-                          {depots.map(depotName => (
-                            <div key={depotName} className="flex items-center gap-2 py-1">
-                              <Checkbox 
-                                id={`depot-${depotName}`} 
-                                checked={selectedDepotNames.includes(depotName)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) setSelectedDepotNames(prev => [...prev, depotName]);
-                                  else setSelectedDepotNames(prev => prev.filter(name => name !== depotName));
-                                }}
-                              />
-                              <Label htmlFor={`depot-${depotName}`} className="text-xs font-medium cursor-pointer">{depotName}</Label>
-                            </div>
-                          ))}
+                          {depots.map(depotName => {
+                            if (!depotName) return null;
+                            return (
+                              <div key={depotName} className="flex items-center gap-2 py-1">
+                                <Checkbox 
+                                  id={`depot-${depotName}`} 
+                                  checked={selectedDepotNames.includes(depotName)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) setSelectedDepotNames(prev => [...prev, depotName]);
+                                    else setSelectedDepotNames(prev => prev.filter(name => name !== depotName));
+                                  }}
+                                />
+                                <Label htmlFor={`depot-${depotName}`} className="text-xs font-medium cursor-pointer">{depotName}</Label>
+                              </div>
+                            );
+                          })}
                           {depots.length === 0 && (
                             <p className="text-xs text-muted-foreground italic p-2">No depots found in configuration.</p>
                           )}
@@ -1067,7 +1070,19 @@ export default function InspectionsPage() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-12"><Clock className="h-8 w-8 animate-spin text-primary" /></div>
+             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+               {[1, 2, 3, 4, 5, 6].map((i) => (
+                 <div key={i} className="h-[280px] rounded-2xl border-2 bg-muted/20 animate-pulse flex flex-col p-6 space-y-4">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-20 bg-muted rounded-full" />
+                      <div className="h-4 w-16 bg-muted rounded-full" />
+                    </div>
+                    <div className="h-6 w-3/4 bg-muted rounded-lg" />
+                    <div className="h-4 w-1/2 bg-muted rounded-lg" />
+                    <div className="mt-auto h-10 w-full bg-muted rounded-xl" />
+                 </div>
+               ))}
+             </div>
           ) : (
             <>
               <TabsContent value="all" className="mt-0">
@@ -1125,7 +1140,19 @@ export default function InspectionsPage() {
             <Badge variant="secondary" className="font-bold">{pendingInspections.filter(i => i.dueDate <= todayStr).length} DUE TODAY</Badge>
           </div>
           {loading ? (
-             <div className="flex justify-center py-20"><Clock className="animate-spin h-8 w-8 text-primary" /></div>
+             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+               {[1, 2, 3, 4, 5, 6].map((i) => (
+                 <div key={i} className="h-[280px] rounded-2xl border-2 bg-muted/20 animate-pulse flex flex-col p-6 space-y-4">
+                    <div className="flex justify-between">
+                      <div className="h-4 w-20 bg-muted rounded-full" />
+                      <div className="h-4 w-16 bg-muted rounded-full" />
+                    </div>
+                    <div className="h-6 w-3/4 bg-muted rounded-lg" />
+                    <div className="h-4 w-1/2 bg-muted rounded-lg" />
+                    <div className="mt-auto h-10 w-full bg-muted rounded-xl" />
+                 </div>
+               ))}
+             </div>
           ) : (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {pendingInspections.map((inspection) => (
