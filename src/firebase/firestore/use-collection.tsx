@@ -29,8 +29,14 @@ export function useCollection<T = DocumentData>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
   const [retryCount, setRetries] = useState(0);
   
+  const dataRef = useRef<T[]>(data);
   const queryRef = useRef(query);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // Sync dataRef with data state
+  if (data.length > 0 && data !== dataRef.current) {
+    dataRef.current = data;
+  }
 
   if (query !== queryRef.current) {
     queryRef.current = query;
@@ -39,13 +45,16 @@ export function useCollection<T = DocumentData>(
   const subscribe = useCallback(() => {
     const currentQuery = queryRef.current;
     if (!currentQuery) {
-      setData([]);
+      // Only clear data if we are not in a retry cycle
+      if (retryCount === 0) {
+        setData([]);
+      }
       setLoading(false);
       return;
     }
 
-    // Only set loading to true if we don't have data yet
-    if (data.length === 0) {
+    // Only set loading to true if we have no data in state AND no data in cache
+    if (data.length === 0 && dataRef.current.length === 0) {
       setLoading(true);
     }
 
@@ -105,9 +114,9 @@ export function useCollection<T = DocumentData>(
 
     if (isRetryable && retryCount < maxRetries) {
       console.warn(`[useCollection] Attempting retry ${retryCount + 1}/${maxRetries} in ${retryDelay}ms...`);
+      // DO NOT set error or loading(false) here to keep UI stable
       setTimeout(() => {
         setRetries(prev => prev + 1);
-        subscribe();
       }, retryDelay);
     } else {
       if (err.code === 'permission-denied') {
