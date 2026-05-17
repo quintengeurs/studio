@@ -42,9 +42,11 @@ import {
   Pencil,
   Bot,
   CheckCircle2,
-  X
+  X,
+  LayoutGrid
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const TaskDetailModal = dynamic(() => import("@/components/modals/task-detail-modal").then(mod => mod.TaskDetailModal), { ssr: false });
@@ -263,6 +265,7 @@ export default function TasksPage() {
   const [activeTaskSearch, setActiveTaskSearch] = useState("");
   const [activeTaskFilterPark, setActiveTaskFilterPark] = useState<string>("All");
   const [activeTaskFilterAssignee, setActiveTaskFilterAssignee] = useState<string>("All");
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('board');
 
   const displayActiveTasks = useMemo(() => {
     let result = filteredTasksForUser.filter(t => t.status !== 'Pending Approval');
@@ -1023,6 +1026,25 @@ export default function TasksPage() {
                   {activeAssignees.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                 </SelectContent>
               </Select>
+              
+              <div className="flex bg-muted p-1 rounded-md shrink-0">
+                <Button 
+                  variant={viewMode === 'board' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  className="h-8 px-3"
+                  onClick={() => setViewMode('board')}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" /> Board
+                </Button>
+                <Button 
+                  variant={viewMode === 'list' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  className="h-8 px-3"
+                  onClick={() => setViewMode('list')}
+                >
+                  <ListTodo className="h-4 w-4 mr-2" /> List
+                </Button>
+              </div>
             </div>
             {tasksLoading ? (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
@@ -1042,6 +1064,14 @@ export default function TasksPage() {
               <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed rounded-xl opacity-50">
                  <ListTodo className="h-12 w-12 mb-4" />
                  <p className="font-bold">No active tasks found</p>
+              </div>
+            ) : viewMode === 'board' ? (
+              <div className="h-[calc(100vh-280px)] min-h-[500px] w-full">
+                <KanbanBoard 
+                  tasks={displayActiveTasks} 
+                  onTaskClick={(t) => handleOpenTaskDetails(t.id)} 
+                  orgId={effectiveOrgId || ''} 
+                />
               </div>
             ) : (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
