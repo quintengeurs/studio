@@ -106,6 +106,7 @@ import { useDataContext } from "@/context/DataContext";
 import { getDefaultPermissionsForUser, getDefaultMobilePermissionsForUser, mergePermissions, getEffectivePermissions } from "@/lib/permissions";
 import { migrateToMultiTenancy } from "@/lib/migration";
 import { Organization, FeatureKey } from "@/lib/types";
+import { createUserWithClaims, updateUserClaims } from "@/lib/firebase/users";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -359,8 +360,7 @@ export default function UserManagement() {
     setIsUserSubmitting(true);
   
     try {
-        const adminCreateUser = httpsCallable(functions, 'adminCreateUser');
-        const result = await adminCreateUser({
+        const result = await createUserWithClaims({
           email: newUser.email.trim(),
           password: newUser.password,
           displayName: newUser.name || "Unknown User",
@@ -369,7 +369,7 @@ export default function UserManagement() {
         });
 
         // After creation, we can update the Firestore doc with extra fields (training, etc)
-        const { uid } = result.data as { uid: string };
+        const { uid } = result;
         const trainingString = getFinalTrainingString() || "None";
         
         await updateDoc(doc(db, "users", uid), {
@@ -421,6 +421,13 @@ export default function UserManagement() {
     };
 
     try {
+        // Sync custom claims synchronously via the wrapper
+        await updateUserClaims({
+          uid: selectedUser.id,
+          orgId: updatedData.orgId || effectiveOrgId || 'hackney-council',
+          role: updatedData.roles?.[0] || 'Staff'
+        });
+
         await updateDoc(doc(db, "users", selectedUser.id), updatedData);
         setSelectedUser(updatedData as User);
         setIsEditing(false);
