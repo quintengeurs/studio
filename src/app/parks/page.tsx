@@ -257,7 +257,7 @@ export default function ParksPage() {
   };
 
   const renderUpdates = (type: string, canEditRaw: boolean) => {
-    const canEdit = isMobile ? false : canEditRaw;
+    const canEdit = canEditRaw;
     
     // Merge legacy updates with new activity registry items
     const legacyUpdates = (selectedParkDetail.updates || []).filter(u => u.type === type && !u.isArchived);
@@ -296,7 +296,7 @@ export default function ParksPage() {
                       {(!u.isLegacy && (u as any).status === 'Draft') && <Badge variant="secondary" className="text-[7px] h-3 px-1 uppercase font-bold">Draft</Badge>}
                     </div>
                     {canEdit && (
-                       <div className="flex gap-1 transition-opacity">
+                       <div className="hidden md:flex gap-1 transition-opacity">
                           {u.isLegacy ? (
                             <>
                               <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleOpenUpdateModal(type, u as any)}>
@@ -348,7 +348,7 @@ export default function ParksPage() {
         )}
         
         {canEdit && (
-          <Button variant="outline" size="sm" className="w-full font-bold border-dashed mt-2 border-2 text-primary" onClick={() => handleOpenUpdateModal(type)}>
+          <Button variant="outline" size="sm" className="hidden md:flex w-full font-bold border-dashed mt-2 border-2 text-primary" onClick={() => handleOpenUpdateModal(type)}>
             <Plus className="mr-2 h-4 w-4" /> Add Quick Entry to {type}
           </Button>
         )}
@@ -470,10 +470,10 @@ export default function ParksPage() {
       title="Parks and Green Spaces"
       description="View and manage all parks and green spaces."
       actions={
-        isAdmin && !isMobile && (
+        isAdmin && (
           <Button
             variant="outline"
-            className="font-bold"
+            className="hidden md:flex font-bold"
             onClick={() => setIsConfigDialogOpen(true)}
             disabled={configLoading || isSubmitting}
           >
@@ -636,11 +636,11 @@ export default function ParksPage() {
               </div>
 
               <div className="shrink-0 flex items-center gap-2">
-                {(isAdmin || isManagement || Object.values(sectionPerms).some(p => p.edit)) && !isEditing && !isMobile && (
+                {(isAdmin || isManagement || Object.values(sectionPerms).some(p => p.edit)) && !isEditing && (
                   <Button 
                     variant="secondary" 
                     size="sm" 
-                    className="font-bold gap-2 shadow-sm whitespace-nowrap"
+                    className="hidden md:flex font-bold gap-2 shadow-sm whitespace-nowrap"
                     onClick={() => setIsEditing(true)}
                   >
                     <Edit3 className="h-3.5 w-3.5" /> Edit
