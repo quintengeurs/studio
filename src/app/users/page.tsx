@@ -98,7 +98,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useFirestore, useCollection, useMemoFirebase, useUser, functions } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser, functions, auth } from "@/firebase";
 import { httpsCallable } from "firebase/functions";
 import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, orderBy, limit, getDoc, getDocs, arrayUnion, arrayRemove, setDoc, writeBatch } from "firebase/firestore";
 import { useUserContext } from "@/context/UserContext";
@@ -429,6 +429,13 @@ export default function UserManagement() {
         });
 
         await updateDoc(doc(db, "users", selectedUser.id), updatedData);
+
+        // Note: This only refreshes the current admin's token.
+        // Target user will receive new claims on next login or token refresh.
+        if (auth?.currentUser?.uid === selectedUser.id) {
+          await auth.currentUser.getIdToken(true);
+        }
+
         setSelectedUser(updatedData as User);
         setIsEditing(false);
         toast({ title: "Profile Updated", description: "Changes saved." });
