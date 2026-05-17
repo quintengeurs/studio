@@ -43,7 +43,7 @@ import { collection, doc, setDoc, arrayUnion, arrayRemove, query, where, limit }
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
-import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate, ParkPermissionsConfig, PARK_SECTIONS, ParkSectionKey, ParkActivity } from "@/lib/types";
+import { RegistryConfig, ParkDetail, User, Role, MANAGEMENT_ROLES, ParkUpdate, ParkPermissionsConfig, PARK_SECTIONS, ParkSectionKey, ParkActivity, RoleTemplate } from "@/lib/types";
 import { getDefaultPermissionsForUser, getEffectiveParkPermissions } from "@/lib/permissions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserContext } from "@/context/UserContext";
@@ -324,9 +324,9 @@ export default function ParksPage() {
                   <p className="text-sm text-foreground/80 whitespace-pre-wrap mt-1">{u.description}</p>
                   
                   {/* Activity Timeline Updates */}
-                  {u.updates && u.updates.length > 0 && (
+                  {(u as any).updates && (u as any).updates.length > 0 && (
                     <div className="mt-3 ml-4 pl-4 border-l-2 border-primary/20 space-y-2">
-                      {u.updates.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((upd: any) => (
+                      {(u as any).updates.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((upd: any) => (
                         <div key={upd.id} className="text-xs">
                           <span className="font-bold text-primary">update: </span>
                           <span className="text-foreground/70">{upd.content}</span>
