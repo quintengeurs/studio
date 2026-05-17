@@ -191,37 +191,7 @@ export function AppSidebar() {
             </SidebarGroup>
           )}
 
-          {isMaster && (
-            <SidebarGroup>
-              <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden text-muted-foreground font-bold uppercase tracking-widest text-[10px]">Module Library (Admin)</SidebarGroupLabel>
-              <SidebarMenu>
-                {[
-                  { title: "Events Hub", href: "/events", icon: Calendar },
-                  { title: "Project Board", href: "/projects", icon: Construction },
-                  { title: "Park Development", href: "/development", icon: Compass },
-                  { title: "Operational Logs", href: "/operational", icon: Hammer },
-                  { title: "Sports & Leisure", href: "/sports", icon: Zap }
-                ].map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild
-                      isActive={pathname === item.href}
-                      tooltip={item.title}
-                    >
-                      <Link href={item.href} onClick={() => {
-                        if (isMobile) setOpenMobile(false);
-                        document.body.style.pointerEvents = 'auto';
-                      }}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-              <SidebarSeparator className="mt-4" />
-            </SidebarGroup>
-          )}
+
 
           <SidebarGroup>
             <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">Management</SidebarGroupLabel>
