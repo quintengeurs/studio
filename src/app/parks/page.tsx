@@ -82,7 +82,7 @@ export default function ParksPage() {
       limit(500)
     ) : null, 
   [db, effectiveOrgId]);
-  const { data: allDetails = [] } = useCollection<ParkDetail>(detailsQuery as any);
+  const { data: allDetails = [], loading: detailsLoading } = useCollection<ParkDetail>(detailsQuery as any);
 
   const parkPermsRef = useMemo(() => 
     (db && effectiveOrgId) ? doc(db, "settings", effectiveOrgId, "config", "park_permissions") : null, 
@@ -487,7 +487,7 @@ export default function ParksPage() {
           <CardTitle>Parks and Green Spaces ({filteredParks.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {configLoading ? (
+          {configLoading || detailsLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div key={i} className="flex items-center gap-3 p-4 border-2 rounded-xl bg-muted/20 animate-pulse">
