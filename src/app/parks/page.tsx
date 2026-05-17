@@ -488,7 +488,17 @@ export default function ParksPage() {
         </CardHeader>
         <CardContent>
           {configLoading ? (
-            <div className="text-center py-10 text-muted-foreground">Loading parks...</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-4 border-2 rounded-xl bg-muted/20 animate-pulse">
+                  <div className="h-10 w-10 rounded-full bg-muted shrink-0" />
+                  <div className="flex flex-col gap-2 w-full">
+                    <div className="h-4 w-3/4 bg-muted rounded" />
+                    <div className="h-3 w-1/2 bg-muted rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filteredParks.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredParks.map((park) => {
@@ -982,9 +992,10 @@ export default function ParksPage() {
                 <div className="space-y-8 pb-12">
                   {/* Debug/No Sections Check */}
                   {contextLoading ? (
-                    <div className="py-20 text-center space-y-4">
-                      <Clock className="h-12 w-12 mx-auto text-primary animate-spin" />
-                      <p className="text-sm text-muted-foreground font-bold">Verifying Permissions...</p>
+                    <div className="space-y-6">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-32 bg-muted/20 rounded-2xl border-2 animate-pulse" />
+                      ))}
                     </div>
                   ) : Object.values(sectionPerms).every(p => !p.view) ? (
                     <div className="py-20 text-center border-2 border-dashed rounded-3xl space-y-4">
