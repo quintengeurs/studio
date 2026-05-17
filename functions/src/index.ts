@@ -265,6 +265,13 @@ export const auditRequests_v2 = buildAuditFunction("requests");
 export const auditUsers_v2 = buildAuditFunction("users");
 
 /**
+ * Helper to check if caller is an absolute master
+ */
+function isMaster(token: any): boolean {
+  return !!token.email?.match(/quinten\.geurs@gmail\.com|quinten\.geurs@hackney\.gov\.uk/i);
+}
+
+/**
  * Synchronize Firestore User Profile with Auth Custom Claims (Gen 2)
  */
 export const syncUserClaims_v2 = onDocumentWritten({
@@ -280,7 +287,7 @@ export const syncUserClaims_v2 = onDocumentWritten({
     }
 
     const { orgId, role } = userData;
-    const claims = { orgId: orgId || "hackney-council", role: role || "Staff" };
+    const newClaims = { orgId: orgId || "hackney-council", role: role || "Staff" };
 
     try {
       let targetUid = userId;
@@ -288,8 +295,13 @@ export const syncUserClaims_v2 = onDocumentWritten({
         const userRecord = await admin.auth().getUserByEmail(userId);
         targetUid = userRecord.uid;
       }
-      await admin.auth().setCustomUserClaims(targetUid, claims);
-      console.log(`Set claims for ${targetUid} (${userId}):`, claims);
+      
+      const targetUserRecord = await admin.auth().getUser(targetUid);
+      const currentClaims = targetUserRecord.customClaims || {};
+      
+      const updatedClaims = { ...currentClaims, ...newClaims };
+      await admin.auth().setCustomUserClaims(targetUid, updatedClaims);
+      console.log(`Set claims for ${targetUid} (${userId}):`, updatedClaims);
     } catch (error) {
       console.error(`Error setting claims for ${userId}:`, error);
     }
@@ -300,19 +312,98 @@ export const syncUserClaims_v2 = onDocumentWritten({
  */
 export const adminCreateUser = functions.region("europe-west1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
-  const isAuthorized = context.auth.token.email?.includes('quinten.geurs') || context.auth.token.role === 'Admin';
-  if (!isAuthorized) throw new functions.https.HttpsError("permission-denied", "Only admins can create users.");
+  
+  const callerToken = context.auth.token;
+  const isCallerMaster = isMaster(callerToken);
+  const isCallerAdmin = callerToken.role === 'Admin';
+  
+  const { email, password, displayName, role, orgId, uid } = data;
+  const targetOrgId = orgId || 'hackney-council';
 
-  const { email, password, displayName, role, orgId } = data;
+  // MULTI-TENANCY CHECK
+  if (!isCallerMaster && (!isCallerAdmin || callerToken.orgId !== targetOrgId)) {
+    throw new functions.https.HttpsError("permission-denied", "Admins can only create users within their own organization.");
+  }
+
   try {
-    const userRecord = await admin.auth().createUser({ email, password, displayName });
-    await db.collection("users").doc(userRecord.uid).set({
-      id: userRecord.uid, email: email.toLowerCase(), displayName,
-      role: role || 'Staff', orgId: orgId || 'hackney-council',
+    let userUid = uid;
+    
+    if (!userUid) {
+      const userRecord = await admin.auth().createUser({ email, password, displayName });
+      userUid = userRecord.uid;
+    }
+
+    // Set custom claims securely
+    const newClaims = { orgId: targetOrgId, role: role || 'Staff' };
+    try {
+      const existingUser = await admin.auth().getUser(userUid);
+      const currentClaims = existingUser.customClaims || {};
+      await admin.auth().setCustomUserClaims(userUid, { ...currentClaims, ...newClaims });
+    } catch (e) {
+      await admin.auth().setCustomUserClaims(userUid, newClaims);
+    }
+
+    await db.collection("users").doc(userUid).set({
+      id: userUid, email: email.toLowerCase(), displayName: displayName || email,
+      role: role || 'Staff', orgId: targetOrgId,
       createdAt: new Date().toISOString(), status: 'Active'
-    });
-    return { uid: userRecord.uid };
+    }, { merge: true });
+    
+    return { uid: userUid, success: true };
   } catch (error: any) {
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * Update User Role / Organization (Gen 1)
+ */
+export const updateUserClaims = functions.region("europe-west1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Must be logged in.");
+
+  const { uid, orgId, role } = data;
+  const callerToken = context.auth.token;
+
+  if (!uid) {
+    throw new functions.https.HttpsError("invalid-argument", "uid is required");
+  }
+
+  try {
+    const targetUserRecord = await admin.auth().getUser(uid);
+    const currentClaims = targetUserRecord.customClaims || {};
+    const targetUserOrgId = currentClaims.orgId;
+
+    const isCallerMaster = isMaster(callerToken);
+    const isCallerAdmin = callerToken.role === 'Admin';
+    
+    if (!isCallerMaster) {
+      if (!isCallerAdmin) {
+        throw new functions.https.HttpsError("permission-denied", "Only Admins or Masters can update users.");
+      }
+      if (targetUserOrgId && targetUserOrgId !== callerToken.orgId) {
+        throw new functions.https.HttpsError("permission-denied", "You can only update users within your own organization.");
+      }
+      if (orgId && orgId !== callerToken.orgId) {
+        throw new functions.https.HttpsError("permission-denied", "You cannot move a user to a different organization.");
+      }
+    }
+
+    const updatedClaims = { ...currentClaims };
+    if (orgId !== undefined) updatedClaims.orgId = orgId;
+    if (role !== undefined) updatedClaims.role = role;
+
+    await admin.auth().setCustomUserClaims(uid, updatedClaims);
+
+    await db.collection("users").doc(uid).update({
+      ...(orgId && { orgId }),
+      ...(role && { role }),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: context.auth.uid,
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating claims:", error);
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
