@@ -19,7 +19,7 @@ import { ActivityKanbanStageId, ACTIVITY_KANBAN_STAGES } from '@/types/activity-
 import { ActivityKanbanColumn } from './ActivityKanbanColumn';
 import { ActivityKanbanCard } from './ActivityKanbanCard';
 import { useFirestore } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface ActivityKanbanBoardProps {
@@ -46,6 +46,22 @@ export function ActivityKanbanBoard({ activities: initialActivities, onActivityC
       setActivities(initialActivities);
     }
   }, [initialActivities, activeId]);
+
+  const handleDelete = async (id: string) => {
+    // Optimistically remove from UI
+    setActivities(prev => prev.filter(a => a.id !== id));
+    if (db) {
+      try {
+        await deleteDoc(doc(db, "park_activities", id));
+        toast({ title: "Deleted", description: "Activity removed." });
+      } catch (error) {
+        console.error("Error deleting activity:", error);
+        toast({ title: "Delete Failed", description: "Could not remove activity.", variant: "destructive" });
+        // Revert
+        setActivities(initialActivities);
+      }
+    }
+  };
 
   const columns = useMemo(() => {
     return ACTIVITY_KANBAN_STAGES.map(stage => ({
@@ -167,13 +183,14 @@ export function ActivityKanbanBoard({ activities: initialActivities, onActivityC
             title={col.title}
             activities={col.activities}
             onActivityClick={onActivityClick}
+            onDeleteActivity={handleDelete}
           />
         ))}
         
         <DragOverlay>
           {activeActivity ? (
             <div className="rotate-3 scale-105 opacity-90 shadow-2xl cursor-grabbing">
-              <ActivityKanbanCard activity={activeActivity} onClick={() => {}} />
+              <ActivityKanbanCard activity={activeActivity} onClick={() => {}} onDelete={() => {}} />
             </div>
           ) : null}
         </DragOverlay>

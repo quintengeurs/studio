@@ -15,9 +15,10 @@ interface ActivityKanbanColumnProps {
   title: string;
   activities: ParkActivity[];
   onActivityClick: (activity: ParkActivity) => void;
+  onDeleteActivity: (id: string) => void;
 }
 
-export function ActivityKanbanColumn({ id, title, activities, onActivityClick }: ActivityKanbanColumnProps) {
+export function ActivityKanbanColumn({ id, title, activities, onActivityClick, onDeleteActivity }: ActivityKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: id,
     data: {
@@ -54,7 +55,8 @@ export function ActivityKanbanColumn({ id, title, activities, onActivityClick }:
                 <ActivityKanbanCard 
                   key={activity.id} 
                   activity={activity} 
-                  onClick={onActivityClick} 
+                  onClick={onActivityClick}
+                  onDelete={onDeleteActivity}
                 />
               ))}
             </div>
