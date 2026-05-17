@@ -453,7 +453,7 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
     }
   };
 
-  const currentVolunteerProfile = null; // Profile is now separate in Hub view
+  const currentVolunteerProfile: any = null; // Profile is now separate in Hub view
 
   // Current Public Volunteer Status
   const [publicVolunteerData, setPublicVolunteerData] = useState<any[]>([]);
@@ -1196,8 +1196,8 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                 className="text-white hover:bg-white/20 bg-black/10 backdrop-blur-sm text-[10px] sm:text-xs h-8"
                 onClick={async () => {
                   try {
-                    const { signOut } = await import("@/firebase");
-                    const auth = await import("@/firebase").then(m => m.getAuth());
+                    const { signOut } = await import("firebase/auth");
+                    const auth = await import("@/firebase").then(m => m.auth);
                     // Abort any pending state updates
                     setOrgLoading(true);
                     await signOut(auth);
@@ -1236,8 +1236,8 @@ export default function HubPage({ params }: { params: { orgId: string } }) {
                   localStorage.removeItem("volunteerEmail");
                   setVolunteerEmail(null);
                   if (user && !isManagement) {
-                    const { signOut } = await import("@/firebase");
-                    const auth = await import("@/firebase").then(m => m.getAuth());
+                    const { signOut } = await import("firebase/auth");
+                    const auth = await import("@/firebase").then(m => m.auth);
                     await signOut(auth);
                   }
                 }}

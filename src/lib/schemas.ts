@@ -109,11 +109,14 @@ export const logWorkSchema = LogWorkSchema;
  * Request Schema
  */
 export const RequestSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+  title: z.string().optional(),
   description: z.string().min(1, "Details are required"),
-  type: z.string().min(1, "Type is required"),
-  priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
-  park: z.string().min(1, "Park is required"),
+  type: z.string().optional(),
+  category: z.string().optional(),
+  priority: z.enum(['Low', 'Medium', 'High', 'Urgent']).optional(),
+  park: z.string().optional(),
+  depot: z.string().optional(),
+  imageUrl: z.string().optional(),
   images: z.array(z.string()).optional(),
 });
 
@@ -124,10 +127,15 @@ export const requestSchema = RequestSchema;
  */
 export const VolunteerTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
+  objective: z.string().min(1, "Objective is required"),
   park: z.string().min(1, "Park is required"),
-  date: z.string().min(1, "Date is required"),
-  slots: z.number().min(1),
+  dueDate: z.string().min(1, "Due date is required"),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
+  maxVolunteers: z.coerce.number().min(0).optional(),
+  volunteerPoints: z.coerce.number().min(0).optional(),
+  rewardDescription: z.string().optional(),
+  rewardCode: z.string().optional(),
   imageUrl: z.string().optional(),
 });
 

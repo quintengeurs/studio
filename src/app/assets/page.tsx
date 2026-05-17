@@ -118,7 +118,7 @@ export default function AssetRegister() {
     if (!db || !profile?.orgId) return null;
     return query(
       collection(db, "tasks"), 
-      where("orgId", "==", profile.orgId),
+      where("orgId", "==", profile?.orgId || "hackney-council"),
       limit(500)
     );
   }, [db, profile?.orgId]);
@@ -231,7 +231,7 @@ export default function AssetRegister() {
       lastInspected: 'Never',
       gpsLocation: newAsset.gpsLocation,
       imageUrl: newAsset.imageUrl,
-      orgId: profile.orgId
+      orgId: profile?.orgId || "hackney-council"
     };
 
     try {
@@ -257,7 +257,7 @@ export default function AssetRegister() {
           frequency: newAsset.inspectionFrequency,
           assetNotes: newAsset.inspectionNotes,
           checklist: [...baseChecklist, ...customChecklist],
-          orgId: profile.orgId
+          orgId: profile?.orgId || "hackney-council"
         });
       }
       setIsAddDialogOpen(false);

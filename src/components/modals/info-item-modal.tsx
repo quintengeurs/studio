@@ -113,7 +113,10 @@ export function InfoItemModal({ open, onOpenChange, editItem }: InfoItemModalPro
         title: "",
         content: "",
         url: "",
-        ctaLabel: "I'm interested"
+        ctaLabel: "I'm interested",
+        allowResponse: true,
+        isStaffVisible: true,
+        isVolunteerVisible: false
       });
       onOpenChange(false);
     } catch (error) {

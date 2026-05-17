@@ -1721,7 +1721,7 @@ export default function UserManagement() {
                       </div>
                       <Switch 
                         checked={selectedUser?.isOnRoster || false} 
-                        onCheckedChange={(v) => isEditing && setSelectedUser({...selectedUser, isOnRoster: v})} 
+                        onCheckedChange={(v) => isEditing && selectedUser && setSelectedUser({...selectedUser, isOnRoster: v})} 
                         disabled={!isEditing}
                       />
                     </div>
@@ -1750,7 +1750,7 @@ export default function UserManagement() {
                                 const newIds = isAssigned 
                                   ? currentIds.filter(id => id !== template.id)
                                   : [...currentIds, template.id];
-                                setSelectedUser({...selectedUser, roleIds: newIds});
+                                selectedUser && setSelectedUser({...selectedUser, roleIds: newIds});
                               }}
                             >
                               <div className="flex flex-col min-w-0 pr-2">
@@ -1781,7 +1781,7 @@ export default function UserManagement() {
                               if (!selectedUser) return;
                               const roles = [...(selectedUser.assignedRoles || [{ role: (selectedUser.role || selectedUser.roles?.[0] || 'Gardener') as Role, depotIds: selectedUser.depots || (selectedUser.depot ? [selectedUser.depot] : []) }])];
                               roles[0] = { ...roles[0], role: v as Role };
-                              setSelectedUser({...selectedUser, assignedRoles: roles});
+                              selectedUser && setSelectedUser({...selectedUser, assignedRoles: roles});
                             }}
                           >
                             <SelectTrigger className="h-9">
@@ -1812,7 +1812,7 @@ export default function UserManagement() {
                                     ...roles[0], 
                                     depotIds: checked ? currentIds.filter(id => id !== t) : [...currentIds, t] 
                                   };
-                                  setSelectedUser({...selectedUser, assignedRoles: roles});
+                                  selectedUser && setSelectedUser({...selectedUser, assignedRoles: roles});
                                 }}
                               >
                                 <Checkbox checked={(selectedUser?.assignedRoles?.[0]?.depotIds || []).includes(t)} onCheckedChange={() => {}} />
@@ -1836,7 +1836,7 @@ export default function UserManagement() {
                               if (!selectedUser) return;
                               const roles = [...(selectedUser.assignedRoles || [{ role: selectedUser.role || selectedUser.roles?.[0] || 'Gardener', depotIds: selectedUser.depots || [] }])];
                               roles.push({ role: 'Litter Picker', depotIds: [] });
-                              setSelectedUser({...selectedUser, assignedRoles: roles});
+                              selectedUser && setSelectedUser({...selectedUser, assignedRoles: roles});
                             }}
                           >
                             <Plus className="mr-1 h-3 w-3" /> Add Secondary/Third Role
@@ -1856,7 +1856,7 @@ export default function UserManagement() {
                                 onClick={() => {
                                   if (!selectedUser) return;
                                   const roles = (selectedUser.assignedRoles || []).filter((_, i) => i !== idx + 1);
-                                  setSelectedUser({...selectedUser, assignedRoles: roles});
+                                  selectedUser && setSelectedUser({...selectedUser, assignedRoles: roles});
                                 }}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1871,7 +1871,7 @@ export default function UserManagement() {
                                     if (!selectedUser) return;
                                     const roles = [...(selectedUser.assignedRoles || [])];
                                     roles[idx + 1] = { ...roles[idx + 1], role: v as Role };
-                                    setSelectedUser({...selectedUser, assignedRoles: roles});
+                                    selectedUser && setSelectedUser({...selectedUser, assignedRoles: roles});
                                   }}
                                 >
                                   <SelectTrigger className="h-9">
@@ -1898,7 +1898,7 @@ export default function UserManagement() {
                                           ...roles[idx + 1], 
                                           depotIds: checked ? currentIds.filter(id => id !== t) : [...currentIds, t] 
                                         };
-                                        setSelectedUser({...selectedUser, assignedRoles: roles});
+                                        selectedUser && setSelectedUser({...selectedUser, assignedRoles: roles});
                                       }}
                                     >
                                       <Checkbox checked={(ar.depotIds || []).includes(t)} onCheckedChange={() => {}} />

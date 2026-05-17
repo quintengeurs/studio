@@ -170,6 +170,8 @@ export type Frequency = 'One-off' | 'Daily' | 'Weekly' | 'Monthly' | 'Six Monthl
 export interface Task {
   id: string;
   orgId?: string;
+  createdAt?: string;
+  updatedAt?: string;
   title: string;
   objective: string;
   status: 'Todo' | 'Doing' | 'Pending Approval' | 'Completed';
@@ -199,6 +201,7 @@ export interface Task {
   rewardDescription?: string;
   rewardCode?: string;
   volunteerPoints?: number;
+  rejectionNote?: string;
 }
 
 export interface RecurringSchedule {

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { evaluateAndApplyConditions, simulateConditions } from "@/lib/smart-engine";
-import { DailyCondition, SmartRule, RuleCondition, Operator, Role } from "@/lib/types";
+import { DailyCondition, SmartRule, RuleCondition, Operator, Role, Machinery } from "@/lib/types";
 import { 
   BrainCircuit, 
   Plus, 

@@ -72,7 +72,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, where, limit, setDoc, orderBy } from "firebase/firestore";
-import { Role, Frequency, Task, Asset } from "@/lib/types";
+import { Role, Frequency, Task, Asset, Issue } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
 import Image from "next/image";
@@ -797,7 +797,7 @@ export default function TasksPage() {
                         <SelectTrigger className="h-9"><SelectValue placeholder="Select Location" /></SelectTrigger>
                         <SelectContent>
                           <div className="p-2 text-[10px] font-bold uppercase text-muted-foreground bg-muted/30">Depot Hubs</div>
-                          {(registryConfig?.teams || []).map(t => <SelectItem key={t} value={t}>{t} (Depot)</SelectItem>)}
+                          {(contextRegistry?.teams || []).map(t => <SelectItem key={t} value={t}>{t} (Depot)</SelectItem>)}
                           <div className="p-2 text-[10px] font-bold uppercase text-muted-foreground bg-muted/30 border-t">Individual Parks</div>
                           {parks.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                         </SelectContent>
@@ -1569,7 +1569,7 @@ export default function TasksPage() {
         open={isDetailDialogOpen} 
         onOpenChange={setIsDetailDialogOpen} 
         task={selectedDetailTask || null} 
-        linkedIssue={linkedIssue}
+        linkedIssue={linkedIssue || undefined}
         allUsers={users}
         allParks={allDetails}
       />

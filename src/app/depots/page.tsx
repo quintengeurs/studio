@@ -47,7 +47,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import { collection, doc, setDoc, query, where, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { RegistryConfig, DepotDetail, User, Role, DepotUpdate, ParkDetail } from "@/lib/types";
+import { RegistryConfig, DepotDetail, User, Role, DepotUpdate, ParkDetail, Machinery } from "@/lib/types";
 import { useUserContext } from "@/context/UserContext";
 import { useDataContext } from "@/context/DataContext";
 import { useIsMobile } from "@/hooks/use-mobile";
