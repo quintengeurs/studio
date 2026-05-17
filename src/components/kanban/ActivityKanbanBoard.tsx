@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   DndContext, 
   DragOverlay, 
@@ -34,10 +34,18 @@ export function ActivityKanbanBoard({ activities: initialActivities, onActivityC
   const [activities, setActivities] = useState<ParkActivity[]>(initialActivities);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Sync with external updates
+  // Track the status the card had BEFORE the drag began.
+  // This is the source of truth for detecting a real column change,
+  // since handleDragOver optimistically mutates local state mid-drag.
+  const dragOriginStatus = useRef<ActivityKanbanStageId | null>(null);
+
+  // Sync external Firestore changes into local state, but NEVER during a drag
+  // (that would cause the card to snap back mid-drag).
   useEffect(() => {
-    setActivities(initialActivities);
-  }, [initialActivities]);
+    if (!activeId) {
+      setActivities(initialActivities);
+    }
+  }, [initialActivities, activeId]);
 
   const columns = useMemo(() => {
     return ACTIVITY_KANBAN_STAGES.map(stage => ({
@@ -47,18 +55,16 @@ export function ActivityKanbanBoard({ activities: initialActivities, onActivityC
   }, [activities]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // 5px movement required before dragging starts
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const id = event.active.id as string;
+    setActiveId(id);
+    // Snapshot the card's real Firestore status at drag-start
+    const activity = activities.find(a => a.id === id);
+    dragOriginStatus.current = (activity?.status as ActivityKanbanStageId) ?? null;
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -67,7 +73,6 @@ export function ActivityKanbanBoard({ activities: initialActivities, onActivityC
 
     const activeId = active.id;
     const overId = over.id;
-
     if (activeId === overId) return;
 
     const isActiveActivity = active.data.current?.type === 'Activity';
@@ -76,74 +81,66 @@ export function ActivityKanbanBoard({ activities: initialActivities, onActivityC
 
     if (!isActiveActivity) return;
 
-    // Moving activity over another activity
-    if (isActiveActivity && isOverActivity) {
-      setActivities((activities) => {
-        const activeIndex = activities.findIndex((a) => a.id === activeId);
-        const overIndex = activities.findIndex((a) => a.id === overId);
-        
-        if (activities[activeIndex].status !== activities[overIndex].status) {
-          const newActivities = [...activities];
-          newActivities[activeIndex] = { ...newActivities[activeIndex], status: activities[overIndex].status as ActivityKanbanStageId };
-          return newActivities;
+    // Hovering over a card in a different column
+    if (isOverActivity) {
+      setActivities((prev) => {
+        const activeIndex = prev.findIndex((a) => a.id === activeId);
+        const overIndex = prev.findIndex((a) => a.id === overId);
+        if (prev[activeIndex].status !== prev[overIndex].status) {
+          const next = [...prev];
+          next[activeIndex] = { ...next[activeIndex], status: prev[overIndex].status as ActivityKanbanStageId };
+          return next;
         }
-        return activities;
+        return prev;
       });
     }
 
-    // Moving activity to an empty column
-    if (isActiveActivity && isOverColumn) {
-      setActivities((activities) => {
-        const activeIndex = activities.findIndex((a) => a.id === activeId);
-        const newActivities = [...activities];
-        newActivities[activeIndex] = { ...newActivities[activeIndex], status: overId as ActivityKanbanStageId };
-        return newActivities;
+    // Hovering over an empty column
+    if (isOverColumn) {
+      setActivities((prev) => {
+        const activeIndex = prev.findIndex((a) => a.id === activeId);
+        const next = [...prev];
+        next[activeIndex] = { ...next[activeIndex], status: overId as ActivityKanbanStageId };
+        return next;
       });
     }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    const currentActiveId = activeId;
     setActiveId(null);
-    const { active, over } = event;
-    
-    if (!over) return;
 
-    const activeId = active.id;
-    const overId = over.id;
-
-    const activeActivity = activities.find(a => a.id === activeId);
-    if (!activeActivity) return;
-
-    // Determine target status
-    let targetStatus: ActivityKanbanStageId | null = null;
-    
-    if (over.data.current?.type === 'Column') {
-      targetStatus = overId as ActivityKanbanStageId;
-    } else if (over.data.current?.type === 'Activity') {
-      const overActivity = activities.find(a => a.id === overId);
-      if (overActivity) targetStatus = overActivity.status as ActivityKanbanStageId;
+    const { over } = event;
+    if (!over || !currentActiveId) {
+      // Drop cancelled — revert to original
+      dragOriginStatus.current = null;
+      setActivities(initialActivities);
+      return;
     }
 
-    if (!targetStatus || targetStatus === active.data.current?.activity?.status) {
-      return; // No change in status
+    // What status does the card NOW have after all the optimistic handleDragOver moves?
+    const movedActivity = activities.find(a => a.id === currentActiveId);
+    const finalStatus = movedActivity?.status as ActivityKanbanStageId | undefined;
+    const originalStatus = dragOriginStatus.current;
+    dragOriginStatus.current = null;
+
+    // No real column change — nothing to persist
+    if (!finalStatus || !originalStatus || finalStatus === originalStatus) {
+      return;
     }
 
-    // Optimistically update local state
-    setActivities(currentActivities => 
-      currentActivities.map(a => a.id === activeId ? { ...a, status: targetStatus as ActivityKanbanStageId } : a)
-    );
-
-    // Save to Firestore
+    // Persist to Firestore
     if (db) {
       try {
-        await updateDoc(doc(db, "park_activities", activeId.toString()), {
-          status: targetStatus,
+        await updateDoc(doc(db, "park_activities", currentActiveId), {
+          status: finalStatus,
           updatedAt: new Date().toISOString()
         });
+        toast({ title: "Status updated", description: `Moved to ${finalStatus}.` });
       } catch (error) {
         console.error("Error updating activity status:", error);
-        toast({ title: "Update Failed", description: "Could not save status.", variant: "destructive" });
-        // Revert on failure
+        toast({ title: "Update Failed", description: "Could not save status change.", variant: "destructive" });
+        // Revert the optimistic update
         setActivities(initialActivities);
       }
     }
