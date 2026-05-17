@@ -1,6 +1,7 @@
 
 "use client";
 
+import { ActivityKanbanBoard } from "@/components/kanban/ActivityKanbanBoard";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -30,7 +31,9 @@ import {
   MessageSquare,
   History,
   Archive,
-  Inbox
+  Inbox,
+  LayoutGrid,
+  ListTodo
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -82,6 +85,7 @@ export default function DevelopmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const [editingActivity, setEditingActivity] = useState<ParkActivity | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedActivityForUpdate, setSelectedActivityForUpdate] = useState<ParkActivity | null>(null);
@@ -363,6 +367,25 @@ export default function DevelopmentPage() {
                   <SelectItem value="Draft">Draft</SelectItem>
                 </SelectContent>
               </Select>
+              
+              <div className="flex bg-muted p-1 rounded-md shrink-0">
+                <Button 
+                  variant={viewMode === 'board' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  className="h-8 px-3"
+                  onClick={() => setViewMode('board')}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" /> Board
+                </Button>
+                <Button 
+                  variant={viewMode === 'list' ? 'default' : 'ghost'} 
+                  size="sm" 
+                  className="h-8 px-3"
+                  onClick={() => setViewMode('list')}
+                >
+                  <ListTodo className="h-4 w-4 mr-2" /> List
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -373,6 +396,15 @@ export default function DevelopmentPage() {
                  <p className="font-bold uppercase tracking-widest text-[10px]">Loading Registry...</p>
               </div>
             ) : filteredDev.filter(e => e.status !== 'Archived').length > 0 ? (
+              viewMode === 'board' ? (
+                <div className="h-[calc(100vh-280px)] min-h-[500px] w-full mt-4">
+                  <ActivityKanbanBoard 
+                    activities={filteredDev.filter(e => e.status !== 'Archived')} 
+                    onActivityClick={(activity) => openEdit(activity)} 
+                    orgId={effectiveOrgId || ''} 
+                  />
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredDev.filter(e => e.status !== 'Archived').map(entry => (
                   <Card key={entry.id} className={cn(
@@ -475,6 +507,7 @@ export default function DevelopmentPage() {
                   </Card>
                 ))}
               </div>
+              )
             ) : (
               <div className="flex flex-col items-center justify-center py-32 text-muted-foreground border-2 border-dashed rounded-3xl bg-muted/5">
                  <Compass className="h-16 w-16 mb-6 opacity-10" />
