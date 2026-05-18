@@ -368,14 +368,24 @@ export default function Dashboard() {
                     <Users className="h-6 w-4 text-orange-500" />
                     <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Add Training</span>
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
-                    onClick={() => setAssetModalOpen(true)}
-                  >
-                    <PlusCircle className="h-6 w-6 text-green-600" />
-                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Add Asset</span>
-                  </Button>
+                  {permissions.viewAssets && (
+                    <Button asChild variant="outline" className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm">
+                      <Link href="/assets">
+                        <MapPin className="h-6 w-6 text-blue-600" />
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Asset Register</span>
+                      </Link>
+                    </Button>
+                  )}
+                  {permissions.manageAssets && (
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2 justify-center border-primary/20 hover:border-primary/50 hover:bg-primary/5 shadow-sm"
+                      onClick={() => setAssetModalOpen(true)}
+                    >
+                      <PlusCircle className="h-6 w-6 text-green-600" />
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center w-full px-1 leading-tight whitespace-normal">Add Asset</span>
+                    </Button>
+                  )}
                  </div>
               </div>
             )}
@@ -575,19 +585,20 @@ export default function Dashboard() {
               </Link>
             )}
             {permissions.viewAssets && (
-              <Button 
-                variant="outline" 
-                className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
-                onClick={() => setAssetModalOpen(true)}
-              >
-                <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <MapPin className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="text-left">
-                  <div className="text-sm font-bold">Asset Register</div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
-                </div>
-              </Button>
+              <Link href="/assets" className="block">
+                <Button
+                  variant="outline"
+                  className="w-full h-16 justify-start gap-4 px-6 border-primary/10 hover:border-primary/30 hover:bg-primary/5 shadow-sm"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">Asset Register</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-bold">Infrastructure Inventory</div>
+                  </div>
+                </Button>
+              </Link>
             )}
             {permissions.viewIssues && (
               <Link href="/issues?tab=unassigned" className="block" data-tour="btn-unassigned-issues">
