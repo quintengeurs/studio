@@ -96,7 +96,6 @@ export default function AssetRegister() {
     return query(
       collection(db, "assets"), 
       where("orgId", "==", effectiveOrgId),
-      where("isArchived", "==", false), 
       limit(assetLimit)
     );
   }, [db, assetLimit, effectiveOrgId]);
@@ -156,6 +155,7 @@ export default function AssetRegister() {
   const [newCustomCheck, setNewCustomCheck] = useState("");
 
   const filteredAssets = useMemo(() => assets.filter(a => {
+    if (a.isArchived === true) return false;
     const s = search.toLowerCase();
     return (
       (a.name?.toLowerCase() || "").includes(s) || 
