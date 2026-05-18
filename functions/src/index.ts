@@ -438,3 +438,4 @@ export const updateUserClaims = functions.region("europe-west1").https.onCall(as
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
+
