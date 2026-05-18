@@ -407,48 +407,76 @@ export default function UserManagement() {
 
     setIsUserSubmitting(true);
     const trainingString = getFinalTrainingString() || "None";
-    
-    const updatedData: Partial<User> = {
-      ...selectedUser,
-      training: trainingString,
-      roles: selectedUser.assignedRoles?.map(ar => ar.role) || selectedUser.roles || [],
-      depots: Array.from(new Set(selectedUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
-      depot: selectedUser.assignedRoles?.[0]?.depotIds?.[0] || "",
-      orgId: selectedUser.orgId || effectiveOrgId || undefined,
-      permissions: editDesktopPerms || undefined,
-      mobilePermissions: editMobilePerms || undefined,
-      allowDesktopView: editDesktopPerms ? Object.values(editDesktopPerms).some(v => v === true) : true,
+
+    // Safely derive depots — filter out any undefined values that arise when
+    // an assignedRole entry has no depotIds yet (Firestore rejects undefined in arrays).
+    const derivedDepots = Array.from(
+      new Set(
+        (selectedUser.assignedRoles ?? [])
+          .flatMap(ar => ar.depotIds ?? [])
+          .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      )
+    );
+
+    // Build an explicit, serialisable payload — never spread the full React state
+    // object into Firestore as it may contain non-plain values (class instances, etc.).
+    const updatedData: Record<string, any> = {
+      name:               selectedUser.name ?? "",
+      email:              selectedUser.email ?? "",
+      role:               selectedUser.assignedRoles?.[0]?.role ?? selectedUser.role ?? "Staff",
+      roles:              (selectedUser.assignedRoles ?? []).map(ar => ar.role).filter(Boolean),
+      assignedRoles:      selectedUser.assignedRoles ?? [],
+      depot:              selectedUser.assignedRoles?.[0]?.depotIds?.[0] ?? "",
+      depots:             derivedDepots,
+      orgId:              selectedUser.orgId ?? effectiveOrgId ?? "hackney-council",
+      training:           trainingString,
+      status:             selectedUser.status ?? "Active",
+      phone:              selectedUser.phone ?? "",
+      radioCallSign:      selectedUser.radioCallSign ?? "",
+      permissions:        editDesktopPerms ?? selectedUser.permissions ?? {},
+      mobilePermissions:  editMobilePerms ?? selectedUser.mobilePermissions ?? {},
+      allowDesktopView:   editDesktopPerms
+                            ? Object.values(editDesktopPerms).some(v => v === true)
+                            : (selectedUser.allowDesktopView ?? true),
+      updatedAt:          new Date().toISOString(),
     };
 
+    // Remove any keys whose value is undefined (Firestore rejects them)
+    Object.keys(updatedData).forEach(k => {
+      if (updatedData[k] === undefined) delete updatedData[k];
+    });
+
     try {
-        // Sync custom claims synchronously via the wrapper
-        await updateUserClaims({
-          uid: selectedUser.id,
-          orgId: updatedData.orgId || effectiveOrgId || 'hackney-council',
-          role: updatedData.roles?.[0] || 'Staff'
-        });
+      // Sync custom claims via Cloud Function
+      await updateUserClaims({
+        uid:   selectedUser.id,
+        orgId: updatedData.orgId,
+        role:  updatedData.role,
+      });
 
-        await updateDoc(doc(db, "users", selectedUser.id), updatedData);
+      await updateDoc(doc(db, "users", selectedUser.id), updatedData);
 
-        // Note: This only refreshes the current admin's token.
-        // Target user will receive new claims on next login or token refresh.
-        if (auth?.currentUser?.uid === selectedUser.id) {
-          await auth.currentUser.getIdToken(true);
-        }
+      // Refresh token only if the admin just updated their own profile
+      if (auth?.currentUser?.uid === selectedUser.id) {
+        await auth.currentUser.getIdToken(true);
+      }
 
-        setSelectedUser(updatedData as User);
-        setIsEditing(false);
-        toast({ title: "Profile Updated", description: "Changes saved." });
+      setSelectedUser({ ...selectedUser, ...updatedData } as User);
+      setIsEditing(false);
+      toast({ title: "Profile Updated", description: "Changes saved successfully." });
     } catch (e: any) {
-        toast({ title: "Error", description: "Could not update profile.", variant: "destructive" });
+      console.error("handleUpdateUser error:", e);
+      toast({
+        title: "Error saving profile",
+        description: e?.message || "Could not update profile. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-        setIsUserSubmitting(false);
-        // Force cleanup of pointer events just in case
-        setTimeout(() => {
-          document.body.style.pointerEvents = 'auto';
-        }, 300);
+      setIsUserSubmitting(false);
+      setTimeout(() => { document.body.style.pointerEvents = 'auto'; }, 300);
     }
   };
+
 
   const handleBulkArchive = async () => {
     if (!db || selectedUserIds.length === 0 || isUserSubmitting) return;
