@@ -88,6 +88,13 @@ async function processAllRules() {
 
           for (const rule of rules) {
             stats.rulesProcessed++;
+
+            // If the rule has a park scope, skip parks not in the list
+            if (rule.targetParkIds && rule.targetParkIds.length > 0) {
+              const parkName = parkData.name || parkId;
+              if (!rule.targetParkIds.includes(parkName)) continue;
+            }
+
             const evaluations = (rule.conditions || []).map((c: any) => {
               const actualValue = currentContext[c.field];
               if (actualValue === undefined) return false;

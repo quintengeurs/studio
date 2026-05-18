@@ -208,8 +208,44 @@ export default function SmartTaskingPage() {
     isActive: true,
     conditionLogic: 'AND',
     conditions: [],
-    tasksToGenerate: []
+    tasksToGenerate: [],
+    targetDepots: [],
+    targetParkIds: []
   });
+
+  // Toggle a depot in the rule — also clear any parks from depots no longer selected
+  const toggleRuleDepot = (depot: string) => {
+    setNewRule(prev => {
+      const isSelected = (prev.targetDepots || []).includes(depot);
+      const nextDepots = isSelected
+        ? (prev.targetDepots || []).filter(d => d !== depot)
+        : [...(prev.targetDepots || []), depot];
+      // Remove parks belonging to deselected depot
+      const nextParks = (prev.targetParkIds || []).filter(parkName => {
+        const park = allParks.find(p => p.name === parkName);
+        return park ? nextDepots.includes(park.depot || '') : true;
+      });
+      return { ...prev, targetDepots: nextDepots, targetParkIds: nextParks };
+    });
+  };
+
+  const toggleRulePark = (parkName: string) => {
+    setNewRule(prev => {
+      const current = prev.targetParkIds || [];
+      return {
+        ...prev,
+        targetParkIds: current.includes(parkName)
+          ? current.filter(p => p !== parkName)
+          : [...current, parkName]
+      };
+    });
+  };
+
+  // Parks available for the depots currently selected in the rule builder
+  const ruleDepotParks = useMemo(() => {
+    if (!newRule.targetDepots || newRule.targetDepots.length === 0) return [];
+    return allParks.filter(p => newRule.targetDepots!.includes(p.depot || ''));
+  }, [allParks, newRule.targetDepots]);
 
   // Proposed Tasks State
   const [proposedTasks, setProposedTasks] = useState<any[]>([]);
@@ -313,7 +349,9 @@ export default function SmartTaskingPage() {
       isActive: true,
       conditionLogic: 'AND',
       conditions: [],
-      tasksToGenerate: []
+      tasksToGenerate: [],
+      targetDepots: [],
+      targetParkIds: []
     });
   };
 
@@ -344,7 +382,11 @@ export default function SmartTaskingPage() {
   };
 
   const startEditingRule = (rule: SmartRule) => {
-    setNewRule({ ...rule });
+    setNewRule({ 
+      ...rule,
+      targetDepots: rule.targetDepots || [],
+      targetParkIds: rule.targetParkIds || []
+    });
     setEditingRuleId(rule.id || null);
     setIsBuildingRule(true);
   };
@@ -772,6 +814,25 @@ export default function SmartTaskingPage() {
                               )}
                               <CardTitle className="text-lg">{rule.name}</CardTitle>
                             </div>
+                            {/* Scope summary */}
+                            {rule.targetParkIds && rule.targetParkIds.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                <Badge variant="outline" className="text-[9px] font-bold text-teal-600 border-teal-200 bg-teal-50 px-1.5">
+                                  <MapPin className="h-2.5 w-2.5 mr-1" />
+                                  {rule.targetParkIds.length} park{rule.targetParkIds.length > 1 ? 's' : ''} scoped
+                                </Badge>
+                              </div>
+                            ) : rule.targetDepots && rule.targetDepots.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {rule.targetDepots.map(d => (
+                                  <Badge key={d} variant="outline" className="text-[9px] font-bold text-blue-600 border-blue-200 bg-blue-50 px-1.5">
+                                    <Building2 className="h-2.5 w-2.5 mr-1" />{d}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground italic">All parks</span>
+                            )}
                           </div>
                             <div className="flex items-center gap-2">
                               <Tooltip>
@@ -869,6 +930,95 @@ export default function SmartTaskingPage() {
                         </Button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* ─── Site Scope ────────────────────────────────────────── */}
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <Label className="text-lg font-headline">Site Scope</Label>
+                      <span className="text-xs text-muted-foreground ml-1">(leave blank to run across all parks)</span>
+                    </div>
+
+                    {/* Depot pills */}
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Depots</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {depots.length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic">No depots configured.</p>
+                        ) : depots.map(depot => {
+                          const isSelected = (newRule.targetDepots || []).includes(depot);
+                          return (
+                            <button
+                              key={depot}
+                              type="button"
+                              onClick={() => toggleRuleDepot(depot)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all flex items-center gap-1.5",
+                                isSelected
+                                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                                  : "bg-background text-muted-foreground border-muted hover:border-primary/40 hover:text-foreground"
+                              )}
+                            >
+                              <Building2 className="h-3 w-3" />
+                              {depot}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Park toggles — only shown when depots are selected */}
+                    {(newRule.targetDepots || []).length > 0 && (
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                            Parks ({(newRule.targetParkIds || []).length === 0 ? 'all' : `${(newRule.targetParkIds || []).length} selected`})
+                          </Label>
+                          <button
+                            type="button"
+                            className="text-[10px] font-bold text-primary hover:underline"
+                            onClick={() => setNewRule(prev => ({
+                              ...prev,
+                              targetParkIds: (prev.targetParkIds || []).length === ruleDepotParks.length
+                                ? []
+                                : ruleDepotParks.map(p => p.name)
+                            }))}
+                          >
+                            {(newRule.targetParkIds || []).length === ruleDepotParks.length ? 'Clear all' : 'Select all'}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {ruleDepotParks.map(park => {
+                            const isSelected = (newRule.targetParkIds || []).includes(park.name);
+                            return (
+                              <button
+                                key={park.id}
+                                type="button"
+                                onClick={() => toggleRulePark(park.name)}
+                                className={cn(
+                                  "px-2.5 py-2 rounded-xl border-2 text-left transition-all flex items-center gap-2 group",
+                                  isSelected
+                                    ? "border-primary bg-primary/5 text-foreground"
+                                    : "border-muted bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                                )}
+                              >
+                                <div className={cn(
+                                  "h-4 w-4 rounded flex items-center justify-center shrink-0 transition-colors",
+                                  isSelected ? "bg-primary" : "bg-muted group-hover:bg-muted-foreground/20"
+                                )}>
+                                  {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+                                </div>
+                                <span className="text-[11px] font-semibold leading-tight truncate">{park.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {ruleDepotParks.length === 0 && (
+                          <p className="text-xs text-muted-foreground italic">No parks found for the selected depot(s).</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4 border-t pt-4">

@@ -435,6 +435,10 @@ export interface SmartRule {
     displayTime?: string;
     isVolunteerEligible?: boolean;
   }[];
+  /** Depot names this rule targets. Empty = all depots. */
+  targetDepots?: string[];
+  /** Park names this rule targets. Empty = all parks in the targeted depots. */
+  targetParkIds?: string[];
   createdAt?: string;
 }
 
