@@ -28,19 +28,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const canAccessRestricted = !!(user && (profile || isAdmin));
   const orgId = effectiveOrgId;
 
-  // Staff only — exclude volunteer-flagged accounts which are managed via /volunteering
+  // Staff only - exclude volunteer-flagged accounts which are managed via /volunteering
+  // Note: we don't use where("isVolunteer", "!=", true) because Firestore excludes documents missing the field entirely.
   const usersQuery = useMemoFirebase(() => 
     (db && canAccessRestricted && orgId) ? query(
       collection(db, "users"), 
       where("orgId", "==", orgId),
-      where("isVolunteer", "!=", true),
-      orderBy("isVolunteer", "asc"),
       orderBy("name", "asc")
     ) : null, 
   [db, canAccessRestricted, orgId]);
   const { data: allUsersRaw = [], loading: loadingUsers } = useCollection<User>(usersQuery as any);
 
-  // Double-guard: filter in memory as well in case any legacy records slipped through
+  // In-memory filter safely catches users where isVolunteer is true, without dropping undefined fields
   const allUsers = useMemo(
     () => allUsersRaw.filter(u => !u.isVolunteer),
     [allUsersRaw]
