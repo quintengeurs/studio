@@ -742,6 +742,26 @@ export default function UserManagement() {
     }
   };
 
+  const handleDeleteRole = async (role: RoleTemplate) => {
+    if (!db || !effectiveOrgId) return;
+    if (role.isSystemRole) {
+      toast({ title: "Cannot Delete", description: "System roles cannot be deleted.", variant: "destructive" });
+      return;
+    }
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete the "${role.name}" role template?\n\nThis cannot be undone. Users already assigned this template will not be affected, but the template will no longer appear in the list.`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, "organizations", effectiveOrgId, "role_templates", role.id));
+      toast({ title: "Template Deleted", description: `"${role.name}" has been removed.` });
+      if (isRoleEditorOpen && selectedRole?.id === role.id) setIsRoleEditorOpen(false);
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to delete role template.", variant: "destructive" });
+    }
+  };
+
+
   const handleUpdateRolePermission = (key: keyof AccessPermissions, value: boolean, platform: 'desktop' | 'mobile') => {
     if (!selectedRole) return;
     const target = platform === 'desktop' ? 'permissions' : 'mobilePermissions';
@@ -1143,7 +1163,7 @@ export default function UserManagement() {
         <TabsContent value="roles" className="mt-0 pt-2">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 px-1">
                 <div>
-                  <h3 className="text-lg font-headline font-bold">Organization Role Templates</h3>
+                  <h3 className="text-lg font-headline font-bold">Organisation Role Templates</h3>
                   <p className="text-xs text-muted-foreground font-medium">Define base permissions that automatically apply to staff types</p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -1181,12 +1201,24 @@ export default function UserManagement() {
                         </div>
                         <p className="text-[10px] text-muted-foreground font-medium line-clamp-2 mt-1">{role.description || "No description provided."}</p>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
-                        setSelectedRole(role);
-                        setIsRoleEditorOpen(true);
-                      }}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!role.isSystemRole && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => handleDeleteRole(role)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                          setSelectedRole(role);
+                          setIsRoleEditorOpen(true);
+                        }}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-auto">
                       {Object.entries(role.permissions)
@@ -2271,7 +2303,19 @@ export default function UserManagement() {
             )}
           </ScrollArea>
 
-          <DialogFooter className="p-6 bg-muted/30 border-t shrink-0">
+          <DialogFooter className="p-6 bg-muted/30 border-t shrink-0 flex-row">
+            <div className="flex-1">
+              {selectedRole && !selectedRole.isSystemRole && (
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive font-bold"
+                  onClick={() => handleDeleteRole(selectedRole)}
+                  disabled={isConfigSubmitting}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Template
+                </Button>
+              )}
+            </div>
             <Button variant="ghost" onClick={() => setIsRoleEditorOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveRole} disabled={isConfigSubmitting}>
               {isConfigSubmitting && <Clock className="mr-2 h-4 w-4 animate-spin" />}
