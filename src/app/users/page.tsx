@@ -1201,7 +1201,7 @@ export default function UserManagement() {
                         </div>
                         <p className="text-[10px] text-muted-foreground font-medium line-clamp-2 mt-1">{role.description || "No description provided."}</p>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1">
                         {!role.isSystemRole && (
                           <Button
                             variant="ghost"
