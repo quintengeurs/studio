@@ -379,9 +379,28 @@ export const updateUserClaims = functions.region("europe-west1").https.onCall(as
   }
 
   try {
-    const targetUserRecord = await admin.auth().getUser(uid);
-    const currentClaims = targetUserRecord.customClaims || {};
-    const targetUserOrgId = currentClaims.orgId;
+    let targetUserOrgId: string | undefined;
+    let currentClaims: any = {};
+    let isUserInAuth = true;
+
+    try {
+      const targetUserRecord = await admin.auth().getUser(uid);
+      currentClaims = targetUserRecord.customClaims || {};
+      targetUserOrgId = currentClaims.orgId;
+    } catch (e: any) {
+      if (e.code === 'auth/user-not-found') {
+        isUserInAuth = false;
+        // User not in auth, check Firestore to enforce cross-org rules
+        const userDoc = await db.collection("users").doc(uid).get();
+        if (userDoc.exists) {
+          targetUserOrgId = userDoc.data()?.orgId;
+        } else {
+          throw new functions.https.HttpsError("not-found", "User not found in Auth or Database.");
+        }
+      } else {
+        throw e;
+      }
+    }
 
     const isCallerMaster = isMaster(callerToken);
     const isCallerAdmin = callerToken.role === 'Admin';
@@ -398,11 +417,13 @@ export const updateUserClaims = functions.region("europe-west1").https.onCall(as
       }
     }
 
-    const updatedClaims = { ...currentClaims };
-    if (orgId !== undefined) updatedClaims.orgId = orgId;
-    if (role !== undefined) updatedClaims.role = role;
+    if (isUserInAuth) {
+      const updatedClaims = { ...currentClaims };
+      if (orgId !== undefined) updatedClaims.orgId = orgId;
+      if (role !== undefined) updatedClaims.role = role;
 
-    await admin.auth().setCustomUserClaims(uid, updatedClaims);
+      await admin.auth().setCustomUserClaims(uid, updatedClaims);
+    }
 
     await db.collection("users").doc(uid).update({
       ...(orgId && { orgId }),
