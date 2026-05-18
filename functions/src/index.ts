@@ -2,16 +2,19 @@ import * as functions from "firebase-functions/v1";
 import { onDocumentWritten, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { setGlobalOptions } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import axios from "axios";
 import { format } from "date-fns";
 
 admin.initializeApp();
-const db = admin.firestore();
 
 // Set global options for v2 functions
 setGlobalOptions({ region: 'europe-west1' });
 
 const NAMED_DB_ID = "ai-studio-046cc7f7-4cac-49bd-9295-55f90b8445f0";
+
+// All Firestore operations (v1 and v2) target the same named database.
+const db = getFirestore(NAMED_DB_ID);
 
 /**
  * Scheduled Smart Evaluator (Gen 1)
