@@ -252,7 +252,9 @@ export default function UserManagement() {
   });
 
   const filteredUsers: User[] = useMemo(() => {
-    let result = users;
+    // Safety: volunteers are managed via /volunteering — never show them here
+    let result = users.filter(u => !u.isVolunteer);
+
     
     // 1. Role Filter (operative/management/archived)
     if (roleFilter === 'archived') {

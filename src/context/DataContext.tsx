@@ -28,10 +28,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const canAccessRestricted = !!(user && (profile || isAdmin));
   const orgId = effectiveOrgId;
 
+  // Staff only — exclude volunteer-flagged accounts which are managed via /volunteering
   const usersQuery = useMemoFirebase(() => 
-    (db && canAccessRestricted && orgId) ? query(collection(db, "users"), where("orgId", "==", orgId), orderBy("name", "asc")) : null, 
+    (db && canAccessRestricted && orgId) ? query(
+      collection(db, "users"), 
+      where("orgId", "==", orgId),
+      where("isVolunteer", "!=", true),
+      orderBy("isVolunteer", "asc"),
+      orderBy("name", "asc")
+    ) : null, 
   [db, canAccessRestricted, orgId]);
-  const { data: allUsers = [], loading: loadingUsers } = useCollection<User>(usersQuery as any);
+  const { data: allUsersRaw = [], loading: loadingUsers } = useCollection<User>(usersQuery as any);
+
+  // Double-guard: filter in memory as well in case any legacy records slipped through
+  const allUsers = useMemo(
+    () => allUsersRaw.filter(u => !u.isVolunteer),
+    [allUsersRaw]
+  );
 
   const parksQuery = useMemoFirebase(() => 
     (db && canAccessRestricted && orgId) ? query(collection(db, "parks_details"), where("orgId", "==", orgId), orderBy("name", "asc")) : null, 
