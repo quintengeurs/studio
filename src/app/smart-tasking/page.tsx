@@ -35,7 +35,10 @@ import {
   Clock
 } from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { functions } from "@/firebase";
+import { httpsCallable } from "firebase/functions";
+import { collection, query, where, addDoc, deleteDoc, doc, updateDoc, orderBy, limit } from "firebase/firestore";
+import { format } from "date-fns";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -145,6 +148,41 @@ export default function SmartTaskingPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [isRunningEngine, setIsRunningEngine] = useState(false);
+  const [runEngineMsg, setRunEngineMsg] = useState("");
+
+  // Live automation log — shows the last time the engine ran
+  const lastRunQuery = useMemoFirebase(() =>
+    db ? query(
+      collection(db, "automation_logs"),
+      where("type", "==", "daily_evaluation"),
+      orderBy("timestamp", "desc"),
+      limit(1)
+    ) : null,
+  [db]);
+  const { data: lastRunLogs = [] } = useCollection<any>(lastRunQuery as any);
+  const lastRun = lastRunLogs[0] || null;
+
+  const handleRunNow = async () => {
+    if (!functions || isRunningEngine) return;
+    setIsRunningEngine(true);
+    setRunEngineMsg("");
+    try {
+      const fn = httpsCallable(functions, "manualProcessRules");
+      const result: any = await fn({});
+      const { stats } = result.data;
+      setRunEngineMsg(
+        stats.tasksProposed > 0
+          ? `✅ Engine ran successfully — ${stats.tasksProposed} suggestion(s) sent to Automation Hub.`
+          : `✅ Engine ran — no rules triggered today (${stats.rulesProcessed} rules checked, ${stats.parksChecked} parks).`
+      );
+    } catch (e: any) {
+      console.error("manualProcessRules error:", e);
+      setRunEngineMsg(`❌ Error: ${e?.message || "Engine run failed."}`);
+    } finally {
+      setIsRunningEngine(false);
+    }
+  };
 
   // Sensor Form State (Redesigned)
   const [selectedDepots, setSelectedDepots] = useState<string[]>([]);
@@ -454,17 +492,41 @@ export default function SmartTaskingPage() {
             <div className="space-y-1 flex-1">
               <h2 className="text-xl font-bold tracking-tight text-primary">Autonomous Evaluation Engine Active</h2>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">
-                The Smart Engine now runs automatically every morning at 06:00 AM. It fetches live weather data for every park using its saved geolocation. 
+                The Smart Engine runs automatically every morning at <strong>06:00 AM London time</strong>. It fetches live weather data for every park with saved coordinates.
                 Matches are sent to the <span className="font-bold text-orange-600 px-1.5 py-0.5 bg-orange-50 rounded border border-orange-100 italic">Automation Hub</span> in the Task Dashboard for manager approval.
               </p>
+              {lastRun && (
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                  Last run: {format(new Date(lastRun.timestamp), "MMM d, yyyy 'at' h:mm a")} — {lastRun.stats?.tasksProposed ?? 0} suggestion(s) · {lastRun.stats?.rulesProcessed ?? 0} rules · {lastRun.stats?.parksChecked ?? 0} parks
+                </p>
+              )}
+              {runEngineMsg && (
+                <p className={`text-sm font-semibold mt-2 ${runEngineMsg.startsWith('✅') ? 'text-green-700' : 'text-destructive'}`}>
+                  {runEngineMsg}
+                </p>
+              )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="bg-white border-primary/20 text-primary font-bold px-3 py-1">
-                <Cloud className="h-3 w-3 mr-1.5" /> Live Weather
-              </Badge>
-              <Badge variant="outline" className="bg-white border-primary/20 text-primary font-bold px-3 py-1">
-                <Clock className="h-3 w-3 mr-1.5" /> Daily 06:00
-              </Badge>
+            <div className="flex flex-col gap-2 shrink-0">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="bg-white border-primary/20 text-primary font-bold px-3 py-1">
+                  <Cloud className="h-3 w-3 mr-1.5" /> Live Weather
+                </Badge>
+                <Badge variant="outline" className="bg-white border-primary/20 text-primary font-bold px-3 py-1">
+                  <Clock className="h-3 w-3 mr-1.5" /> Daily 06:00
+                </Badge>
+              </div>
+              <Button
+                onClick={handleRunNow}
+                disabled={isRunningEngine}
+                size="sm"
+                className="font-bold gap-2 bg-primary/90 hover:bg-primary shadow-md"
+              >
+                {isRunningEngine ? (
+                  <><Sparkles className="h-4 w-4 animate-pulse" /> Running...</>
+                ) : (
+                  <><Zap className="h-4 w-4" /> Run Engine Now</>
+                )}
+              </Button>
             </div>
           </div>
         </div>

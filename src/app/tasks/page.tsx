@@ -142,9 +142,16 @@ export default function TasksPage() {
     const list = [...(registry?.parks || []), ...allDetails.map(p => p.name)];
     return Array.from(new Set(list)).sort();
   }, [allDetails, registry]);
-  const { data: proposedTasks = [] } = useCollection<any>(
-    db ? query(collection(db, "proposed_tasks"), where("status", "==", "pending")) : null
-  );
+
+  const proposedTasksQuery = useMemoFirebase(() =>
+    (db && effectiveOrgId) ? query(
+      collection(db, "proposed_tasks"),
+      where("orgId", "==", effectiveOrgId),
+      where("status", "==", "pending"),
+      orderBy("createdAt", "desc")
+    ) : null,
+  [db, effectiveOrgId]);
+  const { data: proposedTasks = [] } = useCollection<any>(proposedTasksQuery as any);
 
   const automationLogQuery = useMemoFirebase(() => 
     db ? query(
