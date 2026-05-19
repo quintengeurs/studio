@@ -132,64 +132,115 @@ async function processAllRules() {
 
           console.log(`Weather fetch successful for ${parkData.name || parkId}. Context:`, JSON.stringify(currentContext));
 
-          for (const rule of rules) {
-            stats.rulesProcessed++;
+            const parkProposals: any[] = [];
 
-            // If the rule has a park scope, skip parks not in the list
-            if (rule.targetParkIds && rule.targetParkIds.length > 0) {
-              const parkName = parkData.name || parkId;
-              if (!rule.targetParkIds.includes(parkName)) continue;
+            for (const rule of rules) {
+              stats.rulesProcessed++;
+
+              // If the rule has a park scope, skip parks not in the list
+              if (rule.targetParkIds && rule.targetParkIds.length > 0) {
+                const parkName = parkData.name || parkId;
+                if (!rule.targetParkIds.includes(parkName)) continue;
+              }
+
+              const evaluations = (rule.conditions || []).map((c: any) => {
+                const actualValue = currentContext[c.field];
+                if (actualValue === undefined) return false;
+                if (c.operator === 'contains') return Array.isArray(actualValue) ? actualValue.includes(c.value) : false;
+                const numVal = Number(actualValue);
+                const targetVal = Number(c.value);
+                if (c.operator === ">") return numVal > targetVal;
+                if (c.operator === "<") return numVal < targetVal;
+                if (c.operator === "==") return numVal === targetVal;
+                if (c.operator === ">=") return numVal >= targetVal;
+                if (c.operator === "<=") return numVal <= targetVal;
+                return false;
+              });
+
+              let isMatch = rule.conditionLogic === 'AND' 
+                ? evaluations.length > 0 && evaluations.every((v: boolean) => v === true)
+                : evaluations.some((v: boolean) => v === true);
+
+              if (isMatch) {
+                stats.matchesFound++;
+                const todayStr = format(new Date(), "yyyy-MM-dd");
+
+                // 1. Suppression Check (3 Days)
+                const threeDaysAgo = new Date();
+                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+                const threeDaysAgoStr = threeDaysAgo.toISOString();
+
+                const recentProposals = await db.collection("proposed_tasks")
+                  .where("ruleId", "==", rule.id)
+                  .where("park", "==", parkData.name || parkId)
+                  .where("createdAt", ">=", threeDaysAgoStr)
+                  .get();
+
+                const recentTasks = await db.collection("tasks")
+                  .where("ruleId", "==", rule.id)
+                  .where("park", "==", parkData.name || parkId)
+                  .where("createdAt", ">=", threeDaysAgoStr)
+                  .get();
+
+                if (!recentProposals.empty || !recentTasks.empty) {
+                  console.log(`Suppressed suggestion for rule "${rule.name}" at park "${parkData.name || parkId}" due to active 3-day suppression window.`);
+                  continue;
+                }
+
+                // 2. Score Calculation
+                const { score, reasons } = calculateSmartScore(currentContext, rule, parkData);
+
+                for (const taskTemplate of (rule.tasksToGenerate || [])) {
+                  // 3. Interpolation
+                  const interpolatedTitle = interpolateTemplate(taskTemplate.title, currentContext, parkData.name || parkId);
+                  const interpolatedObjective = interpolateTemplate(taskTemplate.objective, currentContext, parkData.name || parkId);
+
+                  // 4. Consolidation (check if duplicate already generated for this park during this loop)
+                  const existingIdx = parkProposals.findIndex(p => p.title.toLowerCase() === interpolatedTitle.toLowerCase());
+                  if (existingIdx !== -1) {
+                    const existing = parkProposals[existingIdx];
+                    existing.smartScore = Math.max(existing.smartScore, score);
+                    existing.reasons = Array.from(new Set([...existing.reasons, ...reasons]));
+                    existing.ruleName = `${existing.ruleName} + ${rule.name}`;
+                    console.log(`Consolidated suggestions for "${interpolatedTitle}" at park "${parkData.name || parkId}". New score: ${existing.smartScore}`);
+                  } else {
+                    parkProposals.push({
+                      ruleId: rule.id,
+                      orgId: orgId,
+                      ruleName: rule.name,
+                      title: interpolatedTitle,
+                      objective: interpolatedObjective,
+                      park: parkData.name || parkId,
+                      assignedTo: taskTemplate.assignedTo,
+                      suggestedDate: todayStr,
+                      createdAt: new Date().toISOString(),
+                      status: "pending",
+                      triggerData: { temp: currentContext.temperature, rain: currentContext.rain, wind: currentContext.windSpeed },
+                      smartScore: score,
+                      reasons: reasons
+                    });
+                  }
+                }
+              }
             }
 
-            const evaluations = (rule.conditions || []).map((c: any) => {
-              const actualValue = currentContext[c.field];
-              if (actualValue === undefined) return false;
-              if (c.operator === 'contains') return Array.isArray(actualValue) ? actualValue.includes(c.value) : false;
-              const numVal = Number(actualValue);
-              const targetVal = Number(c.value);
-              if (c.operator === ">") return numVal > targetVal;
-              if (c.operator === "<") return numVal < targetVal;
-              if (c.operator === "==") return numVal === targetVal;
-              if (c.operator === ">=") return numVal >= targetVal;
-              if (c.operator === "<=") return numVal <= targetVal;
-              return false;
-            });
-
-            let isMatch = rule.conditionLogic === 'AND' 
-              ? evaluations.length > 0 && evaluations.every((v: boolean) => v === true)
-              : evaluations.some((v: boolean) => v === true);
-
-            if (isMatch) {
-              stats.matchesFound++;
-              const todayStr = format(new Date(), "yyyy-MM-dd");
+            // Write all consolidated proposals to Firestore
+            for (const proposal of parkProposals) {
               const existingProposal = await db.collection("proposed_tasks")
-                .where("ruleId", "==", rule.id)
-                .where("park", "==", parkData.name || parkId)
-                .where("suggestedDate", "==", todayStr)
+                .where("ruleId", "==", proposal.ruleId)
+                .where("park", "==", proposal.park)
+                .where("suggestedDate", "==", proposal.suggestedDate)
                 .limit(1).get();
 
               if (!existingProposal.empty) continue;
 
-              for (const taskTemplate of (rule.tasksToGenerate || [])) {
-                const proposalId = `prop_${Date.now()}_${rule.id}_${Math.floor(Math.random() * 1000)}`;
-                await db.collection("proposed_tasks").doc(proposalId).set({
-                  id: proposalId,
-                  ruleId: rule.id,
-                  orgId: orgId,
-                  ruleName: rule.name,
-                  title: taskTemplate.title,
-                  objective: taskTemplate.objective,
-                  park: parkData.name || parkId,
-                  assignedTo: taskTemplate.assignedTo,
-                  suggestedDate: todayStr,
-                  createdAt: new Date().toISOString(),
-                  status: "pending",
-                  triggerData: { temp: currentContext.temperature, rain: currentContext.rain, wind: currentContext.windSpeed }
-                });
-                stats.tasksProposed++;
-              }
+              const proposalId = `prop_${Date.now()}_${proposal.ruleId}_${Math.floor(Math.random() * 1000)}`;
+              await db.collection("proposed_tasks").doc(proposalId).set({
+                id: proposalId,
+                ...proposal
+              });
+              stats.tasksProposed++;
             }
-          }
         } catch (err: any) {
           console.error(`Error processing weather/rules for park ${parkData.name || parkId}:`, err?.message || err);
           stats.errors++;
@@ -290,6 +341,65 @@ function evaluateSimpleCondition(conditionValue: any, ruleCondition: any): boole
     case '<=': return numValue <= value;
     default: return false;
   }
+}
+
+function calculateSmartScore(context: any, rule: any, park: any) {
+  let score = 60;
+  const reasons: string[] = [];
+
+  // Weather urgency
+  if (context.rain > 8) {
+    score += 25;
+    reasons.push(`Heavy rain expected today (${context.rain}mm)`);
+  } else if (context.rain > 3) {
+    score += 15;
+    reasons.push(`Moderate rain expected (${context.rain}mm)`);
+  }
+
+  if (context.temperature > 28) {
+    score += 15;
+    reasons.push(`Extreme heat forecasted (${context.temperature}°C)`);
+  } else if (context.temperature > 22) {
+    score += 5;
+    reasons.push(`Warm temperature (${context.temperature}°C)`);
+  }
+
+  if (context.windSpeed > 20) {
+    score += 15;
+    reasons.push(`High wind warning (${context.windSpeed} km/h)`);
+  }
+
+  // Rule importance
+  const priorityMap: Record<string, number> = { "High": 3, "Medium": 2, "Low": 1 };
+  const rulePriority = rule.priority || "Medium";
+  const priorityValue = priorityMap[rulePriority] ?? 2;
+  score += priorityValue * 4;
+  reasons.push(`Rule Priority: ${rulePriority}`);
+
+  // Park criticality
+  const isGreenFlag = park.greenflag === true || park.greenFlagStatus === "Active";
+  const hasSports = park.features && park.features.some((f: string) => f.toLowerCase().includes("sports") || f.toLowerCase().includes("muga") || f.toLowerCase().includes("play"));
+
+  if (isGreenFlag) {
+    score += 10;
+    reasons.push("Award-winning Green Flag site");
+  }
+  if (hasSports) {
+    score += 10;
+    reasons.push("High-footfall sports/play amenities present");
+  }
+
+  const finalScore = Math.min(100, Math.max(0, Math.round(score)));
+  return { score: finalScore, reasons };
+}
+
+function interpolateTemplate(template: string, context: any, parkName: string): string {
+  if (!template) return "";
+  return template
+    .replace(/\{\{park\}\}/gi, parkName)
+    .replace(/\{\{temperature\}\}/gi, `${context.temperature || 0}°C`)
+    .replace(/\{\{rain\}\}/gi, `${context.rain || 0}mm`)
+    .replace(/\{\{wind\}\}/gi, `${context.windSpeed || 0} km/h`);
 }
 
 /**

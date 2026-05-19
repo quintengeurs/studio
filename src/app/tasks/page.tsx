@@ -43,7 +43,12 @@ import {
   Bot,
   CheckCircle2,
   X,
-  LayoutGrid
+  LayoutGrid,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  CheckSquare,
+  TrendingUp
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
@@ -91,6 +96,8 @@ export default function TasksPage() {
   const { profile, permissions, isAdmin, currentUserRoles, effectiveOrgId } = useUserContext();
   const { allUsers: users, allParks: allDetails, getIssues, registryConfig: contextRegistry } = useDataContext();
   const [allIssues, setAllIssues] = useState<Issue[]>([]);
+  const [selectedProposals, setSelectedProposals] = useState<string[]>([]);
+  const [expandedProposals, setExpandedProposals] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchIssues = async () => {
@@ -103,6 +110,57 @@ export default function TasksPage() {
     };
     fetchIssues();
   }, [getIssues]);
+
+  const handleBulkApprove = async () => {
+    if (!db || selectedProposals.length === 0) return;
+    setIsSubmitting(true);
+    try {
+      const batchApprovals = selectedProposals.map(async (id) => {
+        const prop = proposedTasks.find((p: any) => p.id === id);
+        if (!prop) return;
+        const taskId = `task_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        await setDoc(doc(db, "tasks", taskId), {
+          id: taskId,
+          title: prop.title,
+          objective: prop.objective,
+          park: prop.park,
+          assignedTo: prop.assignedTo,
+          status: "Todo",
+          priority: "Medium",
+          dueDate: prop.suggestedDate,
+          source: 'smart-engine',
+          ruleId: prop.ruleId,
+          orgId: prop.orgId || effectiveOrgId,
+          createdAt: new Date().toISOString()
+        });
+        await setDoc(doc(db, "proposed_tasks", prop.id), { status: "approved" }, { merge: true });
+      });
+      await Promise.all(batchApprovals);
+      setSelectedProposals([]);
+      toast({ title: "Bulk Approved!", description: `Successfully promoted ${selectedProposals.length} suggestions to live tasks.` });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed bulk approval operation.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBulkDismiss = async () => {
+    if (!db || selectedProposals.length === 0) return;
+    setIsSubmitting(true);
+    try {
+      const batchDismissals = selectedProposals.map(async (id) => {
+        await setDoc(doc(db, "proposed_tasks", id), { status: "dismissed" }, { merge: true });
+      });
+      await Promise.all(batchDismissals);
+      setSelectedProposals([]);
+      toast({ title: "Bulk Dismissed!", description: `Successfully dismissed ${selectedProposals.length} suggestions.` });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed bulk dismissal operation.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const [taskLimit, setTaskLimit] = useState(25);
   const [archivedLimit, setArchivedLimit] = useState(25);
@@ -152,6 +210,35 @@ export default function TasksPage() {
     ) : null,
   [db, effectiveOrgId]);
   const { data: proposedTasks = [] } = useCollection<any>(proposedTasksQuery as any);
+
+  const last7DaysProposalsQuery = useMemoFirebase(() => {
+    if (!db || !effectiveOrgId) return null;
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return query(
+      collection(db, "proposed_tasks"),
+      where("orgId", "==", effectiveOrgId),
+      where("createdAt", ">=", sevenDaysAgo.toISOString())
+    );
+  }, [db, effectiveOrgId]);
+  const { data: recentProposals = [] } = useCollection<any>(last7DaysProposalsQuery as any);
+
+  const acceptanceRateStats = useMemo(() => {
+    const total = recentProposals.length;
+    const approved = recentProposals.filter(p => p.status === "approved").length;
+    const dismissed = recentProposals.filter(p => p.status === "dismissed").length;
+    const rate = total > 0 ? Math.round(((approved) / (approved + dismissed || 1)) * 100) : 100;
+    
+    // Baselines for display if empty
+    const finalRate = (approved + dismissed > 0) ? rate : 100;
+
+    return {
+      total,
+      approved,
+      dismissed,
+      rate: finalRate
+    };
+  }, [recentProposals]);
 
   const automationLogQuery = useMemoFirebase(() => 
     db ? query(
@@ -906,6 +993,107 @@ export default function TasksPage() {
                 </div>
               )}
 
+              {/* Dynamic Statistics Panel */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                {/* Acceptance Rate Card */}
+                <Card className="bg-gradient-to-br from-indigo-50/30 to-white border border-indigo-100 shadow-sm overflow-hidden">
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">7-Day Acceptance Rate</p>
+                      <p className="text-3xl font-extrabold text-indigo-950">{acceptanceRateStats.rate}%</p>
+                      <p className="text-[10px] text-indigo-600/70 font-semibold flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" /> Based on recent actions
+                      </p>
+                    </div>
+                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                      <CheckSquare className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Total Checked Parks Card */}
+                <Card className="bg-gradient-to-br from-emerald-50/30 to-white border border-emerald-100 shadow-sm overflow-hidden">
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Checked Today</p>
+                      <p className="text-3xl font-extrabold text-emerald-950">
+                        {latestLog?.stats?.parksChecked || allDetails.length || 0}
+                      </p>
+                      <p className="text-[10px] text-emerald-600/70 font-semibold">Active green spaces checked</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                      <MapPin className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Total Rule Matches Card */}
+                <Card className="bg-gradient-to-br from-orange-50/30 to-white border border-orange-100 shadow-sm overflow-hidden">
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Total Matches Found</p>
+                      <p className="text-3xl font-extrabold text-orange-950">
+                        {latestLog?.stats?.matchesFound || proposedTasks.length}
+                      </p>
+                      <p className="text-[10px] text-orange-600/70 font-semibold flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Urgency evaluation complete
+                      </p>
+                    </div>
+                    <div className="h-12 w-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                      <Sparkles className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Bulk Actions Controller */}
+              {proposedTasks.length > 0 && (
+                <div className="p-4 bg-orange-50/30 border border-orange-200/50 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 mb-2 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox"
+                      className="rounded border-orange-300 text-orange-600 focus:ring-orange-500 h-5 w-5 accent-orange-500 cursor-pointer"
+                      checked={proposedTasks.length > 0 && selectedProposals.length === proposedTasks.length}
+                      onChange={() => {
+                        const allPendingIds = proposedTasks.map((p: any) => p.id);
+                        if (selectedProposals.length === allPendingIds.length) {
+                          setSelectedProposals([]);
+                        } else {
+                          setSelectedProposals(allPendingIds);
+                        }
+                      }}
+                    />
+                    <div>
+                      <p className="text-xs font-extrabold text-foreground">
+                        {selectedProposals.length === 0 ? "Select suggestions for bulk action" : `${selectedProposals.length} suggestions selected`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground font-semibold">Select multiple to approve or dismiss in a single click</p>
+                    </div>
+                  </div>
+                  {selectedProposals.length > 0 && (
+                    <div className="flex gap-2 w-full sm:w-auto shrink-0">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="flex-1 sm:flex-none font-bold text-destructive hover:bg-destructive/10"
+                        onClick={handleBulkDismiss}
+                        disabled={isSubmitting}
+                      >
+                        <X className="h-4 w-4 mr-1.5" /> Dismiss Selected
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 sm:flex-none font-bold bg-orange-500 hover:bg-orange-600 text-white"
+                        onClick={handleBulkApprove}
+                        disabled={isSubmitting}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" /> Approve Selected
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-col gap-1 mb-2">
                 <h3 className="text-lg font-bold flex items-center gap-2 text-primary">
                   <Bot className="h-5 w-5" /> Smart Suggestions
@@ -915,82 +1103,139 @@ export default function TasksPage() {
 
               {proposedTasks.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {proposedTasks.map((prop: any) => (
-                    <Card key={prop.id} className="border-2 border-orange-100 shadow-sm hover:shadow-md transition-all overflow-hidden bg-orange-50/20">
-                      <CardHeader className="pb-3 bg-orange-50/50">
-                        <div className="flex justify-between items-start gap-4">
-                          <Badge variant="outline" className="bg-white text-orange-600 border-orange-200 text-[9px] uppercase font-bold tracking-wider">
-                            <Sparkles className="h-3 w-3 mr-1" /> {prop.ruleName || "Smart Suggestion"}
-                          </Badge>
-                          <span className="text-[10px] font-bold text-muted-foreground">
-                            {prop.suggestedDate}
-                          </span>
-                        </div>
-                        <CardTitle className="text-md mt-2 font-bold">{prop.title}</CardTitle>
-                        <CardDescription className="text-xs line-clamp-2">{prop.objective}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="py-4">
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2 text-[11px] font-bold text-primary/70">
-                            <MapPin className="h-3.5 w-3.5" /> {prop.park}
+                  {proposedTasks.map((prop: any) => {
+                    const score = prop.smartScore || 60;
+                    const scoreBadgeColor = score >= 80 ? 'bg-red-50 text-red-700 border-red-200' :
+                                            score >= 70 ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                            'bg-blue-50 text-blue-700 border-blue-200';
+                    const isExpanded = expandedProposals[prop.id] === true;
+                    const isSelected = selectedProposals.includes(prop.id);
+
+                    return (
+                      <Card key={prop.id} className={`border-2 shadow-sm hover:shadow-md transition-all overflow-hidden bg-orange-50/20 ${
+                        isSelected ? 'border-orange-500 bg-orange-50/40' : 'border-orange-100'
+                      }`}>
+                        <CardHeader className="pb-3 bg-orange-50/50 relative">
+                          <div className="absolute top-4 left-4">
+                            <input 
+                              type="checkbox"
+                              className="rounded border-orange-300 text-orange-600 focus:ring-orange-500 h-4.5 w-4.5 accent-orange-500 cursor-pointer"
+                              checked={isSelected}
+                              onChange={() => {
+                                if (isSelected) {
+                                  setSelectedProposals(prev => prev.filter(id => id !== prop.id));
+                                } else {
+                                  setSelectedProposals(prev => [...prev, prop.id]);
+                                }
+                              }}
+                            />
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] font-bold text-primary/70">
-                            <UserIcon className="h-3.5 w-3.5" /> Assigned to: {prop.assignedTo}
+                          <div className="flex justify-between items-start gap-4 pl-7">
+                            <Badge variant="outline" className={`text-[9px] uppercase font-bold tracking-wider ${scoreBadgeColor}`}>
+                              <Sparkles className="h-3 w-3 mr-1" /> {prop.ruleName || "Smart Suggestion"}
+                            </Badge>
+                            <span className="text-[10px] font-bold text-muted-foreground shrink-0">
+                              {prop.suggestedDate}
+                            </span>
                           </div>
-                          {prop.triggerData && (
-                            <div className="mt-2 p-2 rounded bg-white border border-orange-100 text-[10px] italic text-orange-700">
-                              Trigger Context: {prop.triggerData.temp}°C, {prop.triggerData.rain}mm rain
+                          <div className="flex items-center gap-2 mt-2.5">
+                            <Badge variant="secondary" className="text-[10px] font-extrabold bg-white border shadow-sm">
+                              Score: {score}/100
+                            </Badge>
+                          </div>
+                          <CardTitle className="text-md mt-2 font-bold pl-1">{prop.title}</CardTitle>
+                          <CardDescription className="text-xs line-clamp-2 pl-1">{prop.objective}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="py-4">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2 text-[11px] font-bold text-primary/70">
+                              <MapPin className="h-3.5 w-3.5" /> {prop.park}
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="grid grid-cols-2 gap-2 border-t pt-4 bg-white">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="font-bold text-destructive hover:bg-destructive/10"
-                          onClick={async () => {
-                            if (!db) return;
-                            await setDoc(doc(db, "proposed_tasks", prop.id), { status: "dismissed" }, { merge: true });
-                            toast({ title: "Suggestion Dismissed" });
-                          }}
-                        >
-                          <X className="h-4 w-4 mr-2" /> Dismiss
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          className="font-bold bg-orange-500 hover:bg-orange-600"
-                          onClick={async () => {
-                            if (!db) return;
-                            try {
-                              const taskId = `task_${Date.now()}`;
-                              // Create the real task
-                              await setDoc(doc(db, "tasks", taskId), {
-                                id: taskId,
-                                title: prop.title,
-                                objective: prop.objective,
-                                park: prop.park,
-                                assignedTo: prop.assignedTo,
-                                status: "Todo",
-                                priority: "Medium",
-                                dueDate: prop.suggestedDate,
-                                source: 'smart-engine',
-                                ruleId: prop.ruleId,
-                                createdAt: new Date().toISOString()
-                              });
-                              // Update proposal status
-                              await setDoc(doc(db, "proposed_tasks", prop.id), { status: "approved" }, { merge: true });
-                              toast({ title: "Task Approved!", description: "Suggestion has been promoted to a live task." });
-                            } catch (e) {
-                              toast({ title: "Error", description: "Failed to promote task.", variant: "destructive" });
-                            }
-                          }}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
+                            <div className="flex items-center gap-2 text-[11px] font-bold text-primary/70">
+                              <UserIcon className="h-3.5 w-3.5" /> Assigned to: {prop.assignedTo}
+                            </div>
+                            {prop.triggerData && (
+                              <div className="mt-1 p-2 rounded bg-white border border-orange-100 text-[10px] italic text-orange-700">
+                                Trigger Context: {prop.triggerData.temp}°C, {prop.triggerData.rain}mm rain
+                              </div>
+                            )}
+
+                            {/* Why this suggestion Expandable Section */}
+                            <div className="mt-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-between font-bold text-[10px] text-indigo-700 hover:text-indigo-800 hover:bg-indigo-50/50 mt-1 border border-indigo-100 bg-white"
+                                onClick={() => setExpandedProposals(prev => ({...prev, [prop.id]: !prev[prop.id]}))}
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <Info className="h-3.5 w-3.5" /> Why this suggestion?
+                                </span>
+                                {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                              </Button>
+
+                              {isExpanded && (
+                                <div className="p-3 rounded-xl bg-indigo-50/30 border border-indigo-100/50 mt-2 space-y-1.5 animate-in slide-in-from-top-2 duration-200">
+                                  <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Reasoning Analysis</p>
+                                  <ul className="list-disc pl-4 space-y-1">
+                                    {(prop.reasons || [`Triggered by active rule: ${prop.ruleName || "Smart Evaluation"}`]).map((reason: string, rIdx: number) => (
+                                      <li key={rIdx} className="text-[10px] text-indigo-950 font-medium leading-relaxed">{reason}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="grid grid-cols-2 gap-2 border-t pt-4 bg-white">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="font-bold text-destructive hover:bg-destructive/10"
+                            onClick={async () => {
+                              if (!db) return;
+                              await setDoc(doc(db, "proposed_tasks", prop.id), { status: "dismissed" }, { merge: true });
+                              toast({ title: "Suggestion Dismissed" });
+                            }}
+                          >
+                            <X className="h-4 w-4 mr-2" /> Dismiss
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            className="font-bold bg-orange-500 hover:bg-orange-600 text-white"
+                            onClick={async () => {
+                              if (!db) return;
+                              try {
+                                const taskId = `task_${Date.now()}`;
+                                // Create the real task
+                                await setDoc(doc(db, "tasks", taskId), {
+                                  id: taskId,
+                                  title: prop.title,
+                                  objective: prop.objective,
+                                  park: prop.park,
+                                  assignedTo: prop.assignedTo,
+                                  status: "Todo",
+                                  priority: "Medium",
+                                  dueDate: prop.suggestedDate,
+                                  source: 'smart-engine',
+                                  ruleId: prop.ruleId,
+                                  orgId: prop.orgId || effectiveOrgId,
+                                  createdAt: new Date().toISOString()
+                                });
+                                // Update proposal status
+                                await setDoc(doc(db, "proposed_tasks", prop.id), { status: "approved" }, { merge: true });
+                                toast({ title: "Task Approved!", description: "Suggestion has been promoted to a live task." });
+                              } catch (e) {
+                                toast({ title: "Error", description: "Failed to promote task.", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="py-20 text-center border-2 border-dashed rounded-3xl space-y-4 bg-muted/10">
