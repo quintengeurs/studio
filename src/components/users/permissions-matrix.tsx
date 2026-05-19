@@ -34,6 +34,7 @@ const PERMISSION_COLUMNS = [
   { key: 'scheduleInspection', label: 'Schedule Inspections', category: 'Functions' },
   { key: 'manageAssets', label: 'Manage Assets', category: 'Functions' },
   { key: 'approveResolution', label: 'Approve Resolutions', category: 'Functions' },
+  { key: 'createStaffRequest', label: 'Create Staff Requests', category: 'Functions' },
   
   { key: 'editParksFull', label: 'Edit Park (Full)', category: 'Granular' },
   { key: 'editParkDevelopment', label: 'Edit Park (Projects/Groups only)', category: 'Granular' },

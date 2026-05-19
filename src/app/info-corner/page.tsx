@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
   Megaphone, 
   Plus, 
@@ -27,7 +30,12 @@ import {
   Pencil,
   Mail,
   Home,
-  Heart
+  Heart,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  Sparkles
 } from "lucide-react";
 import { useFirestore, useCollection, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, updateDoc, doc, arrayUnion, arrayRemove } from "firebase/firestore";
@@ -55,12 +63,57 @@ export default function InfoCornerPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user } = useUser();
-  const { profile, permissions, effectiveOrgId } = useUserContext();
+  const { profile, permissions, effectiveOrgId, organization } = useUserContext();
   const { allUsers } = useDataContext();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InfoItem | null>(null);
   const [selectedItemForList, setSelectedItemForList] = useState<InfoItem | null>(null);
+
+  // Engagement settings states
+  const [disableOnboarding, setDisableOnboarding] = useState(false);
+  const [disableWhatsNew, setDisableWhatsNew] = useState(false);
+  const [whatsNewParagraphs, setWhatsNewParagraphs] = useState<string[]>([]);
+  const [newParagraphText, setNewParagraphText] = useState("");
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+
+  useEffect(() => {
+    if (organization && !settingsLoaded) {
+      setDisableOnboarding(organization.settings?.disableOnboardingTour || false);
+      setDisableWhatsNew(organization.settings?.disableWhatsNewModal || false);
+      setWhatsNewParagraphs(organization.settings?.whatsNewParagraphs || []);
+      setSettingsLoaded(true);
+    }
+  }, [organization, settingsLoaded]);
+
+  const handleSaveEngagementSettings = async () => {
+    if (!db || !effectiveOrgId || isSavingSettings) return;
+    setIsSavingSettings(true);
+    try {
+      const orgRef = doc(db, "organizations", effectiveOrgId);
+      await updateDoc(orgRef, {
+        "settings.disableOnboardingTour": disableOnboarding,
+        "settings.disableWhatsNewModal": disableWhatsNew,
+        "settings.whatsNewParagraphs": whatsNewParagraphs,
+        "settings.whatsNewUpdatedAt": new Date().toISOString()
+      });
+      toast({
+        title: "Engagement Settings Saved",
+        description: "The next time staff members log in, they will receive the updated highlights.",
+      });
+    } catch (e: any) {
+      console.error(e);
+      toast({
+        title: "Failed to save settings",
+        description: e.message || "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const infoQuery = useMemoFirebase(() => {
     if (!db || !effectiveOrgId) return null;
@@ -136,6 +189,171 @@ export default function InfoCornerPage() {
         )
       }
     >
+      {permissions.manageInfoCorner && settingsLoaded && (
+        <Card className="mb-8 border-2 border-primary/20 bg-card shadow-lg overflow-hidden transition-all duration-300">
+          <CardHeader className="bg-primary/5 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sliders className="h-6 w-6 text-primary animate-pulse" />
+                <div>
+                  <CardTitle className="font-headline text-xl text-primary font-bold">Engagement & Onboarding Tools</CardTitle>
+                  <CardDescription className="text-xs">
+                    Manage the system onboarding tour and configure what notifications are shown to staff on login.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsPanelExpanded(!isPanelExpanded)}
+                className="gap-1 font-bold text-xs uppercase"
+              >
+                {isPanelExpanded ? (
+                  <>Hide Controls <ChevronUp className="h-4 w-4" /></>
+                ) : (
+                  <>Show Controls <ChevronDown className="h-4 w-4" /></>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          
+          {isPanelExpanded && (
+            <CardContent className="pt-6 space-y-6 animate-in fade-in-50 duration-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Onboarding Tour Control */}
+                <div className="flex flex-col justify-between p-5 rounded-2xl border bg-muted/20 hover:bg-muted/40 transition-all">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="tour-toggle" className="text-sm font-bold text-foreground cursor-pointer">
+                        Onboarding Tour
+                      </Label>
+                      <Switch 
+                        id="tour-toggle" 
+                        checked={!disableOnboarding} 
+                        onCheckedChange={(checked) => setDisableOnboarding(!checked)} 
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed pr-6">
+                      Toggle whether brand new users are guided through the core features of the system when they first log in.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={`mt-4 w-fit text-[10px] uppercase font-bold tracking-widest ${!disableOnboarding ? 'bg-green-600/10 text-green-700 border-green-200' : 'bg-muted text-muted-foreground border-border'}`}>
+                    {!disableOnboarding ? 'Active (Recommended)' : 'Disabled'}
+                  </Badge>
+                </div>
+
+                {/* What's New Modal Control */}
+                <div className="flex flex-col justify-between p-5 rounded-2xl border bg-muted/20 hover:bg-muted/40 transition-all">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="whats-new-toggle" className="text-sm font-bold text-foreground cursor-pointer">
+                        'What's New' Highlights Pop-up
+                      </Label>
+                      <Switch 
+                        id="whats-new-toggle" 
+                        checked={!disableWhatsNew} 
+                        onCheckedChange={(checked) => setDisableWhatsNew(!checked)} 
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed pr-6">
+                      Toggle whether a popup highlighting new system releases and internal announcements is shown to staff.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={`mt-4 w-fit text-[10px] uppercase font-bold tracking-widest ${!disableWhatsNew ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-border'}`}>
+                    {!disableWhatsNew ? 'Active' : 'Disabled'}
+                  </Badge>
+                </div>
+              </div>
+
+              {!disableWhatsNew && (
+                <div className="pt-4 border-t space-y-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-primary" /> Customize Pop-up Content
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Add customized paragraphs below. Creating paragraphs here will replace the standard system announcements with your organization's custom notifications.
+                    </p>
+                  </div>
+
+                  {/* Paragraph List */}
+                  <div className="space-y-3">
+                    {whatsNewParagraphs.length === 0 ? (
+                      <div className="text-center py-8 rounded-2xl border-2 border-dashed bg-muted/10">
+                        <Info className="h-8 w-8 text-muted-foreground/60 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">No custom paragraphs configured yet.</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">Staff currently see the default platform announcements.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                        {whatsNewParagraphs.map((para, idx) => (
+                          <div key={idx} className="flex items-start gap-4 p-4 rounded-xl border bg-card hover:border-primary/30 transition-all">
+                            <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <p className="text-xs text-foreground/80 leading-relaxed font-medium flex-1">
+                              {para}
+                            </p>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                              onClick={() => {
+                                setWhatsNewParagraphs(whatsNewParagraphs.filter((_, i) => i !== idx));
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Paragraph form */}
+                  <div className="flex gap-3">
+                    <Textarea 
+                      placeholder="Type a new highlight or announcement paragraph here..." 
+                      value={newParagraphText}
+                      onChange={(e) => setNewParagraphText(e.target.value)}
+                      className="text-xs resize-none h-16 min-h-[4rem]"
+                    />
+                    <Button 
+                      type="button" 
+                      onClick={() => {
+                        if (!newParagraphText.trim()) return;
+                        setWhatsNewParagraphs([...whatsNewParagraphs, newParagraphText.trim()]);
+                        setNewParagraphText("");
+                      }}
+                      className="h-auto shrink-0 font-bold text-xs uppercase"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Save Settings footer */}
+              <div className="flex justify-end pt-4 border-t bg-muted/10 -mx-6 -mb-6 px-6 py-4">
+                <Button 
+                  onClick={handleSaveEngagementSettings}
+                  disabled={isSavingSettings}
+                  className="gap-2 font-bold uppercase tracking-widest text-xs px-6 shadow-md"
+                >
+                  {isSavingSettings ? (
+                    "Saving Settings..."
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" /> Save & Highlight to Staff
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (

@@ -37,6 +37,7 @@ const ALL_FALSE: AccessPermissions = {
   viewSports: false,
   viewCalendar: false,
   viewRoster: false,
+  createStaffRequest: false,
 };
 
 export function getDefaultPermissionsForUser(user: User | null | undefined, fallbackEmail?: string | null): AccessPermissions {
@@ -54,6 +55,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
         viewInfoCorner: true,
         viewVolunteering: true,
         createIssue: true,
+        createStaffRequest: true,
       };
     }
     return { ...ALL_FALSE };
@@ -110,6 +112,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewSports: true,
       viewCalendar: true,
       viewRoster: true,
+      createStaffRequest: true,
     };
   }
 
@@ -159,6 +162,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
       viewSports: true,
       viewCalendar: true,
       viewRoster: true,
+      createStaffRequest: true,
     };
   }
 
@@ -172,6 +176,7 @@ export function getDefaultPermissionsForUser(user: User | null | undefined, fall
     viewInfoCorner: true,
     viewVolunteering: true,
     createIssue: true,
+    createStaffRequest: true,
   };
 }
 
@@ -211,6 +216,7 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
       manageInfoCorner: true,
       viewMap: true,
       viewVolunteering: true,
+      createStaffRequest: true,
     };
   }
 
@@ -242,6 +248,7 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
       viewInfoCorner: true,
       viewVolunteering: true,
       viewMap: roles.some(r => ['Area Manager', 'Operations Manager', 'Assistant Area Manager', 'Head Gardener'].includes(r)),
+      createStaffRequest: true,
     };
   }
 
@@ -255,6 +262,7 @@ export function getDefaultMobilePermissionsForUser(user: User | null | undefined
     viewInfoCorner: true,
     viewVolunteering: true,
     createIssue: true,
+    createStaffRequest: true,
   };
 }
 

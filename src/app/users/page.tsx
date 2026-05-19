@@ -374,7 +374,11 @@ export default function UserManagement() {
         const { uid } = result;
         const trainingString = getFinalTrainingString() || "None";
         
-        await updateDoc(doc(db, "users", uid), {
+        await setDoc(doc(db, "users", uid), {
+          name: newUser.name || "Unknown User",
+          roles: newUser.assignedRoles?.map(ar => ar.role).filter(Boolean) || ['Gardener'],
+          assignedRoles: newUser.assignedRoles || [{ role: 'Gardener', depotIds: [] }],
+          isOnRoster: newUser.isOnRoster || false,
           training: trainingString,
           depots: Array.from(new Set(newUser.assignedRoles?.flatMap(ar => ar.depotIds) || [])),
           depot: newUser.assignedRoles?.[0]?.depotIds?.[0] || "",
@@ -383,7 +387,7 @@ export default function UserManagement() {
           phone: newUser.phone || "",
           radioCallSign: newUser.radioCallSign || "",
           avatar: newUser.avatar || ""
-        });
+        }, { merge: true });
 
         toast({ title: "User Created", description: `${newUser.name} has been added and claims assigned.` });
         setIsAddDialogOpen(false);
@@ -428,6 +432,8 @@ export default function UserManagement() {
       role:               selectedUser.assignedRoles?.[0]?.role ?? selectedUser.role ?? "Staff",
       roles:              (selectedUser.assignedRoles ?? []).map(ar => ar.role).filter(Boolean),
       assignedRoles:      selectedUser.assignedRoles ?? [],
+      roleIds:            selectedUser.roleIds ?? [],
+      isOnRoster:         selectedUser.isOnRoster ?? false,
       depot:              selectedUser.assignedRoles?.[0]?.depotIds?.[0] ?? "",
       depots:             derivedDepots,
       orgId:              selectedUser.orgId ?? effectiveOrgId ?? "hackney-council",
@@ -1622,6 +1628,7 @@ export default function UserManagement() {
                       { key: 'scheduleInspection', label: 'Schedule Inspections' },
                       { key: 'manageAssets', label: 'Manage Assets' },
                       { key: 'approveResolution', label: 'Approve Resolutions' },
+                      { key: 'createStaffRequest', label: 'Create Staff Requests' },
                       { key: 'editParksFull', label: 'Edit Parks (Full)' },
                       { key: 'editDepotsFull', label: 'Edit Depots (Full)' },
                     ] as { key: keyof AccessPermissions; label: string }[]).map((item) => (
@@ -2220,7 +2227,7 @@ export default function UserManagement() {
                         { key: 'viewParks', label: 'Parks Management' },
                         { key: 'viewDepots', label: 'Depot Controls' },
                         { key: 'viewAssets', label: 'Asset Register' },
-                        { key: 'viewUsers', label: 'Staff Management' },
+                        { key: 'viewUsers', label: 'Users' },
                         { key: 'viewEvents', label: 'Events Hub' },
                         { key: 'viewProjects', label: 'Projects Hub' },
                         { key: 'viewOperational', label: 'Operational Hub' },
@@ -2235,6 +2242,7 @@ export default function UserManagement() {
                         { key: 'manageAssets', label: 'Edit Infrastructure' },
                         { key: 'editParksFull', label: 'Admin: Edit Park Data' },
                         { key: 'manageInfoCorner', label: 'Manage Info Corner' },
+                        { key: 'createStaffRequest', label: 'Create Staff Requests' },
                       ] as { key: keyof AccessPermissions; label: string }[]).map((item) => {
                         if (!selectedRole) return null;
                         return (

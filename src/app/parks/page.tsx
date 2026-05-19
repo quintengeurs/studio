@@ -67,12 +67,12 @@ export default function ParksPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const usersQuery = useMemoFirebase(() => 
-    (db && effectiveOrgId) ? query(
+    (db && effectiveOrgId && contextIsAdmin) ? query(
       collection(db, "users"), 
       where("orgId", "==", effectiveOrgId),
       where("isArchived", "==", false)
     ) : null, 
-  [db, effectiveOrgId]);
+  [db, effectiveOrgId, contextIsAdmin]);
   const { data: allUsers = [] } = useCollection<User>(usersQuery as any);
   
   const detailsQuery = useMemoFirebase(() => 
@@ -90,7 +90,7 @@ export default function ParksPage() {
   const { data: parkPermsConfig } = useDoc<ParkPermissionsConfig>(parkPermsRef as any);
 
   const rolesQuery = useMemoFirebase(() => 
-    (db && effectiveOrgId) ? query(collection(db, "role_templates"), where("orgId", "==", effectiveOrgId)) : null, 
+    (db && effectiveOrgId) ? query(collection(db, "organizations", effectiveOrgId, "role_templates")) : null, 
   [db, effectiveOrgId]);
   const { data: allRoleTemplates = [] } = useCollection<RoleTemplate>(rolesQuery as any);
 
@@ -172,8 +172,12 @@ export default function ParksPage() {
       return map;
     }
 
-    // Get templates assigned to current user
-    const assignedTemplates = allRoleTemplates.filter(t => (currentUserData?.roleIds || []).includes(t.id));
+    // Get templates assigned to current user by ID or legacy Name matching
+    const userRoleIds = currentUserData?.roleIds || [];
+    const assignedTemplates = allRoleTemplates.filter(t => 
+      userRoleIds.includes(t.id) || 
+      (currentUserRoles as string[]).includes(t.name)
+    );
     
     // Use the unified permission engine
     return getEffectiveParkPermissions(currentUserData, assignedTemplates, parkPermsConfig || null);

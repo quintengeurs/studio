@@ -50,7 +50,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read:   if isMaster() || request.auth.uid == userId;
       allow create: if isAuth();
-      allow update: if isMaster() || request.auth.uid == userId;
+      allow update: if isMaster() || request.auth.uid == userId || (isAuth() && request.auth.token.email.matches('(?i)' + resource.data.email));
       allow delete: if isMaster();
     }
 

@@ -287,6 +287,11 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const { isManagement, isAdmin, permissions } = useUserContext();
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<SpotlightRect | null>(null);
+  const [domReady, setDomReady] = useState(false);
+
+  useEffect(() => {
+    setDomReady(true);
+  }, []);
 
   // Filter steps based on role and permissions
   const activeSteps = React.useMemo(() => {
@@ -296,9 +301,18 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
       // Role gate
       if (step.roles === "management" && !isManagement && !isAdmin) return false;
       if (step.roles === "operative" && (isManagement || isAdmin)) return false;
+      
+      // Target presence check: dynamic gating for hidden/removed elements
+      if (domReady && step.target) {
+        const el = document.querySelector(step.target);
+        if (!el) return false;
+        
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
       return true;
     });
-  }, [isManagement, isAdmin, permissions]);
+  }, [isManagement, isAdmin, permissions, domReady]);
 
   const currentStep = activeSteps[stepIndex];
 

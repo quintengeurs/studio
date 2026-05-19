@@ -132,8 +132,8 @@ export function AppSidebar() {
 
   const showNewRequest = useMemo(() => {
     const hasFeature = organization?.activeFeatures?.includes('requests');
-    return !profileRoles.includes('Contractor') && hasFeature;
-  }, [profileRoles, organization]);
+    return !!permissions.createStaffRequest && hasFeature;
+  }, [permissions.createStaffRequest, organization]);
 
   const handleLogout = async () => {
     localStorage.removeItem('impersonatedOrgId');

@@ -45,6 +45,7 @@ export interface AccessPermissions {
   scheduleInspection: boolean;
   manageAssets: boolean;
   approveResolution: boolean;
+  createStaffRequest: boolean;
 
   // Granular Edits
   editParksFull: boolean;
@@ -76,6 +77,10 @@ export interface Organization {
     defaultTimezone?: string;
     allowPublicVolunteers?: boolean;
     requireTaskApproval?: boolean;
+    disableOnboardingTour?: boolean;
+    disableWhatsNewModal?: boolean;
+    whatsNewParagraphs?: string[];
+    whatsNewUpdatedAt?: string;
   };
   createdAt: string;
 }
@@ -123,6 +128,7 @@ export interface User {
   hasCompletedVolunteerOnboarding?: boolean;
   lastActive?: string;
   seenAnnouncementIds?: string[];
+  seenWhatsNewAt?: string;
   isOnRoster?: boolean;
 }
 

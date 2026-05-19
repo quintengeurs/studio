@@ -45,35 +45,28 @@ import { User as UserType, OPERATIVE_ROLES } from "@/lib/types";
 import { format, isToday, isThisWeek, isThisMonth, parseISO, isBefore, startOfDay } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDataContext } from "@/context/DataContext";
+import { useUserContext } from "@/context/UserContext";
 
 export default function MyTasksPage() {
   const { toast } = useToast();
   const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useUser();
+  const { profile: currentUserProfile, isAdmin } = useUserContext();
   
   // Fetch all users to find colleagues and current profile
   const usersQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !isAdmin) return null;
     return query(collection(db, "users"), limit(100));
-  }, [db]);
+  }, [db, isAdmin]);
   const { data: allUsers = [] } = useCollection<UserType>(usersQuery as any);
   const { allParks } = useDataContext();
 
-  // Dynamic current user profile
-  const currentUserProfile = useMemo(() => 
-    allUsers.find(u => u.email?.toLowerCase() === user?.email?.toLowerCase()),
-  [allUsers, user?.email]);
-  
   const currentUserName = useMemo(() => {
     if (currentUserProfile?.name) return currentUserProfile.name;
     if (user?.email?.toLowerCase() === 'quinten.geurs@gmail.com') return "Quinten (Admin)";
     return user?.displayName || user?.email || "";
   }, [currentUserProfile, user]);
-
-  const isAdmin = useMemo(() => 
-    currentUserProfile?.role === 'Admin' || user?.email?.toLowerCase() === 'quinten.geurs@gmail.com',
-  [currentUserProfile, user?.email]);
   
   const isOperational = useMemo(() => 
     currentUserProfile?.role && OPERATIVE_ROLES.includes(currentUserProfile.role),
