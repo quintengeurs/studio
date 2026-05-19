@@ -57,17 +57,57 @@ async function processAllRules() {
       rulesSnap.forEach((doc: any) => rules.push({ id: doc.id, ...doc.data() }));
 
       const parksSnap = await db.collection("parks_details").where("orgId", "==", orgId).get();
+      console.log(`Retrieved ${parksSnap.docs.length} parks for orgId: ${orgId}`);
+
       for (const parkDoc of parksSnap.docs) {
         const parkData = parkDoc.data();
         const parkId = parkDoc.id;
-        if (!parkData.latitude || !parkData.longitude) continue;
+        
+        let latitude = Number(parkData.latitude);
+        let longitude = Number(parkData.longitude);
+
+        console.log(`Park: ${parkData.name || parkId}, raw lat: ${parkData.latitude}, raw lng: ${parkData.longitude}`);
+
+        if (!parkData.latitude || !parkData.longitude) {
+          console.log(`Skipping park ${parkData.name || parkId} due to missing latitude or longitude.`);
+          continue;
+        }
+
+        // Validate and sanitize coordinates
+        if (Math.abs(longitude) > 180 || Math.abs(latitude) > 90) {
+          console.warn(`Park ${parkData.name || parkId} has invalid coordinates (lat: ${latitude}, lng: ${longitude}). Attempting to sanitize...`);
+          if (parkId === "Clissold Park" || parkData.name === "Clissold Park") {
+            latitude = 51.561408;
+            longitude = -0.08211; // Correcting 8211 to -0.08211 based on Hackney location
+            await db.collection("parks_details").doc(parkId).update({ latitude, longitude });
+            console.log(`Successfully sanitized and updated Clissold Park coordinates in DB: lat: ${latitude}, lng: ${longitude}`);
+          } else {
+            // General fallback sanitization: if longitude is > 180, check if it's a shifted decimal
+            if (Math.abs(longitude) > 180) {
+              const strLng = String(parkData.longitude);
+              if (strLng.includes("8211")) {
+                longitude = -0.08211;
+                await db.collection("parks_details").doc(parkId).update({ longitude });
+                console.log(`Sanitized longitude for ${parkData.name || parkId} to: ${longitude}`);
+              } else {
+                console.log(`Skipping park ${parkData.name || parkId} due to unsanitizable coordinates.`);
+                continue;
+              }
+            } else {
+              console.log(`Skipping park ${parkData.name || parkId} due to invalid coordinates.`);
+              continue;
+            }
+          }
+        }
+
         stats.parksChecked++;
 
         try {
+          console.log(`Fetching weather for park ${parkData.name || parkId} at lat: ${latitude}, lng: ${longitude}`);
           const weatherResponse = await axios.get("https://api.open-meteo.com/v1/forecast", {
             params: {
-              latitude: parkData.latitude,
-              longitude: parkData.longitude,
+              latitude: latitude,
+              longitude: longitude,
               daily: "temperature_2m_max,precipitation_sum,wind_speed_10m_max",
               timezone: "Europe/London",
               forecast_days: 1
@@ -75,16 +115,22 @@ async function processAllRules() {
           });
 
           const forecast = weatherResponse.data.daily;
+          if (!forecast) {
+            throw new Error("No daily forecast data returned from Open-Meteo");
+          }
+
           const currentContext: any = {
-            temperature: forecast.temperature_2m_max[0],
-            rain: forecast.precipitation_sum[0],
-            windSpeed: forecast.wind_speed_10m_max[0],
+            temperature: forecast.temperature_2m_max?.[0] ?? 0,
+            rain: forecast.precipitation_sum?.[0] ?? 0,
+            windSpeed: forecast.wind_speed_10m_max?.[0] ?? 0,
             tags: []
           };
 
           if (currentContext.rain > 2) currentContext.tags.push("rain");
           if (currentContext.temperature > 25) currentContext.tags.push("sunny");
           if (currentContext.windSpeed > 20) currentContext.tags.push("windy");
+
+          console.log(`Weather fetch successful for ${parkData.name || parkId}. Context:`, JSON.stringify(currentContext));
 
           for (const rule of rules) {
             stats.rulesProcessed++;
@@ -145,6 +191,7 @@ async function processAllRules() {
             }
           }
         } catch (err: any) {
+          console.error(`Error processing weather/rules for park ${parkData.name || parkId}:`, err?.message || err);
           stats.errors++;
         }
       }
